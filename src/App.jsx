@@ -44,14 +44,14 @@ function AmbientBG() {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
       <div style={{
-        position: "absolute", width: 340, height: 340, borderRadius: "50%",
+        position: "absolute", width: "80vw", maxWidth: 340, height: "80vw", maxHeight: 340, borderRadius: "50%",
         background: "radial-gradient(circle, rgba(212,165,55,0.08) 0%, transparent 70%)",
-        top: -80, right: -60, filter: "blur(40px)"
+        top: "-10vw", right: "-8vw", filter: "blur(40px)"
       }} />
       <div style={{
-        position: "absolute", width: 260, height: 260, borderRadius: "50%",
+        position: "absolute", width: "65vw", maxWidth: 260, height: "65vw", maxHeight: 260, borderRadius: "50%",
         background: "radial-gradient(circle, rgba(180,120,40,0.06) 0%, transparent 70%)",
-        bottom: 120, left: -80, filter: "blur(50px)"
+        bottom: "15vh", left: "-10vw", filter: "blur(50px)"
       }} />
       <div style={{
         position: "absolute", inset: 0,
@@ -68,7 +68,9 @@ function GlassCard({ children, style, onClick, animate = true, delay = 0 }) {
     backdropFilter: "blur(16px)",
     WebkitBackdropFilter: "blur(16px)",
     border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 16, padding: "16px", ...style,
+    borderRadius: "clamp(12px, 3.5vw, 16px)",
+    padding: "clamp(12px, 3.5vw, 16px)",
+    ...style,
   };
   if (!animate) return <div style={base} onClick={onClick}>{children}</div>;
   return (
@@ -100,11 +102,12 @@ function TabBar({ active, onChange }) {
   return (
     <div style={{
       position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
-      background: "rgba(13,11,8,0.92)", backdropFilter: "blur(20px)",
+      background: "rgba(13,11,8,0.95)", backdropFilter: "blur(20px)",
       WebkitBackdropFilter: "blur(20px)",
       borderTop: "1px solid rgba(255,255,255,0.06)",
       display: "flex", justifyContent: "space-around", alignItems: "center",
-      paddingBottom: "env(safe-area-inset-bottom, 8px)", paddingTop: 6,
+      paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+      paddingTop: 8,
     }}>
       {tabs.map(t => {
         const Icon = t.icon;
@@ -113,9 +116,11 @@ function TabBar({ active, onChange }) {
           <button key={t.id} onClick={() => onChange(t.id)} style={{
             display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
             background: "none", border: "none", cursor: "pointer",
-            padding: "6px 16px", borderRadius: 12, position: "relative",
+            padding: "6px 0", minWidth: 56, minHeight: 44,
+            borderRadius: 12, position: "relative",
             color: isActive ? "#D4A537" : "rgba(255,255,255,0.35)",
             transition: "color 0.25s",
+            WebkitTapHighlightColor: "transparent",
           }}>
             {isActive && (
               <motion.div layoutId="tab-glow" style={{
@@ -141,13 +146,20 @@ function HubScreen({ userCount, myStatus, onGoTo }) {
   }, []);
 
   return (
-    <div style={{ padding: "0 20px", paddingTop: 20 }}>
+    <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: "clamp(12px, 3vw, 20px)" }}>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}
-        style={{ textAlign: "center", marginBottom: 28 }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(212,165,55,0.6)", marginBottom: 8, fontFamily: "'Cormorant Garamond', serif" }}>
+        style={{ textAlign: "center", marginBottom: "clamp(16px, 5vw, 28px)" }}>
+        <div style={{
+          fontSize: "clamp(9px, 2.5vw, 11px)", letterSpacing: "0.2em", textTransform: "uppercase",
+          color: "rgba(212,165,55,0.6)", marginBottom: 8,
+          fontFamily: "'Cormorant Garamond', serif"
+        }}>
           HONSUL BAR · SOCIAL GUIDE
         </div>
-        <div style={{ fontSize: 28, fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif", lineHeight: 1.3 }}>
+        <div style={{
+          fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300, color: "#F5E6C8",
+          fontFamily: "'Cormorant Garamond', serif", lineHeight: 1.3
+        }}>
           <AnimatePresence mode="wait">
             <motion.span key={gi} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.5 }} style={{ display: "block" }}>
@@ -157,19 +169,19 @@ function HubScreen({ userCount, myStatus, onGoTo }) {
         </div>
       </motion.div>
 
-      <GlassCard delay={0.1} style={{ textAlign: "center", padding: "20px 16px", marginBottom: 16 }}>
+      <GlassCard delay={0.1} style={{ textAlign: "center", padding: "clamp(14px, 4vw, 20px) clamp(12px, 3vw, 16px)", marginBottom: "clamp(10px, 3vw, 16px)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 6 }}>
           <PulseDot />
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>지금 이 바에</span>
+          <span style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>지금 이 바에</span>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
           <motion.span key={userCount} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            style={{ fontSize: 48, fontWeight: 200, color: "#D4A537", fontFamily: "'Cormorant Garamond', serif" }}>
+            style={{ fontSize: "clamp(36px, 10vw, 48px)", fontWeight: 200, color: "#D4A537", fontFamily: "'Cormorant Garamond', serif" }}>
             {userCount}
           </motion.span>
-          <span style={{ fontSize: 15, color: "rgba(255,255,255,0.4)" }}>명이 함께하고 있어요</span>
+          <span style={{ fontSize: "clamp(12px, 3.5vw, 15px)", color: "rgba(255,255,255,0.4)" }}>명이 함께하고 있어요</span>
         </div>
-        <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: 16, fontSize: 12 }}>
+        <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: "clamp(10px, 3vw, 16px)", fontSize: 12 }}>
           {Object.entries(STATUS_MAP).map(([k, v]) => (
             <span key={k} style={{ display: "flex", alignItems: "center", gap: 4, color: v.color }}>
               {v.icon} <span>{k === "open" ? 3 : k === "hello" ? 2 : 1}</span>
@@ -178,7 +190,7 @@ function HubScreen({ userCount, myStatus, onGoTo }) {
         </div>
       </GlassCard>
 
-      <GlassCard delay={0.2} style={{ marginBottom: 16 }}>
+      <GlassCard delay={0.2} style={{ marginBottom: "clamp(10px, 3vw, 16px)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4, letterSpacing: "0.08em" }}>나의 시그널</div>
@@ -188,28 +200,30 @@ function HubScreen({ userCount, myStatus, onGoTo }) {
                 background: STATUS_MAP[myStatus].color,
                 boxShadow: "0 0 8px " + STATUS_MAP[myStatus].color + "60"
               }} />
-              <span style={{ color: "#F5E6C8", fontSize: 15, fontWeight: 500 }}>{STATUS_MAP[myStatus].label}</span>
+              <span style={{ color: "#F5E6C8", fontSize: "clamp(13px, 3.5vw, 15px)", fontWeight: 500 }}>{STATUS_MAP[myStatus].label}</span>
             </div>
           </div>
           <button onClick={() => onGoTo("status")} style={{
             background: "rgba(212,165,55,0.12)", border: "1px solid rgba(212,165,55,0.2)",
-            borderRadius: 10, padding: "8px 14px", color: "#D4A537", fontSize: 12,
-            cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+            borderRadius: 10, padding: "8px 14px", color: "#D4A537",
+            fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+            minHeight: 44, WebkitTapHighlightColor: "transparent",
           }}>
             변경 <ChevronRight size={14} />
           </button>
         </div>
       </GlassCard>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "clamp(8px, 2.5vw, 12px)", marginBottom: "clamp(10px, 3vw, 16px)" }}>
         {[
           { label: "토크 월", sub: "익명 피드", icon: <MessageSquare size={20} />, tab: "wall", delay: 0.3 },
           { label: "뉴비 퀘스트", sub: "미션 도전", icon: <Trophy size={20} />, tab: "quest", delay: 0.35 },
         ].map(item => (
-          <GlassCard key={item.tab} delay={item.delay} onClick={() => onGoTo(item.tab)} style={{ cursor: "pointer", padding: "18px 14px" }}>
+          <GlassCard key={item.tab} delay={item.delay} onClick={() => onGoTo(item.tab)}
+            style={{ cursor: "pointer", padding: "clamp(14px, 4vw, 18px) clamp(10px, 3vw, 14px)", minHeight: 44, WebkitTapHighlightColor: "transparent" }}>
             <div style={{ color: "#D4A537", marginBottom: 10 }}>{item.icon}</div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: "#F5E6C8", marginBottom: 2 }}>{item.label}</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)" }}>{item.sub}</div>
+            <div style={{ fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500, color: "#F5E6C8", marginBottom: 2 }}>{item.label}</div>
+            <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.35)" }}>{item.sub}</div>
           </GlassCard>
         ))}
       </div>
@@ -219,7 +233,7 @@ function HubScreen({ userCount, myStatus, onGoTo }) {
           <Sparkles size={16} style={{ color: "#D4A537", marginTop: 2, flexShrink: 0 }} />
           <div>
             <div style={{ fontSize: 12, color: "#D4A537", fontWeight: 500, marginBottom: 4 }}>오늘의 팁</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>
+            <div style={{ fontSize: "clamp(12px, 3vw, 13px)", color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>
               바텐더에게 "추천 한 잔"이라고 말해보세요. 대화의 시작이 됩니다.
             </div>
           </div>
@@ -231,9 +245,9 @@ function HubScreen({ userCount, myStatus, onGoTo }) {
 
 function StatusScreen({ myStatus, setMyStatus, users }) {
   return (
-    <div style={{ padding: "0 20px", paddingTop: 16 }}>
+    <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>SOCIAL SIGNAL</div>
-      <div style={{ fontSize: 22, fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif", marginBottom: 24 }}>
+      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif", marginBottom: 24 }}>
         나의 시그널 설정
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
@@ -242,22 +256,23 @@ function StatusScreen({ myStatus, setMyStatus, users }) {
           return (
             <GlassCard key={key} delay={i * 0.08} onClick={() => setMyStatus(key)}
               style={{
-                cursor: "pointer", padding: "16px 18px",
+                cursor: "pointer", padding: "clamp(12px, 3.5vw, 16px) clamp(14px, 4vw, 18px)",
                 borderColor: active ? val.color + "50" : "rgba(255,255,255,0.07)",
                 background: active ? val.color + "10" : "rgba(255,255,255,0.04)",
                 transition: "all 0.3s ease",
+                minHeight: 44, WebkitTapHighlightColor: "transparent",
               }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 2.5vw, 12px)" }}>
                   <motion.div animate={active ? { scale: [1, 1.2, 1] } : {}} transition={{ duration: 0.4 }}
                     style={{
-                      width: 36, height: 36, borderRadius: 12,
+                      width: "clamp(32px, 8vw, 36px)", height: "clamp(32px, 8vw, 36px)", borderRadius: 12,
                       background: val.color + (active ? "25" : "10"),
                       display: "flex", alignItems: "center", justifyContent: "center", color: val.color,
                     }}>{val.icon}</motion.div>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 500, color: active ? val.color : "#F5E6C8" }}>{val.label}</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+                    <div style={{ fontSize: "clamp(13px, 3.5vw, 15px)", fontWeight: 500, color: active ? val.color : "#F5E6C8" }}>{val.label}</div>
+                    <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
                       {key === "open" ? "누구든 편하게 말 걸어주세요" : key === "hello" ? "가벼운 인사 정도는 OK" : "조용히 시간을 보내고 싶어요"}
                     </div>
                   </div>
@@ -277,23 +292,25 @@ function StatusScreen({ myStatus, setMyStatus, users }) {
         {users.map((u, i) => {
           const st = STATUS_MAP[u.status];
           return (
-            <GlassCard key={u.id} delay={0.3 + i * 0.06} style={{ padding: "14px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <GlassCard key={u.id} delay={0.3 + i * 0.06} style={{ padding: "clamp(10px, 3vw, 14px) clamp(12px, 3.5vw, 16px)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 2.5vw, 12px)" }}>
                 <div style={{
-                  width: 40, height: 40, borderRadius: 12,
+                  width: "clamp(36px, 9vw, 40px)", height: "clamp(36px, 9vw, 40px)", borderRadius: 12,
                   background: "rgba(255,255,255,0.06)", display: "flex",
-                  alignItems: "center", justifyContent: "center", fontSize: 20,
+                  alignItems: "center", justifyContent: "center",
+                  fontSize: "clamp(16px, 4.5vw, 20px)",
                   border: "1.5px solid " + st.color + "30",
                 }}>{u.avatar}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: "#F5E6C8" }}>{u.nickname}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500, color: "#F5E6C8" }}>{u.nickname}</span>
                     <span style={{
                       fontSize: 9, padding: "2px 7px", borderRadius: 6,
-                      background: st.color + "18", color: st.color, fontWeight: 500, letterSpacing: "0.02em"
+                      background: st.color + "18", color: st.color, fontWeight: 500,
+                      letterSpacing: "0.02em", whiteSpace: "nowrap",
                     }}>{st.label}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 3 }}>
+                  <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 3 }}>
                     {u.seat} · {timeAgo(u.joinedAt)}
                   </div>
                 </div>
@@ -317,14 +334,14 @@ function QuestScreen({ completed, onComplete }) {
   }, [allDone]);
 
   return (
-    <div style={{ padding: "0 20px", paddingTop: 16 }}>
+    <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>NEWBIE QUEST</div>
-      <div style={{ fontSize: 22, fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif", marginBottom: 20 }}>
+      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif", marginBottom: 20 }}>
         아이스브레이킹 퀘스트
       </div>
-      <GlassCard delay={0.1} style={{ marginBottom: 20, textAlign: "center", padding: "20px 16px" }}>
-        <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 14px" }}>
-          <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)" }}>
+      <GlassCard delay={0.1} style={{ marginBottom: 20, textAlign: "center", padding: "clamp(14px, 4vw, 20px) clamp(12px, 3vw, 16px)" }}>
+        <div style={{ position: "relative", width: "clamp(80px, 22vw, 100px)", height: "clamp(80px, 22vw, 100px)", margin: "0 auto 14px" }}>
+          <svg width="100%" height="100%" viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)" }}>
             <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
             <motion.circle cx="50" cy="50" r="42" fill="none" stroke="#D4A537" strokeWidth="6"
               strokeLinecap="round" strokeDasharray={2 * Math.PI * 42}
@@ -336,10 +353,10 @@ function QuestScreen({ completed, onComplete }) {
             position: "absolute", inset: 0, display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center"
           }}>
-            <span style={{ fontSize: 24, fontWeight: 300, color: "#D4A537", fontFamily: "'Cormorant Garamond', serif" }}>{pct}%</span>
+            <span style={{ fontSize: "clamp(18px, 5vw, 24px)", fontWeight: 300, color: "#D4A537", fontFamily: "'Cormorant Garamond', serif" }}>{pct}%</span>
           </div>
         </div>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>{earnedXp} / {totalXp} XP 획득</div>
+        <div style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)" }}>{earnedXp} / {totalXp} XP 획득</div>
         {pct === 100 && (
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 300, delay: 0.3 }}
@@ -352,30 +369,33 @@ function QuestScreen({ completed, onComplete }) {
         {QUESTS.map((q, i) => {
           const done = completed.has(q.id);
           return (
-            <GlassCard key={q.id} delay={0.2 + i * 0.05} style={{ padding: "14px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <GlassCard key={q.id} delay={0.2 + i * 0.05} style={{ padding: "clamp(10px, 3vw, 14px) clamp(12px, 3.5vw, 16px)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 2.5vw, 12px)" }}>
                 <motion.div whileTap={!done && q.id !== "q7" ? { scale: 0.9 } : {}}
                   onClick={() => { if (!done && q.id !== "q7") onComplete(q.id); }}
                   style={{
-                    width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+                    width: "clamp(36px, 9vw, 42px)", height: "clamp(36px, 9vw, 42px)",
+                    borderRadius: 12, flexShrink: 0,
                     background: done ? "rgba(212,165,55,0.15)" : "rgba(255,255,255,0.04)",
                     border: "1.5px solid " + (done ? "rgba(212,165,55,0.3)" : "rgba(255,255,255,0.08)"),
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 18, cursor: done || q.id === "q7" ? "default" : "pointer",
+                    fontSize: "clamp(14px, 4vw, 18px)",
+                    cursor: done || q.id === "q7" ? "default" : "pointer",
                     transition: "all 0.3s",
+                    WebkitTapHighlightColor: "transparent",
                   }}>
                   {done ? <Check size={18} style={{ color: "#D4A537" }} /> : q.icon}
                 </motion.div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
-                    fontSize: 14, fontWeight: 500,
+                    fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500,
                     color: done ? "rgba(212,165,55,0.7)" : "#F5E6C8",
                     textDecoration: done ? "line-through" : "none",
                     textDecorationColor: "rgba(212,165,55,0.3)",
                   }}>{q.title}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{q.desc}</div>
+                  <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{q.desc}</div>
                 </div>
-                <span style={{ fontSize: 11, color: done ? "#D4A537" : "rgba(255,255,255,0.2)", fontWeight: 600 }}>+{q.xp}</span>
+                <span style={{ fontSize: 11, color: done ? "#D4A537" : "rgba(255,255,255,0.2)", fontWeight: 600, flexShrink: 0 }}>+{q.xp}</span>
               </div>
             </GlassCard>
           );
@@ -389,13 +409,18 @@ function SOSFAB({ onClick }) {
   return (
     <motion.button onClick={onClick} whileTap={{ scale: 0.9 }}
       style={{
-        position: "fixed", bottom: 78, right: 20, zIndex: 40,
-        width: 52, height: 52, borderRadius: 16,
+        position: "fixed",
+        bottom: "calc(68px + max(8px, env(safe-area-inset-bottom)))",
+        right: "clamp(12px, 4vw, 20px)",
+        zIndex: 40,
+        width: "clamp(46px, 12vw, 52px)", height: "clamp(46px, 12vw, 52px)",
+        borderRadius: 16,
         background: "rgba(212,165,55,0.1)", backdropFilter: "blur(12px)",
         border: "1px solid rgba(212,165,55,0.2)",
         display: "flex", alignItems: "center", justifyContent: "center",
         cursor: "pointer", color: "#D4A537",
         boxShadow: "0 4px 24px rgba(212,165,55,0.1)",
+        WebkitTapHighlightColor: "transparent",
       }}>
       <motion.div animate={{ opacity: [0.6, 1, 0.6] }} transition={{ duration: 3, repeat: Infinity }}>
         <Bell size={22} />
@@ -426,20 +451,22 @@ export default function App() {
 
   return (
     <div style={{
-      maxWidth: 430, margin: "0 auto", minHeight: "100vh", position: "relative",
+      width: "100%", maxWidth: 430, margin: "0 auto",
+      minHeight: "100vh", minHeight: "100dvh",
+      position: "relative",
       background: "#0D0B08", color: "#F5E6C8",
-      fontFamily: "'DM Sans', 'Pretendard', -apple-system, sans-serif",
+      fontFamily: "'DM Sans', 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif",
       overflowX: "hidden",
     }}>
       <style>{
-        "@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600;700&display=swap');" +
-        "* { box-sizing: border-box; margin: 0; padding: 0; }" +
-        "body { background: #0D0B08; -webkit-font-smoothing: antialiased; }" +
-        "textarea::placeholder { color: rgba(255,255,255,0.25); }" +
-        "::-webkit-scrollbar { width: 0; }"
+        "@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600;700&display=swap');"
       }</style>
       <AmbientBG />
-      <div style={{ position: "relative", zIndex: 1, paddingTop: "env(safe-area-inset-top, 16px)", paddingBottom: 90 }}>
+      <div style={{
+        position: "relative", zIndex: 1,
+        paddingTop: "max(16px, env(safe-area-inset-top))",
+        paddingBottom: "calc(70px + max(8px, env(safe-area-inset-bottom)))",
+      }}>
         <AnimatePresence mode="wait">
           <motion.div key={tab} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>

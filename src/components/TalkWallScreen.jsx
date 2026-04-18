@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Heart, HelpCircle, Loader2, WifiOff, ArrowUp } from "lucide-react";
+import { Send, Heart, HelpCircle, Loader2, WifiOff } from "lucide-react";
 import { useMessages } from "../hooks/useMessages";
 
 function timeAgo(isoString) {
@@ -33,8 +33,8 @@ function GlassCard({ children, style, delay = 0 }) {
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
         border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: 16,
-        padding: "16px",
+        borderRadius: "clamp(12px, 3.5vw, 16px)",
+        padding: "clamp(12px, 3.5vw, 16px)",
         ...style,
       }}
     >
@@ -49,24 +49,28 @@ function MessageCard({ msg, onHeart, onCurious, isHearted, delay }) {
     <GlassCard
       delay={delay}
       style={{
-        marginBottom: 10,
-        padding: "14px 16px",
+        marginBottom: "clamp(8px, 2vw, 10px)",
+        padding: "clamp(10px, 3vw, 14px) clamp(12px, 3.5vw, 16px)",
         opacity: isOptimistic ? 0.6 : 1,
         transition: "opacity 0.3s ease",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <span style={{ fontSize: 11, color: "rgba(212,165,55,0.6)", fontWeight: 500, letterSpacing: "0.02em" }}>
+        <span style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(212,165,55,0.6)", fontWeight: 500, letterSpacing: "0.02em" }}>
           {msg.nickname}
         </span>
-        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)" }}>
+        <span style={{ fontSize: "clamp(9px, 2.2vw, 10px)", color: "rgba(255,255,255,0.2)" }}>
           {isOptimistic ? "전송 중..." : timeAgo(msg.created_at)}
         </span>
       </div>
-      <div style={{ fontSize: 14, color: "#F5E6C8", lineHeight: 1.6, marginBottom: 12, wordBreak: "keep-all" }}>
+      <div style={{
+        fontSize: "clamp(13px, 3.5vw, 14px)", color: "#F5E6C8",
+        lineHeight: 1.6, marginBottom: 12,
+        wordBreak: "keep-all", overflowWrap: "break-word",
+      }}>
         {msg.content}
       </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 14 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "clamp(10px, 3vw, 14px)" }}>
         <motion.button
           whileTap={{ scale: 0.85 }}
           onClick={() => onHeart(msg.id)}
@@ -77,6 +81,9 @@ function MessageCard({ msg, onHeart, onCurious, isHearted, delay }) {
             cursor: isOptimistic ? "default" : "pointer",
             color: isHearted ? "#D4A537" : "rgba(255,255,255,0.3)",
             fontSize: 12, transition: "color 0.2s",
+            padding: "6px", minHeight: 44, minWidth: 44,
+            justifyContent: "center",
+            WebkitTapHighlightColor: "transparent",
           }}
         >
           <Heart size={15} fill={isHearted ? "#D4A537" : "none"} />
@@ -91,6 +98,9 @@ function MessageCard({ msg, onHeart, onCurious, isHearted, delay }) {
             background: "none", border: "none",
             cursor: isOptimistic ? "default" : "pointer",
             color: "rgba(255,255,255,0.3)", fontSize: 12,
+            padding: "6px", minHeight: 44, minWidth: 44,
+            justifyContent: "center",
+            WebkitTapHighlightColor: "transparent",
           }}
         >
           <HelpCircle size={15} />
@@ -141,20 +151,29 @@ export default function TalkWallScreen({ onQuestComplete }) {
   };
 
   return (
-    <div style={{ padding: "0 20px", paddingTop: 16 }}>
+    <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>TALK WALL</div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
-        <div style={{ fontSize: 22, fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif" }}>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "baseline",
+        marginBottom: "clamp(14px, 4vw, 20px)", flexWrap: "wrap", gap: 6,
+      }}>
+        <div style={{
+          fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8",
+          fontFamily: "'Cormorant Garamond', serif",
+        }}>
           익명 토크 월
         </div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", gap: 4 }}>
-          나의 닉네임:
+        <div style={{
+          fontSize: "clamp(9px, 2.5vw, 11px)", color: "rgba(255,255,255,0.25)",
+          display: "flex", alignItems: "center", gap: 4,
+        }}>
+          닉네임:
           <span style={{ color: "rgba(212,165,55,0.7)", fontWeight: 500 }}>{nickname}</span>
         </div>
       </div>
 
-      <GlassCard delay={0.1} style={{ marginBottom: 20, padding: "12px 14px" }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
+      <GlassCard delay={0.1} style={{ marginBottom: "clamp(14px, 4vw, 20px)", padding: "clamp(10px, 3vw, 12px) clamp(10px, 3vw, 14px)" }}>
+        <div style={{ display: "flex", gap: "clamp(6px, 2vw, 10px)", alignItems: "flex-end" }}>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -167,8 +186,9 @@ export default function TalkWallScreen({ onQuestComplete }) {
               flex: 1, background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.08)",
               borderRadius: 10, padding: "10px 12px", color: "#F5E6C8",
-              fontSize: 14, resize: "none", outline: "none",
+              fontSize: 16, resize: "none", outline: "none",
               fontFamily: "inherit", lineHeight: 1.5, transition: "border-color 0.2s",
+              WebkitAppearance: "none",
             }}
             onFocus={(e) => (e.target.style.borderColor = "rgba(212,165,55,0.3)")}
             onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.08)")}
@@ -178,12 +198,13 @@ export default function TalkWallScreen({ onQuestComplete }) {
             onClick={handlePost}
             disabled={!input.trim() || posting}
             style={{
-              width: 42, height: 42, borderRadius: 12, border: "none",
+              width: 44, height: 44, borderRadius: 12, border: "none",
               background: input.trim() && !posting ? "linear-gradient(135deg, #D4A537, #B8860B)" : "rgba(255,255,255,0.06)",
               color: input.trim() && !posting ? "#0D0B08" : "rgba(255,255,255,0.2)",
               cursor: input.trim() && !posting ? "pointer" : "default",
               display: "flex", alignItems: "center", justifyContent: "center",
               transition: "all 0.3s", flexShrink: 0,
+              WebkitTapHighlightColor: "transparent",
             }}
           >
             {posting ? (
@@ -195,7 +216,10 @@ export default function TalkWallScreen({ onQuestComplete }) {
             )}
           </motion.button>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6, fontSize: 10, color: "rgba(255,255,255,0.2)" }}>
+        <div style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          marginTop: 6, fontSize: "clamp(9px, 2.2vw, 10px)", color: "rgba(255,255,255,0.2)",
+        }}>
           <span>Shift+Enter로 줄바꿈</span>
           <span>{input.length}/120</span>
         </div>
@@ -203,11 +227,15 @@ export default function TalkWallScreen({ onQuestComplete }) {
 
       {error && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{
-          display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", marginBottom: 16,
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "clamp(10px, 3vw, 12px) clamp(12px, 3.5vw, 16px)",
+          marginBottom: 16,
           background: "rgba(220,60,60,0.08)", border: "1px solid rgba(220,60,60,0.15)",
-          borderRadius: 12, color: "rgba(220,130,130,0.8)", fontSize: 13,
+          borderRadius: 12, color: "rgba(220,130,130,0.8)",
+          fontSize: "clamp(11px, 3vw, 13px)",
         }}>
-          <WifiOff size={16} />연결에 문제가 있어요. 잠시 후 다시 시도해주세요.
+          <WifiOff size={16} style={{ flexShrink: 0 }} />
+          <span>연결에 문제가 있어요. 잠시 후 다시 시도해주세요.</span>
         </motion.div>
       )}
 
@@ -225,10 +253,10 @@ export default function TalkWallScreen({ onQuestComplete }) {
         <div ref={feedRef}>
           {messages.length === 0 ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
-              style={{ textAlign: "center", padding: "48px 20px", color: "rgba(255,255,255,0.2)" }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>🌙</div>
-              <div style={{ fontSize: 15, marginBottom: 4 }}>아직 아무도 글을 남기지 않았어요</div>
-              <div style={{ fontSize: 12 }}>첫 번째 이야기를 시작해 보세요</div>
+              style={{ textAlign: "center", padding: "clamp(30px, 10vw, 48px) 20px", color: "rgba(255,255,255,0.2)" }}>
+              <div style={{ fontSize: "clamp(28px, 8vw, 36px)", marginBottom: 12 }}>🌙</div>
+              <div style={{ fontSize: "clamp(13px, 3.5vw, 15px)", marginBottom: 4 }}>아직 아무도 글을 남기지 않았어요</div>
+              <div style={{ fontSize: "clamp(10px, 2.5vw, 12px)" }}>첫 번째 이야기를 시작해 보세요</div>
             </motion.div>
           ) : (
             <AnimatePresence initial={false}>

@@ -1,10 +1,35 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>honsul-bar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0D0B08" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>혼술바 소셜 가이드</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body, #root {
+        width: 100%; min-height: 100%; min-height: 100dvh;
+        background: #0D0B08;
+        overflow-x: hidden;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      body {
+        font-family: 'DM Sans', 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #F5E6C8;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+        touch-action: manipulation;
+      }
+      textarea, input, button { font-family: inherit; }s
+      textarea::placeholder { color: rgba(255,255,255,0.25); }
+      ::-webkit-scrollbar { width: 0; display: none; }
+      input, textarea { font-size: 16px !important; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
