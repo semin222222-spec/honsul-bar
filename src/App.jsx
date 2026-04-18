@@ -8,14 +8,7 @@ import {
 } from "lucide-react";
 import TalkWallScreen from "./components/TalkWallScreen";
 import SOSModal from "./components/SOSModal";
-
-const INITIAL_USERS = [
-  { id: "u1", nickname: "위스키 탐험가", status: "open", avatar: "🥃", seat: "바 3번석", joinedAt: Date.now() - 900000 },
-  { id: "u2", nickname: "맥주 초보", status: "hello", avatar: "🍺", seat: "테이블 A", joinedAt: Date.now() - 1800000 },
-  { id: "u3", nickname: "와인 러버", status: "alone", avatar: "🍷", seat: "바 1번석", joinedAt: Date.now() - 600000 },
-  { id: "u4", nickname: "하이볼 매니아", status: "open", avatar: "🧊", seat: "바 5번석", joinedAt: Date.now() - 2400000 },
-  { id: "u5", nickname: "소주 한 잔", status: "hello", avatar: "🍶", seat: "테이블 B", joinedAt: Date.now() - 300000 },
-];
+import { usePresence } from "./hooks/usePresence";
 
 const QUESTS = [
   { id: "q1", title: "바에 안착하기", desc: "자리에 앉아 첫 주문을 해보세요", icon: "🪑", xp: 10 },
@@ -137,13 +130,16 @@ function TabBar({ active, onChange }) {
   );
 }
 
-function HubScreen({ userCount, myStatus, onGoTo }) {
+function HubScreen({ userCount, myStatus, onGoTo, users }) {
   const greetings = ["오늘 밤도 수고했어요.", "이 한 잔의 여유, 당신 것입니다.", "혼자여도 외롭지 않은 밤."];
   const [gi, setGi] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setGi(p => (p + 1) % greetings.length), 5000);
     return () => clearInterval(iv);
   }, []);
+
+  const statusCounts = { open: 0, hello: 0, alone: 0 };
+  users.forEach(u => { if (statusCounts[u.status] !== undefined) statusCounts[u.status]++; });
 
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: "clamp(12px, 3vw, 20px)" }}>
@@ -184,7 +180,7 @@ function HubScreen({ userCount, myStatus, onGoTo }) {
         <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: "clamp(10px, 3vw, 16px)", fontSize: 12 }}>
           {Object.entries(STATUS_MAP).map(([k, v]) => (
             <span key={k} style={{ display: "flex", alignItems: "center", gap: 4, color: v.color }}>
-              {v.icon} <span>{k === "open" ? 3 : k === "hello" ? 2 : 1}</span>
+              {v.icon} <span>{statusCounts[k]}</span>
             </span>
           ))}
         </div>
@@ -243,7 +239,8 @@ function HubScreen({ userCount, myStatus, onGoTo }) {
   );
 }
 
-function StatusScreen({ myStatus, setMyStatus, users }) {
+function StatusScreen({ myStatus, setMyStatus, users, myId }) {
+  const otherUsers = users.filter(u => u.id !== myId);
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>SOCIAL SIGNAL</div>
@@ -287,38 +284,50 @@ function StatusScreen({ myStatus, setMyStatus, users }) {
           );
         })}
       </div>
-      <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 12 }}>지금 바에 있는 사람들</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {users.map((u, i) => {
-          const st = STATUS_MAP[u.status];
-          return (
-            <GlassCard key={u.id} delay={0.3 + i * 0.06} style={{ padding: "clamp(10px, 3vw, 14px) clamp(12px, 3.5vw, 16px)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 2.5vw, 12px)" }}>
-                <div style={{
-                  width: "clamp(36px, 9vw, 40px)", height: "clamp(36px, 9vw, 40px)", borderRadius: 12,
-                  background: "rgba(255,255,255,0.06)", display: "flex",
-                  alignItems: "center", justifyContent: "center",
-                  fontSize: "clamp(16px, 4.5vw, 20px)",
-                  border: "1.5px solid " + st.color + "30",
-                }}>{u.avatar}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500, color: "#F5E6C8" }}>{u.nickname}</span>
-                    <span style={{
-                      fontSize: 9, padding: "2px 7px", borderRadius: 6,
-                      background: st.color + "18", color: st.color, fontWeight: 500,
-                      letterSpacing: "0.02em", whiteSpace: "nowrap",
-                    }}>{st.label}</span>
-                  </div>
-                  <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 3 }}>
-                    {u.seat} · {timeAgo(u.joinedAt)}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)" }}>지금 바에 있는 사람들</span>
+        <span style={{ fontSize: 10, color: "rgba(212,165,55,0.4)", background: "rgba(212,165,55,0.08)", padding: "2px 8px", borderRadius: 8 }}>
+          {otherUsers.length}명
+        </span>
+      </div>
+      {otherUsers.length === 0 ? (
+        <GlassCard delay={0.3} style={{ textAlign: "center", padding: "30px 16px" }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>🌙</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>아직 다른 손님이 없어요</div>
+        </GlassCard>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {otherUsers.map((u, i) => {
+            const st = STATUS_MAP[u.status] || STATUS_MAP.hello;
+            return (
+              <GlassCard key={u.id} delay={0.3 + i * 0.06} style={{ padding: "clamp(10px, 3vw, 14px) clamp(12px, 3.5vw, 16px)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 2.5vw, 12px)" }}>
+                  <div style={{
+                    width: "clamp(36px, 9vw, 40px)", height: "clamp(36px, 9vw, 40px)", borderRadius: 12,
+                    background: "rgba(255,255,255,0.06)", display: "flex",
+                    alignItems: "center", justifyContent: "center",
+                    fontSize: "clamp(16px, 4.5vw, 20px)",
+                    border: "1.5px solid " + st.color + "30",
+                  }}>{u.avatar}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500, color: "#F5E6C8" }}>{u.nickname}</span>
+                      <span style={{
+                        fontSize: 9, padding: "2px 7px", borderRadius: 6,
+                        background: st.color + "18", color: st.color, fontWeight: 500,
+                        letterSpacing: "0.02em", whiteSpace: "nowrap",
+                      }}>{st.label}</span>
+                    </div>
+                    <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 3 }}>
+                      {u.seat}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </GlassCard>
-          );
-        })}
-      </div>
+              </GlassCard>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -431,10 +440,9 @@ function SOSFAB({ onClick }) {
 
 export default function App() {
   const [tab, setTab] = useState("hub");
-  const [myStatus, setMyStatus] = useState("hello");
+  const { users, userCount, myId, myStatus, setMyStatus, mySeat } = usePresence();
   const [completedQuests, setCompletedQuests] = useState(new Set(["q1"]));
   const [sosOpen, setSosOpen] = useState(false);
-  const [userCount] = useState(6);
 
   const completeQuest = useCallback((qid) => {
     setCompletedQuests(prev => {
@@ -447,7 +455,7 @@ export default function App() {
   const handleStatusChange = useCallback((s) => {
     setMyStatus(s);
     if (s === "open") completeQuest("q6");
-  }, [completeQuest]);
+  }, [setMyStatus, completeQuest]);
 
   return (
     <div style={{
@@ -470,15 +478,15 @@ export default function App() {
         <AnimatePresence mode="wait">
           <motion.div key={tab} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
-            {tab === "hub" && <HubScreen userCount={userCount} myStatus={myStatus} onGoTo={setTab} />}
-            {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={INITIAL_USERS} />}
+            {tab === "hub" && <HubScreen userCount={userCount} myStatus={myStatus} onGoTo={setTab} users={users} />}
+            {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
             {tab === "wall" && <TalkWallScreen onQuestComplete={completeQuest} />}
             {tab === "quest" && <QuestScreen completed={completedQuests} onComplete={completeQuest} />}
           </motion.div>
         </AnimatePresence>
       </div>
       <SOSFAB onClick={() => setSosOpen(true)} />
-      <SOSModal open={sosOpen} onClose={() => setSosOpen(false)} seatLabel="바 3번석" />
+      <SOSModal open={sosOpen} onClose={() => setSosOpen(false)} seatLabel={mySeat} />
       <TabBar active={tab} onChange={setTab} />
     </div>
   );
