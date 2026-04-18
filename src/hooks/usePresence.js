@@ -8,22 +8,22 @@ const RANDOM_NAMES = [
 ];
 
 const AVATARS = ["🥃", "🍺", "🍷", "🧊", "🍶", "🍸", "🍹", "🫗"];
-const SEATS = ["바 1번석", "바 2번석", "바 3번석", "바 4번석", "바 5번석", "테이블 A", "테이블 B", "테이블 C"];
 
 function randomPick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function usePresence() {
+export function usePresence(seatLabel) {
   const [users, setUsers] = useState([]);
   const [myId] = useState(() => crypto.randomUUID());
   const [myNickname] = useState(() => randomPick(RANDOM_NAMES));
   const [myAvatar] = useState(() => randomPick(AVATARS));
-  const [mySeat] = useState(() => randomPick(SEATS));
   const [myStatus, setMyStatus] = useState("hello");
   const channelRef = useRef(null);
 
   useEffect(() => {
+    if (!seatLabel) return;
+
     const channel = supabase.channel("bar-presence", {
       config: { presence: { key: myId } },
     });
@@ -52,7 +52,7 @@ export function usePresence() {
           await channel.track({
             nickname: myNickname,
             avatar: myAvatar,
-            seat: mySeat,
+            seat: seatLabel,
             status: myStatus,
             joinedAt: Date.now(),
           });
@@ -68,15 +68,14 @@ export function usePresence() {
         channelRef.current = null;
       }
     };
-  }, []);
+  }, [seatLabel]);
 
-  // 상태 변경 시 업데이트
   useEffect(() => {
-    if (channelRef.current) {
+    if (channelRef.current && seatLabel) {
       channelRef.current.track({
         nickname: myNickname,
         avatar: myAvatar,
-        seat: mySeat,
+        seat: seatLabel,
         status: myStatus,
         joinedAt: Date.now(),
       });
@@ -89,7 +88,7 @@ export function usePresence() {
     myId,
     myNickname,
     myAvatar,
-    mySeat,
+    mySeat: seatLabel,
     myStatus,
     setMyStatus,
   };

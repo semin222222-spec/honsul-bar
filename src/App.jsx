@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import TalkWallScreen from "./components/TalkWallScreen";
 import SOSModal from "./components/SOSModal";
+import SeatPicker from "./components/SeatPicker";
 import { usePresence } from "./hooks/usePresence";
 
 const QUESTS = [
@@ -130,7 +131,7 @@ function TabBar({ active, onChange }) {
   );
 }
 
-function HubScreen({ userCount, myStatus, onGoTo, users }) {
+function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
   const greetings = ["오늘 밤도 수고했어요.", "이 한 잔의 여유, 당신 것입니다.", "혼자여도 외롭지 않은 밤."];
   const [gi, setGi] = useState(0);
   useEffect(() => {
@@ -183,6 +184,18 @@ function HubScreen({ userCount, myStatus, onGoTo, users }) {
               {v.icon} <span>{statusCounts[k]}</span>
             </span>
           ))}
+        </div>
+      </GlassCard>
+
+      <GlassCard delay={0.15} style={{ marginBottom: "clamp(10px, 3vw, 16px)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4, letterSpacing: "0.08em" }}>내 자리</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 16 }}>📍</span>
+              <span style={{ color: "#D4A537", fontSize: "clamp(13px, 3.5vw, 15px)", fontWeight: 500 }}>{mySeat}</span>
+            </div>
+          </div>
         </div>
       </GlassCard>
 
@@ -439,8 +452,9 @@ function SOSFAB({ onClick }) {
 }
 
 export default function App() {
+  const [mySeat, setMySeat] = useState(null);
   const [tab, setTab] = useState("hub");
-  const { users, userCount, myId, myStatus, setMyStatus, mySeat } = usePresence();
+  const { users, userCount, myId, myStatus, setMyStatus } = usePresence(mySeat);
   const [completedQuests, setCompletedQuests] = useState(new Set(["q1"]));
   const [sosOpen, setSosOpen] = useState(false);
 
@@ -456,6 +470,10 @@ export default function App() {
     setMyStatus(s);
     if (s === "open") completeQuest("q6");
   }, [setMyStatus, completeQuest]);
+
+  if (!mySeat) {
+    return <SeatPicker onSelect={setMySeat} />;
+  }
 
   return (
     <div style={{
@@ -478,7 +496,7 @@ export default function App() {
         <AnimatePresence mode="wait">
           <motion.div key={tab} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
-            {tab === "hub" && <HubScreen userCount={userCount} myStatus={myStatus} onGoTo={setTab} users={users} />}
+            {tab === "hub" && <HubScreen userCount={userCount} myStatus={myStatus} onGoTo={setTab} users={users} mySeat={mySeat} />}
             {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
             {tab === "wall" && <TalkWallScreen onQuestComplete={completeQuest} />}
             {tab === "quest" && <QuestScreen completed={completedQuests} onComplete={completeQuest} />}
