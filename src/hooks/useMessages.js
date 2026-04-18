@@ -3,6 +3,10 @@ import { supabase } from "../lib/supabaseClient";
 
 const PAGE_SIZE = 50;
 
+function isWithin24Hours(isoString) {
+  return Date.now() - new Date(isoString).getTime() < 24 * 60 * 60 * 1000;
+}
+
 export function useMessages() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,9 +17,12 @@ export function useMessages() {
     setLoading(true);
     setError(null);
 
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
     const { data, error: fetchErr } = await supabase
       .from("messages")
       .select("*")
+      .gte("created_at", cutoff)
       .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
 
@@ -38,6 +45,7 @@ export function useMessages() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
         (payload) => {
+          if (!isWithin24Hours(payload.new.created_at)) return;
           setMessages((prev) => {
             if (prev.some((m) => m.id === payload.new.id)) return prev;
             return [payload.new, ...prev];
@@ -73,11 +81,17 @@ export function useMessages() {
 
     channelRef.current = channel;
 
+    // 5분마다 오래된 메시지 화면에서 제거
+    const cleanupTimer = setInterval(() => {
+      setMessages((prev) => prev.filter((m) => isWithin24Hours(m.created_at)));
+    }, 5 * 60 * 1000);
+
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
+      clearInterval(cleanupTimer);
     };
   }, [fetchMessages]);
 

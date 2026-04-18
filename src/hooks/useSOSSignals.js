@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 
+function isWithin24Hours(isoString) {
+  return Date.now() - new Date(isoString).getTime() < 24 * 60 * 60 * 1000;
+}
+
 export function useSOSSend() {
   const [sending, setSending] = useState(false);
 
@@ -37,10 +41,13 @@ export function useSOSAdmin() {
     setLoading(true);
     setError(null);
 
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
     const { data, error: fetchErr } = await supabase
       .from("sos_signals")
       .select("*")
       .in("state", ["pending", "accepted"])
+      .gte("created_at", cutoff)
       .order("created_at", { ascending: false });
 
     if (fetchErr) {
@@ -62,6 +69,7 @@ export function useSOSAdmin() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "sos_signals" },
         (payload) => {
+          if (!isWithin24Hours(payload.new.created_at)) return;
           setSignals((prev) => {
             if (prev.some((s) => s.id === payload.new.id)) return prev;
             return [payload.new, ...prev];
@@ -91,11 +99,16 @@ export function useSOSAdmin() {
 
     channelRef.current = channel;
 
+    const cleanupTimer = setInterval(() => {
+      setSignals((prev) => prev.filter((s) => isWithin24Hours(s.created_at)));
+    }, 5 * 60 * 1000);
+
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
+      clearInterval(cleanupTimer);
     };
   }, [fetchSignals]);
 
