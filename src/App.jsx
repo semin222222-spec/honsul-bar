@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Home, MessageCircle, Trophy, Radio, Send, Heart,
+  Home, MessageCircle, Trophy, Radio, Send, Heart, GlassWater,
   HelpCircle, ChevronRight, Check, X, Users,
   HandMetal, Coffee, Wine, Bell, Sparkles,
   MessageSquare, Clock, Star, Smile, Moon
@@ -10,6 +10,7 @@ import TalkWallScreen from "./components/TalkWallScreen";
 import SOSModal from "./components/SOSModal";
 import SeatPicker from "./components/SeatPicker";
 import QuestionCardScreen from "./components/QuestionCard";
+import MenuScreen from "./components/MenuScreen";
 import { usePresence } from "./hooks/usePresence";
 
 const QUESTS = [
@@ -93,8 +94,8 @@ function TabBar({ active, onChange }) {
     { id: "status", icon: Radio, label: "시그널" },
     { id: "wall", icon: MessageSquare, label: "토크 월" },
     { id: "question", icon: MessageCircle, label: "카드질문" },
-    { id: "quest", icon: Trophy, label: "퀘스트" },
-  ];
+    { id: "menu", icon: GlassWater, label: "메뉴" },
+    { id: "quest", icon: Trophy, label: "퀘스트" },  ];
   return (
     <div style={{
       position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
@@ -501,9 +502,9 @@ export default function App() {
             {tab === "hub" && <HubScreen userCount={userCount} myStatus={myStatus} onGoTo={setTab} users={users} mySeat={mySeat} />}
             {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
             {tab === "wall" && <TalkWallScreen onQuestComplete={completeQuest} />}
-            {tab === "question" && <QuestionCardScreen />}
+{tab === "question" && <QuestionCardScreen />}
             {tab === "quest" && <QuestScreen completed={completedQuests} onComplete={completeQuest} />}
-          </motion.div>
+       </motion.div>
         </AnimatePresence>
       </div>
       <SOSFAB onClick={() => setSosOpen(true)} />
