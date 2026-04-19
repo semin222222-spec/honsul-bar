@@ -9,6 +9,7 @@ import {
 import TalkWallScreen from "./components/TalkWallScreen";
 import SOSModal from "./components/SOSModal";
 import SeatPicker from "./components/SeatPicker";
+import QuestionCardScreen from "./components/QuestionCard";
 import { usePresence } from "./hooks/usePresence";
 
 const QUESTS = [
@@ -91,6 +92,7 @@ function TabBar({ active, onChange }) {
     { id: "hub", icon: Home, label: "허브" },
     { id: "status", icon: Radio, label: "시그널" },
     { id: "wall", icon: MessageSquare, label: "토크 월" },
+    { id: "question", icon: MessageCircle, label: "질문" },
     { id: "quest", icon: Trophy, label: "퀘스트" },
   ];
   return (
@@ -499,6 +501,7 @@ export default function App() {
             {tab === "hub" && <HubScreen userCount={userCount} myStatus={myStatus} onGoTo={setTab} users={users} mySeat={mySeat} />}
             {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
             {tab === "wall" && <TalkWallScreen onQuestComplete={completeQuest} />}
+            {tab === "question" && <QuestionCardScreen />}
             {tab === "quest" && <QuestScreen completed={completedQuests} onComplete={completeQuest} />}
           </motion.div>
         </AnimatePresence>
