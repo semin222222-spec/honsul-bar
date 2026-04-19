@@ -92,7 +92,7 @@ function TabBar({ active, onChange }) {
     { id: "hub", icon: Home, label: "허브" },
     { id: "status", icon: Radio, label: "시그널" },
     { id: "wall", icon: MessageSquare, label: "토크 월" },
-    { id: "question", icon: MessageCircle, label: "질문" },
+    { id: "question", icon: MessageCircle, label: "카드질문" },
     { id: "quest", icon: Trophy, label: "퀘스트" },
   ];
   return (
