@@ -12,7 +12,7 @@ import SeatPicker from "./components/SeatPicker";
 import QuestionCardScreen from "./components/QuestionCard";
 import MenuScreen from "./components/MenuScreen";
 import { usePresence } from "./hooks/usePresence";
-
+import AmbientBG from "./components/AmbientBG";
 const QUESTS = [
   { id: "q1", title: "바에 안착하기", desc: "자리에 앉아 첫 주문을 해보세요", icon: "🪑", xp: 10 },
   { id: "q2", title: "사장님과 인사하기", desc: "바텐더에게 가볍게 인사를 건네보세요", icon: "👋", xp: 15 },
@@ -36,27 +36,7 @@ function timeAgo(ts) {
   return Math.floor(diff / 60) + "시간 전";
 }
 
-function AmbientBG() {
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
-      <div style={{
-        position: "absolute", width: "80vw", maxWidth: 340, height: "80vw", maxHeight: 340, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(212,165,55,0.08) 0%, transparent 70%)",
-        top: "-10vw", right: "-8vw", filter: "blur(40px)"
-      }} />
-      <div style={{
-        position: "absolute", width: "65vw", maxWidth: 260, height: "65vw", maxHeight: 260, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(180,120,40,0.06) 0%, transparent 70%)",
-        bottom: "15vh", left: "-10vw", filter: "blur(50px)"
-      }} />
-      <div style={{
-        position: "absolute", inset: 0,
-        backgroundImage: "radial-gradient(rgba(212,165,55,0.03) 1px, transparent 1px)",
-        backgroundSize: "24px 24px"
-      }} />
-    </div>
-  );
-}
+function AmbientBG()
 
 function GlassCard({ children, style, onClick, animate = true, delay = 0 }) {
   const base = {
