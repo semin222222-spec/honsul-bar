@@ -123,7 +123,8 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: "clamp(12px, 3vw, 20px)" }}>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}
         style={{ textAlign: "center", marginBottom: "clamp(16px, 5vw, 28px)" }}>
-        <div style={{ fontSize: "clamp(9px, 2.5vw, 11px)", letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(212,165,55,0.6)", marginBottom: 8, fontFamily: "'Cormorant Garamond', serif" }}>HONSUL BAR · SOCIAL GUIDE</div>
+        <div style={{ fontSize: "clamp(9px, 2.5vw, 11px)", letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(212,165,55,0.6)", marginBottom: 8, fontFamily: "'Cormorant Garamond', serif" }}>오늘, 혼술</div>
+<div style={{ fontSize: "clamp(10px, 2.5vw, 12px)", letterSpacing: "0.12em", color: "rgba(212,165,55,0.4)", marginTop: 4, fontFamily: "'Cormorant Garamond', serif" }}>혼술바 소셜 가이드</div>
         <div style={{ fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif", lineHeight: 1.3 }}>
           <AnimatePresence mode="wait">
             <motion.span key={gi} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.5 }} style={{ display: "block" }}>{greetings[gi]}</motion.span>

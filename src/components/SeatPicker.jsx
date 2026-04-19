@@ -29,7 +29,7 @@ export default function SeatPicker({ onSelect }) {
             color: "rgba(212,165,55,0.6)", marginBottom: 8,
             fontFamily: "'Cormorant Garamond', serif", textTransform: "uppercase",
           }}>
-            HONSUL BAR
+            오늘, 혼술
           </div>
           <div style={{
             fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300,
