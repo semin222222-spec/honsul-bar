@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Droplets, Flame } from "lucide-react";
+import { X, Sparkles, Droplets, Shuffle, Flame } from "lucide-react";
 
 const MENU_DATA = [
   {
@@ -56,6 +56,10 @@ const MENU_DATA = [
   },
 ];
 
+const ALL_DRINKS = MENU_DATA.flatMap(section =>
+  section.items.map(item => ({ ...item, line: section.line, price: section.price, lineColor: section.color, lineBg: section.bg, lineBorder: section.border }))
+);
+
 function DrinkDetail({ drink, lineColor, onClose }) {
   return (
     <motion.div
@@ -81,6 +85,7 @@ function DrinkDetail({ drink, lineColor, onClose }) {
           border: "1px solid " + lineColor + "30",
           padding: "28px 24px",
           textAlign: "center",
+          position: "relative",
         }}
       >
         <button onClick={onClose} style={{
@@ -91,30 +96,18 @@ function DrinkDetail({ drink, lineColor, onClose }) {
         }}>
           <X size={14} />
         </button>
-
         <div style={{ fontSize: 48, marginBottom: 16 }}>{drink.icon}</div>
-
         <div style={{
           fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 400, color: "#F5E6C8",
           fontFamily: "'Cormorant Garamond', serif", marginBottom: 8,
-        }}>
-          {drink.name}
-        </div>
-
+        }}>{drink.name}</div>
         <div style={{
           fontSize: "clamp(12px, 3vw, 13px)", color: "rgba(255,255,255,0.45)",
           lineHeight: 1.7, marginBottom: 20,
-        }}>
-          {drink.desc}
-        </div>
-
-        <div style={{
-          display: "flex", justifyContent: "center", gap: 12,
-          marginBottom: 8,
-        }}>
+        }}>{drink.desc}</div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
           <div style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
             borderRadius: 10, padding: "10px 16px",
             display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
           }}>
@@ -123,8 +116,7 @@ function DrinkDetail({ drink, lineColor, onClose }) {
             <span style={{ fontSize: 15, fontWeight: 500, color: "#F5E6C8" }}>{drink.abv}</span>
           </div>
           <div style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
             borderRadius: 10, padding: "10px 16px",
             display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
           }}>
@@ -135,6 +127,133 @@ function DrinkDetail({ drink, lineColor, onClose }) {
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+function RandomPicker() {
+  const [picked, setPicked] = useState(null);
+  const [spinning, setSpinning] = useState(false);
+  const [spinKey, setSpinKey] = useState(0);
+
+  const pickRandom = () => {
+    if (spinning) return;
+    setSpinning(true);
+    setPicked(null);
+
+    let count = 0;
+    const total = 12;
+    const interval = setInterval(() => {
+      setPicked(ALL_DRINKS[Math.floor(Math.random() * ALL_DRINKS.length)]);
+      setSpinKey(prev => prev + 1);
+      count++;
+      if (count >= total) {
+        clearInterval(interval);
+        const final = ALL_DRINKS[Math.floor(Math.random() * ALL_DRINKS.length)];
+        setPicked(final);
+        setSpinKey(prev => prev + 1);
+        setSpinning(false);
+      }
+    }, 120);
+  };
+
+  return (
+    <div style={{
+      background: "linear-gradient(145deg, rgba(212,165,55,0.06), rgba(255,255,255,0.02))",
+      backdropFilter: "blur(16px)",
+      border: "1px solid rgba(212,165,55,0.12)",
+      borderRadius: "clamp(14px, 4vw, 18px)",
+      padding: "clamp(16px, 4.5vw, 22px)",
+      marginBottom: "clamp(20px, 6vw, 28px)",
+      textAlign: "center",
+    }}>
+      <div style={{
+        fontSize: "clamp(11px, 2.8vw, 12px)", color: "rgba(212,165,55,0.6)",
+        fontWeight: 500, marginBottom: 12, letterSpacing: "0.08em",
+      }}>
+        🎰 뭘 마실지 모르겠다면?
+      </div>
+
+      <AnimatePresence mode="wait">
+        {picked ? (
+          <motion.div
+            key={spinKey}
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: spinning ? 0.08 : 0.4, ease: spinning ? "linear" : [0.22, 1, 0.36, 1] }}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              gap: "clamp(10px, 3vw, 14px)",
+              padding: "clamp(12px, 3.5vw, 16px)",
+              background: spinning ? "rgba(255,255,255,0.02)" : picked.lineBg,
+              border: "1px solid " + (spinning ? "rgba(255,255,255,0.06)" : picked.lineBorder),
+              borderRadius: 14,
+              marginBottom: 14,
+              minHeight: 70,
+            }}
+          >
+            <div style={{ fontSize: "clamp(28px, 8vw, 36px)" }}>{picked.icon}</div>
+            <div style={{ textAlign: "left" }}>
+              <div style={{
+                fontSize: "clamp(14px, 3.8vw, 16px)", fontWeight: 500, color: "#F5E6C8",
+              }}>{picked.name}</div>
+              <div style={{
+                fontSize: "clamp(10px, 2.5vw, 11px)",
+                color: spinning ? "rgba(255,255,255,0.3)" : picked.lineColor,
+                marginTop: 2,
+                display: "flex", gap: 8, flexWrap: "wrap",
+              }}>
+                <span>{picked.taste}</span>
+                <span>{picked.abv}</span>
+                <span>{picked.price}원</span>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            style={{
+              padding: "clamp(16px, 5vw, 24px)",
+              color: "rgba(255,255,255,0.2)",
+              fontSize: "clamp(12px, 3vw, 13px)",
+              marginBottom: 14,
+            }}
+          >
+            버튼을 눌러 오늘의 한 잔을 뽑아보세요!
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        onClick={pickRandom}
+        disabled={spinning}
+        style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          gap: 8, padding: "12px 24px",
+          background: spinning
+            ? "rgba(255,255,255,0.06)"
+            : "linear-gradient(135deg, #D4A537, #B8860B)",
+          border: "none", borderRadius: 12,
+          color: spinning ? "rgba(255,255,255,0.3)" : "#0D0B08",
+          fontSize: "clamp(13px, 3.5vw, 14px)", fontWeight: 600,
+          cursor: spinning ? "default" : "pointer",
+          fontFamily: "inherit",
+          WebkitTapHighlightColor: "transparent",
+          minHeight: 44,
+          transition: "all 0.3s",
+        }}
+      >
+        <motion.div
+          animate={spinning ? { rotate: 360 } : { rotate: 0 }}
+          transition={spinning ? { duration: 0.6, repeat: Infinity, ease: "linear" } : { duration: 0.3 }}
+        >
+          <Shuffle size={16} />
+        </motion.div>
+        {spinning ? "뽑는 중..." : (picked ? "다시 뽑기" : "오늘의 추천 술 뽑기")}
+      </motion.button>
+    </div>
   );
 }
 
@@ -154,6 +273,8 @@ export default function MenuScreen() {
         오늘 밤, 무엇을 마실까요?
       </div>
 
+      <RandomPicker />
+
       {MENU_DATA.map((section, si) => (
         <motion.div
           key={section.line}
@@ -162,7 +283,6 @@ export default function MenuScreen() {
           transition={{ delay: si * 0.12, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           style={{ marginBottom: "clamp(20px, 6vw, 28px)" }}
         >
-          {/* 섹션 헤더 */}
           <div style={{
             display: "flex", justifyContent: "space-between", alignItems: "flex-end",
             marginBottom: "clamp(10px, 3vw, 14px)",
@@ -173,27 +293,20 @@ export default function MenuScreen() {
               <div style={{
                 fontSize: "clamp(11px, 2.8vw, 12px)", letterSpacing: "0.15em",
                 color: section.color, fontWeight: 600, marginBottom: 3,
-              }}>
-                {section.line}
-              </div>
+              }}>{section.line}</div>
               <div style={{
-                fontSize: "clamp(10px, 2.5vw, 11px)",
-                color: "rgba(255,255,255,0.3)",
-              }}>
-                {section.desc}
-              </div>
+                fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)",
+              }}>{section.desc}</div>
             </div>
             <div style={{
               fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300,
-              color: section.color,
-              fontFamily: "'Cormorant Garamond', serif",
+              color: section.color, fontFamily: "'Cormorant Garamond', serif",
               whiteSpace: "nowrap",
             }}>
               {section.price}<span style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginLeft: 2 }}>원</span>
             </div>
           </div>
 
-          {/* 메뉴 아이템 리스트 */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {section.items.map((item, ii) => (
               <motion.div
@@ -208,29 +321,21 @@ export default function MenuScreen() {
                   background: "rgba(255,255,255,0.02)",
                   border: "1px solid rgba(255,255,255,0.05)",
                   borderRadius: "clamp(10px, 3vw, 12px)",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  WebkitTapHighlightColor: "transparent",
-                  minHeight: 44,
+                  cursor: "pointer", transition: "all 0.2s",
+                  WebkitTapHighlightColor: "transparent", minHeight: 44,
                 }}
               >
                 <div style={{
                   width: "clamp(36px, 9vw, 42px)", height: "clamp(36px, 9vw, 42px)",
                   borderRadius: 10, flexShrink: 0,
-                  background: section.bg,
-                  border: "1px solid " + section.border,
+                  background: section.bg, border: "1px solid " + section.border,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: "clamp(16px, 4.5vw, 20px)",
-                }}>
-                  {item.icon}
-                </div>
+                }}>{item.icon}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
-                    fontSize: "clamp(13px, 3.5vw, 14px)", fontWeight: 500,
-                    color: "#F5E6C8",
-                  }}>
-                    {item.name}
-                  </div>
+                    fontSize: "clamp(13px, 3.5vw, 14px)", fontWeight: 500, color: "#F5E6C8",
+                  }}>{item.name}</div>
                   <div style={{
                     fontSize: "clamp(10px, 2.5vw, 11px)",
                     color: "rgba(255,255,255,0.3)", marginTop: 2,
@@ -241,19 +346,14 @@ export default function MenuScreen() {
                   </div>
                 </div>
                 <div style={{
-                  fontSize: "clamp(9px, 2.2vw, 10px)",
-                  color: "rgba(255,255,255,0.2)",
-                  flexShrink: 0,
-                }}>
-                  상세보기
-                </div>
+                  fontSize: "clamp(9px, 2.2vw, 10px)", color: "rgba(255,255,255,0.2)", flexShrink: 0,
+                }}>상세보기</div>
               </motion.div>
             ))}
           </div>
         </motion.div>
       ))}
 
-      {/* 드링크 상세 팝업 */}
       <AnimatePresence>
         {selectedDrink && (
           <DrinkDetail
