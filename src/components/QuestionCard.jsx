@@ -171,7 +171,7 @@ export default function QuestionCardScreen() {
       }}>
         <div style={{
           fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8",
-          fontFamily: "'Cormorant Garamond', serif",
+          fontFamily: "'Noto Serif KR', serif",
         }}>
           지금 이 질문, 같이 얘기해 볼까요?
         </div>
@@ -310,7 +310,7 @@ export default function QuestionCardScreen() {
                     fontWeight: 400, color: "#F5E6C8",
                     lineHeight: 1.7,
                     wordBreak: "keep-all",
-                    fontFamily: "'Cormorant Garamond', serif",
+                    fontFamily: "'Noto Serif KR', serif",
                     padding: "0 clamp(4px, 2vw, 12px)",
                   }}>
                     "{current.q}"
@@ -336,7 +336,7 @@ export default function QuestionCardScreen() {
           <span style={{
             fontSize: "clamp(18px, 5vw, 24px)", fontWeight: 300,
             color: "#D4A537",
-            fontFamily: "'Cormorant Garamond', serif",
+            fontFamily: "'Noto Serif KR', serif",
             fontVariantNumeric: "tabular-nums",
           }}>
             {formatCountdown(secondsLeft)}

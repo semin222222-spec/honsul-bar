@@ -123,9 +123,9 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: "clamp(12px, 3vw, 20px)" }}>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}
         style={{ textAlign: "center", marginBottom: "clamp(16px, 5vw, 28px)" }}>
-        <div style={{ fontSize: "clamp(9px, 2.5vw, 11px)", letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(212,165,55,0.6)", marginBottom: 8, fontFamily: "'Cormorant Garamond', serif" }}>오늘, 혼술</div>
-<div style={{ fontSize: "clamp(10px, 2.5vw, 12px)", letterSpacing: "0.12em", color: "rgba(212,165,55,0.4)", marginTop: 4, fontFamily: "'Cormorant Garamond', serif" }}>혼술바 소셜 가이드</div>
-        <div style={{ fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif", lineHeight: 1.3 }}>
+        <div style={{ fontSize: "clamp(9px, 2.5vw, 11px)", letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(212,165,55,0.6)", marginBottom: 8, fontFamily: "'Noto Serif KR', serif" }}>오늘, 혼술</div>
+<div style={{ fontSize: "clamp(10px, 2.5vw, 12px)", letterSpacing: "0.12em", color: "rgba(212,165,55,0.4)", marginTop: 4, fontFamily: "'Noto Serif KR', serif" }}>혼술바 소셜 가이드</div>
+        <div style={{ fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", lineHeight: 1.3 }}>
           <AnimatePresence mode="wait">
             <motion.span key={gi} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.5 }} style={{ display: "block" }}>{greetings[gi]}</motion.span>
           </AnimatePresence>
@@ -137,7 +137,7 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
           <PulseDot /><span style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)" }}>지금 이 바에</span>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
-          <motion.span key={userCount} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ fontSize: "clamp(36px, 10vw, 48px)", fontWeight: 200, color: "#D4A537", fontFamily: "'Cormorant Garamond', serif" }}>{userCount}</motion.span>
+          <motion.span key={userCount} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ fontSize: "clamp(36px, 10vw, 48px)", fontWeight: 200, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>{userCount}</motion.span>
           <span style={{ fontSize: "clamp(12px, 3.5vw, 15px)", color: "rgba(255,255,255,0.4)" }}>명이 함께하고 있어요</span>
         </div>
         <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: "clamp(10px, 3vw, 16px)", fontSize: 12 }}>
@@ -201,7 +201,7 @@ function StatusScreen({ myStatus, setMyStatus, users, myId }) {
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>SOCIAL SIGNAL</div>
-      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif", marginBottom: 24 }}>나의 시그널 설정</div>
+      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", marginBottom: 24 }}>나의 시그널 설정</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
         {Object.entries(STATUS_MAP).map(([key, val], i) => {
           const active = myStatus === key;
@@ -262,7 +262,7 @@ function QuestScreen({ completed, onComplete }) {
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>NEWBIE QUEST</div>
-      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif", marginBottom: 20 }}>아이스브레이킹 퀘스트</div>
+      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", marginBottom: 20 }}>아이스브레이킹 퀘스트</div>
       <GlassCard delay={0.1} style={{ marginBottom: 20, textAlign: "center", padding: "clamp(14px, 4vw, 20px)" }}>
         <div style={{ position: "relative", width: "clamp(80px, 22vw, 100px)", height: "clamp(80px, 22vw, 100px)", margin: "0 auto 14px" }}>
           <svg width="100%" height="100%" viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)" }}>
@@ -270,7 +270,7 @@ function QuestScreen({ completed, onComplete }) {
             <motion.circle cx="50" cy="50" r="42" fill="none" stroke="#D4A537" strokeWidth="6" strokeLinecap="round" strokeDasharray={2 * Math.PI * 42} initial={{ strokeDashoffset: 2 * Math.PI * 42 }} animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - pct / 100) }} transition={{ duration: 1, ease: "easeOut" }} />
           </svg>
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: "clamp(18px, 5vw, 24px)", fontWeight: 300, color: "#D4A537", fontFamily: "'Cormorant Garamond', serif" }}>{pct}%</span>
+            <span style={{ fontSize: "clamp(18px, 5vw, 24px)", fontWeight: 300, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>{pct}%</span>
           </div>
         </div>
         <div style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)" }}>{earnedXp} / {totalXp} XP</div>
@@ -337,10 +337,10 @@ export default function App() {
       width: "100%", maxWidth: 430, margin: "0 auto",
       minHeight: "100vh", minHeight: "100dvh", position: "relative",
       background: "#0D0B08", color: "#F5E6C8",
-      fontFamily: "'DM Sans', 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif",
+      fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif",
       overflowX: "hidden",
     }}>
-      <style>{"@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600;700&display=swap');"}</style>
+      <style>{"@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;700;900&family=Pretendard:wght@300;400;500;600;700&display=swap');"}</style>
       <AmbientBG />
       <div style={{
         position: "relative", zIndex: 1,

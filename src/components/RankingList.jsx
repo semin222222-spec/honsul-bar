@@ -106,7 +106,7 @@ export default function RankingList() {
                 </div>
                 <div style={{
                   fontSize: 18, fontWeight: 300, color: rs.color,
-                  fontFamily: "'Cormorant Garamond', serif",
+                  fontFamily: "'Noto Serif KR', serif",
                 }}>
                   {r.score}<span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginLeft: 2 }}>층</span>
                 </div>

@@ -130,7 +130,7 @@ export default function AdminPage() {
     <div style={{
       maxWidth: 600, margin: "0 auto", minHeight: "100vh",
       background: "#0D0B08", color: "#F5E6C8",
-      fontFamily: "'DM Sans', 'Pretendard', -apple-system, sans-serif",
+      fontFamily: "'Pretendard', -apple-system, sans-seriff",
     }}>
       <style>{
         "@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600;700&display=swap');" +
@@ -161,7 +161,7 @@ export default function AdminPage() {
                 <Shield size={16} style={{ color: "#D4A537" }} />
                 <span style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.6)", textTransform: "uppercase" }}>HOST DASHBOARD</span>
               </div>
-              <div style={{ fontSize: 24, fontWeight: 300, color: "#F5E6C8", fontFamily: "'Cormorant Garamond', serif" }}>
+              <div style={{ fontSize: 24, fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif" }}>
                 SOS 시그널 관리
               </div>
             </div>
@@ -182,14 +182,14 @@ export default function AdminPage() {
           }}>
             <div style={{ flex: 1, textAlign: "center" }}>
               <motion.div key={pendingCount} initial={{ scale: 0.5 }} animate={{ scale: 1 }}
-                style={{ fontSize: 28, fontWeight: 300, color: "#D4A537", fontFamily: "'Cormorant Garamond', serif" }}>
+                style={{ fontSize: 28, fontWeight: 300, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>
                 {pendingCount}
               </motion.div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>대기 중</div>
             </div>
             <div style={{ width: 1, background: "rgba(255,255,255,0.06)", alignSelf: "stretch" }} />
             <div style={{ flex: 1, textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 300, color: "rgba(255,255,255,0.5)", fontFamily: "'Cormorant Garamond', serif" }}>
+              <div style={{ fontSize: 28, fontWeight: 300, color: "rgba(255,255,255,0.5)", fontFamily: "'Noto Serif KR', serif" }}>
                 {signals.length}
               </div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>전체 활성</div>
@@ -225,7 +225,7 @@ export default function AdminPage() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
                 style={{ textAlign: "center", padding: "60px 20px" }}>
                 <div style={{ fontSize: 44, marginBottom: 16 }}>🍸</div>
-                <div style={{ fontSize: 17, fontWeight: 300, color: "rgba(255,255,255,0.35)", fontFamily: "'Cormorant Garamond', serif", marginBottom: 6 }}>
+                <div style={{ fontSize: 17, fontWeight: 300, color: "rgba(255,255,255,0.35)", fontFamily: "'Noto Serif KR', serif", marginBottom: 6 }}>
                   모든 시그널이 처리되었어요
                 </div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", lineHeight: 1.6 }}>

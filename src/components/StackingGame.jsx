@@ -169,7 +169,7 @@ export default function StackingGame() {
       </div>
       <div style={{
         fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8",
-        fontFamily: "'Cormorant Garamond', serif", marginBottom: "clamp(12px, 4vw, 20px)",
+        fontFamily: "'Noto Serif KR', serif", marginBottom: "clamp(12px, 4vw, 20px)",
       }}>
         위스키 잔 쌓기
       </div>
@@ -215,7 +215,7 @@ export default function StackingGame() {
         <div>
           <div style={{ textAlign: "center", marginBottom: 10 }}>
             <motion.div key={score} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              style={{ fontSize: 36, fontWeight: 200, color: "#D4A537", fontFamily: "'Cormorant Garamond', serif" }}>
+              style={{ fontSize: 36, fontWeight: 200, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>
               {score}<span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)", marginLeft: 4 }}>층</span>
             </motion.div>
           </div>
@@ -316,7 +316,7 @@ export default function StackingGame() {
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>GAME OVER</div>
             <div style={{
               fontSize: 42, fontWeight: 200, color: "#D4A537",
-              fontFamily: "'Cormorant Garamond', serif", marginBottom: 4,
+              fontFamily: "'Noto Serif KR', serif", marginBottom: 4,
             }}>
               {score}<span style={{ fontSize: 16, color: "rgba(255,255,255,0.3)", marginLeft: 4 }}>층</span>
             </div>

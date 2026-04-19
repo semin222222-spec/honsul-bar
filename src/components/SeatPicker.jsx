@@ -14,7 +14,7 @@ export default function SeatPicker({ onSelect }) {
       display: "flex", flexDirection: "column",
       justifyContent: "center", alignItems: "center",
       padding: "clamp(20px, 5vw, 40px)",
-      fontFamily: "'DM Sans', 'Pretendard', -apple-system, sans-serif",
+      fontFamily: "'Pretendard', -apple-system, sans-serif",
     }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -42,7 +42,7 @@ export default function SeatPicker({ onSelect }) {
             style={{
               fontSize: "clamp(40px, 12vw, 56px)",
               fontWeight: 700,
-              fontFamily: "'Cormorant Garamond', serif",
+              fontFamily: "'Noto Serif KR', serif",
               color: "#F5E6C8",
               lineHeight: 1.1,
               letterSpacing: "-0.02em",
@@ -61,7 +61,7 @@ export default function SeatPicker({ onSelect }) {
               fontSize: "clamp(11px, 3vw, 13px)",
               letterSpacing: "0.18em",
               color: "rgba(212,165,55,0.5)",
-              fontFamily: "'Cormorant Garamond', serif",
+              fontFamily: "'Noto Serif KR', serif",
               marginBottom: "clamp(24px, 7vw, 36px)",
             }}
           >
@@ -89,7 +89,7 @@ export default function SeatPicker({ onSelect }) {
             <div style={{
               fontSize: "clamp(20px, 5.5vw, 26px)",
               fontWeight: 300,
-              fontFamily: "'Cormorant Garamond', serif",
+              fontFamily: "'Noto Serif KR', serif",
               color: "#F5E6C8",
               lineHeight: 1.4,
               marginBottom: "clamp(8px, 2vw, 10px)",

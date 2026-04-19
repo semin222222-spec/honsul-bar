@@ -99,7 +99,7 @@ function DrinkDetail({ drink, lineColor, onClose }) {
         <div style={{ fontSize: 48, marginBottom: 16 }}>{drink.icon}</div>
         <div style={{
           fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 400, color: "#F5E6C8",
-          fontFamily: "'Cormorant Garamond', serif", marginBottom: 8,
+          fontFamily: "'Noto Serif KR', serif", marginBottom: 8,
         }}>{drink.name}</div>
         <div style={{
           fontSize: "clamp(12px, 3vw, 13px)", color: "rgba(255,255,255,0.45)",
@@ -268,7 +268,7 @@ export default function MenuScreen() {
       </div>
       <div style={{
         fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8",
-        fontFamily: "'Cormorant Garamond', serif", marginBottom: "clamp(16px, 5vw, 24px)",
+        fontFamily: "'Noto Serif KR', serif", marginBottom: "clamp(16px, 5vw, 24px)",
       }}>
         오늘 밤, 무엇을 마실까요?
       </div>
@@ -300,7 +300,7 @@ export default function MenuScreen() {
             </div>
             <div style={{
               fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300,
-              color: section.color, fontFamily: "'Cormorant Garamond', serif",
+              color: section.color, fontFamily: "'Noto Serif KR', serif",
               whiteSpace: "nowrap",
             }}>
               {section.price}<span style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginLeft: 2 }}>원</span>
