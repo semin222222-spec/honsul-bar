@@ -22,29 +22,91 @@ export default function SeatPicker({ onSelect }) {
         transition={{ duration: 0.6 }}
         style={{ width: "100%", maxWidth: 360 }}
       >
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🥃</div>
-          <div style={{
-            fontSize: "clamp(9px, 2.5vw, 11px)", letterSpacing: "0.2em",
-            color: "rgba(212,165,55,0.6)", marginBottom: 8,
-            fontFamily: "'Cormorant Garamond', serif", textTransform: "uppercase",
-          }}>
+        {/* 헤더 영역 */}
+        <div style={{ textAlign: "center", marginBottom: "clamp(36px, 10vw, 52px)" }}>
+          {/* 작은 로고 아이콘 */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            style={{ fontSize: "clamp(28px, 7vw, 34px)", marginBottom: "clamp(16px, 4vw, 24px)" }}
+          >
+            🥃
+          </motion.div>
+
+          {/* 메인 타이틀 */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            style={{
+              fontSize: "clamp(40px, 12vw, 56px)",
+              fontWeight: 700,
+              fontFamily: "'Cormorant Garamond', serif",
+              color: "#F5E6C8",
+              lineHeight: 1.1,
+              letterSpacing: "-0.02em",
+              marginBottom: "clamp(8px, 2vw, 12px)",
+            }}
+          >
             오늘, 혼술
-          </div>
-          <div style={{
-            fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300,
-            fontFamily: "'Cormorant Garamond', serif", lineHeight: 1.4,
-          }}>
-            어디에 앉으셨나요?
-          </div>
-          <div style={{
-            fontSize: "clamp(12px, 3vw, 13px)",
-            color: "rgba(255,255,255,0.35)", marginTop: 8, lineHeight: 1.5,
-          }}>
-            자리를 선택하면 사장님이<br />정확히 도움을 드릴 수 있어요
-          </div>
+          </motion.div>
+
+          {/* 서브 타이틀 */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+            style={{
+              fontSize: "clamp(11px, 3vw, 13px)",
+              letterSpacing: "0.18em",
+              color: "rgba(212,165,55,0.5)",
+              fontFamily: "'Cormorant Garamond', serif",
+              marginBottom: "clamp(24px, 7vw, 36px)",
+            }}
+          >
+            혼술바 소셜 가이드
+          </motion.div>
+
+          {/* 구분선 */}
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ delay: 0.6, duration: 0.4 }}
+            style={{
+              width: 40, height: 1, margin: "0 auto",
+              background: "rgba(212,165,55,0.2)",
+              marginBottom: "clamp(24px, 7vw, 36px)",
+            }}
+          />
+
+          {/* 질문 */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.5 }}
+          >
+            <div style={{
+              fontSize: "clamp(20px, 5.5vw, 26px)",
+              fontWeight: 300,
+              fontFamily: "'Cormorant Garamond', serif",
+              color: "#F5E6C8",
+              lineHeight: 1.4,
+              marginBottom: "clamp(8px, 2vw, 10px)",
+            }}>
+              어디에 앉으셨나요?
+            </div>
+            <div style={{
+              fontSize: "clamp(11px, 2.8vw, 12px)",
+              color: "rgba(255,255,255,0.3)",
+              lineHeight: 1.5,
+            }}>
+              자리를 선택하면 사장님이 정확히 도움을 드릴 수 있어요
+            </div>
+          </motion.div>
         </div>
 
+        {/* 바 좌석 */}
         <div style={{ marginBottom: 20 }}>
           <div style={{
             fontSize: 11, letterSpacing: "0.1em",
@@ -53,8 +115,7 @@ export default function SeatPicker({ onSelect }) {
             바 좌석
           </div>
           <div style={{
-            display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 8,
+            display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8,
           }}>
             {BAR_SEATS.map((seat, i) => {
               const active = selected === seat;
@@ -63,7 +124,7 @@ export default function SeatPicker({ onSelect }) {
                   key={seat}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
+                  transition={{ delay: 0.8 + i * 0.04 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setSelected(seat)}
                   style={{
@@ -85,6 +146,7 @@ export default function SeatPicker({ onSelect }) {
           </div>
         </div>
 
+        {/* 테이블 좌석 */}
         <div style={{ marginBottom: 28 }}>
           <div style={{
             fontSize: 11, letterSpacing: "0.1em",
@@ -93,8 +155,7 @@ export default function SeatPicker({ onSelect }) {
             테이블 좌석
           </div>
           <div style={{
-            display: "grid", gridTemplateColumns: "1fr 1fr",
-            gap: 8,
+            display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
           }}>
             {TABLE_SEATS.map((seat, i) => {
               const active = selected === seat;
@@ -103,7 +164,7 @@ export default function SeatPicker({ onSelect }) {
                   key={seat}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + i * 0.05 }}
+                  transition={{ delay: 1.0 + i * 0.04 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setSelected(seat)}
                   style={{
@@ -125,7 +186,11 @@ export default function SeatPicker({ onSelect }) {
           </div>
         </div>
 
+        {/* 입장 버튼 */}
         <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.2 }}
           whileTap={selected ? { scale: 0.96 } : {}}
           onClick={() => { if (selected) onSelect(selected); }}
           disabled={!selected}
