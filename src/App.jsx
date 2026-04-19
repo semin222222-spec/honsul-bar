@@ -11,8 +11,9 @@ import SOSModal from "./components/SOSModal";
 import SeatPicker from "./components/SeatPicker";
 import QuestionCardScreen from "./components/QuestionCard";
 import MenuScreen from "./components/MenuScreen";
-import { usePresence } from "./hooks/usePresence";
 import AmbientBG from "./components/AmbientBG";
+import { usePresence } from "./hooks/usePresence";
+
 const QUESTS = [
   { id: "q1", title: "바에 안착하기", desc: "자리에 앉아 첫 주문을 해보세요", icon: "🪑", xp: 10 },
   { id: "q2", title: "사장님과 인사하기", desc: "바텐더에게 가볍게 인사를 건네보세요", icon: "👋", xp: 15 },
@@ -35,8 +36,6 @@ function timeAgo(ts) {
   if (diff < 60) return diff + "분 전";
   return Math.floor(diff / 60) + "시간 전";
 }
-
-function AmbientBG()
 
 function GlassCard({ children, style, onClick, animate = true, delay = 0 }) {
   const base = {
