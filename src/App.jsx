@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Home, MessageCircle, Trophy, Radio, Send, Heart, GlassWater,
-  HelpCircle, ChevronRight, Check, X, Users,
-  HandMetal, Coffee, Wine, Bell, Sparkles,
+  Home, MessageCircle, Trophy, Radio, Send, Heart,
+  HelpCircle, ChevronRight, Check, X, Users, Wine,
+  HandMetal, Coffee, Bell, Sparkles,
   MessageSquare, Clock, Star, Smile, Moon
 } from "lucide-react";
 import TalkWallScreen from "./components/TalkWallScreen";
@@ -94,8 +94,9 @@ function TabBar({ active, onChange }) {
     { id: "status", icon: Radio, label: "시그널" },
     { id: "wall", icon: MessageSquare, label: "토크 월" },
     { id: "question", icon: MessageCircle, label: "카드질문" },
-    { id: "menu", icon: GlassWater, label: "메뉴" },
-    { id: "quest", icon: Trophy, label: "퀘스트" },  ];
+    { id: "menu", icon: Wine, label: "메뉴" },
+    { id: "quest", icon: Trophy, label: "퀘스트" },
+  ];
   return (
     <div style={{
       position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 50,
@@ -113,7 +114,7 @@ function TabBar({ active, onChange }) {
           <button key={t.id} onClick={() => onChange(t.id)} style={{
             display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
             background: "none", border: "none", cursor: "pointer",
-            padding: "6px 0", minWidth: 56, minHeight: 44,
+            padding: "6px 0", minWidth: 48, minHeight: 44,
             borderRadius: 12, position: "relative",
             color: isActive ? "#D4A537" : "rgba(255,255,255,0.35)",
             transition: "color 0.25s",
@@ -125,8 +126,8 @@ function TabBar({ active, onChange }) {
                 width: 24, height: 2, borderRadius: 1, background: "#D4A537",
               }} />
             )}
-            <Icon size={22} strokeWidth={isActive ? 2.2 : 1.5} />
-            <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400, letterSpacing: "0.02em" }}>{t.label}</span>
+            <Icon size={20} strokeWidth={isActive ? 2.2 : 1.5} />
+            <span style={{ fontSize: 9, fontWeight: isActive ? 600 : 400, letterSpacing: "0.02em" }}>{t.label}</span>
           </button>
         );
       })}
@@ -151,11 +152,8 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
         style={{ textAlign: "center", marginBottom: "clamp(16px, 5vw, 28px)" }}>
         <div style={{
           fontSize: "clamp(9px, 2.5vw, 11px)", letterSpacing: "0.2em", textTransform: "uppercase",
-          color: "rgba(212,165,55,0.6)", marginBottom: 8,
-          fontFamily: "'Cormorant Garamond', serif"
-        }}>
-          HONSUL BAR · SOCIAL GUIDE
-        </div>
+          color: "rgba(212,165,55,0.6)", marginBottom: 8, fontFamily: "'Cormorant Garamond', serif"
+        }}>HONSUL BAR · SOCIAL GUIDE</div>
         <div style={{
           fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300, color: "#F5E6C8",
           fontFamily: "'Cormorant Garamond', serif", lineHeight: 1.3
@@ -172,7 +170,7 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
       <GlassCard delay={0.1} style={{ textAlign: "center", padding: "clamp(14px, 4vw, 20px) clamp(12px, 3vw, 16px)", marginBottom: "clamp(10px, 3vw, 16px)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 6 }}>
           <PulseDot />
-          <span style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)", letterSpacing: "0.05em" }}>지금 이 바에</span>
+          <span style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)" }}>지금 이 바에</span>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
           <motion.span key={userCount} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -193,7 +191,7 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
       <GlassCard delay={0.15} style={{ marginBottom: "clamp(10px, 3vw, 16px)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4, letterSpacing: "0.08em" }}>내 자리</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>내 자리</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 16 }}>📍</span>
               <span style={{ color: "#D4A537", fontSize: "clamp(13px, 3.5vw, 15px)", fontWeight: 500 }}>{mySeat}</span>
@@ -205,7 +203,7 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
       <GlassCard delay={0.2} style={{ marginBottom: "clamp(10px, 3vw, 16px)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4, letterSpacing: "0.08em" }}>나의 시그널</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>나의 시그널</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{
                 width: 10, height: 10, borderRadius: "50%",
@@ -220,9 +218,7 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
             borderRadius: 10, padding: "8px 14px", color: "#D4A537",
             fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
             minHeight: 44, WebkitTapHighlightColor: "transparent",
-          }}>
-            변경 <ChevronRight size={14} />
-          </button>
+          }}>변경 <ChevronRight size={14} /></button>
         </div>
       </GlassCard>
 
@@ -232,7 +228,7 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
           { label: "뉴비 퀘스트", sub: "미션 도전", icon: <Trophy size={20} />, tab: "quest", delay: 0.35 },
         ].map(item => (
           <GlassCard key={item.tab} delay={item.delay} onClick={() => onGoTo(item.tab)}
-            style={{ cursor: "pointer", padding: "clamp(14px, 4vw, 18px) clamp(10px, 3vw, 14px)", minHeight: 44, WebkitTapHighlightColor: "transparent" }}>
+            style={{ cursor: "pointer", padding: "clamp(14px, 4vw, 18px) clamp(10px, 3vw, 14px)", minHeight: 44 }}>
             <div style={{ color: "#D4A537", marginBottom: 10 }}>{item.icon}</div>
             <div style={{ fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500, color: "#F5E6C8", marginBottom: 2 }}>{item.label}</div>
             <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.35)" }}>{item.sub}</div>
@@ -272,8 +268,7 @@ function StatusScreen({ myStatus, setMyStatus, users, myId }) {
                 cursor: "pointer", padding: "clamp(12px, 3.5vw, 16px) clamp(14px, 4vw, 18px)",
                 borderColor: active ? val.color + "50" : "rgba(255,255,255,0.07)",
                 background: active ? val.color + "10" : "rgba(255,255,255,0.04)",
-                transition: "all 0.3s ease",
-                minHeight: 44, WebkitTapHighlightColor: "transparent",
+                minHeight: 44,
               }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 2.5vw, 12px)" }}>
@@ -302,9 +297,7 @@ function StatusScreen({ myStatus, setMyStatus, users, myId }) {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
         <span style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)" }}>지금 바에 있는 사람들</span>
-        <span style={{ fontSize: 10, color: "rgba(212,165,55,0.4)", background: "rgba(212,165,55,0.08)", padding: "2px 8px", borderRadius: 8 }}>
-          {otherUsers.length}명
-        </span>
+        <span style={{ fontSize: 10, color: "rgba(212,165,55,0.4)", background: "rgba(212,165,55,0.08)", padding: "2px 8px", borderRadius: 8 }}>{otherUsers.length}명</span>
       </div>
       {otherUsers.length === 0 ? (
         <GlassCard delay={0.3} style={{ textAlign: "center", padding: "30px 16px" }}>
@@ -331,12 +324,9 @@ function StatusScreen({ myStatus, setMyStatus, users, myId }) {
                       <span style={{
                         fontSize: 9, padding: "2px 7px", borderRadius: 6,
                         background: st.color + "18", color: st.color, fontWeight: 500,
-                        letterSpacing: "0.02em", whiteSpace: "nowrap",
                       }}>{st.label}</span>
                     </div>
-                    <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 3 }}>
-                      {u.seat}
-                    </div>
+                    <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 3 }}>{u.seat}</div>
                   </div>
                 </div>
               </GlassCard>
@@ -406,8 +396,6 @@ function QuestScreen({ completed, onComplete }) {
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: "clamp(14px, 4vw, 18px)",
                     cursor: done || q.id === "q7" ? "default" : "pointer",
-                    transition: "all 0.3s",
-                    WebkitTapHighlightColor: "transparent",
                   }}>
                   {done ? <Check size={18} style={{ color: "#D4A537" }} /> : q.icon}
                 </motion.div>
@@ -416,7 +404,6 @@ function QuestScreen({ completed, onComplete }) {
                     fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500,
                     color: done ? "rgba(212,165,55,0.7)" : "#F5E6C8",
                     textDecoration: done ? "line-through" : "none",
-                    textDecorationColor: "rgba(212,165,55,0.3)",
                   }}>{q.title}</div>
                   <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{q.desc}</div>
                 </div>
@@ -502,9 +489,10 @@ export default function App() {
             {tab === "hub" && <HubScreen userCount={userCount} myStatus={myStatus} onGoTo={setTab} users={users} mySeat={mySeat} />}
             {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
             {tab === "wall" && <TalkWallScreen onQuestComplete={completeQuest} />}
-{tab === "question" && <QuestionCardScreen />}
+            {tab === "question" && <QuestionCardScreen />}
+            {tab === "menu" && <MenuScreen />}
             {tab === "quest" && <QuestScreen completed={completedQuests} onComplete={completeQuest} />}
-       </motion.div>
+          </motion.div>
         </AnimatePresence>
       </div>
       <SOSFAB onClick={() => setSosOpen(true)} />
