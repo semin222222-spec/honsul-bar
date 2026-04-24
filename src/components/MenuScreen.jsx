@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Droplets, Shuffle, Flame } from "lucide-react";
+import { X, Sparkles, Droplets, Shuffle, ShoppingBag, Check } from "lucide-react";
 
 const MENU_DATA = [
   {
     line: "LIGHT LINE",
     price: "9,900",
+    priceNum: 9900,
     desc: "가볍게 시작하는 한 잔",
     color: "#6AB06A",
     bg: "rgba(106,176,106,0.06)",
@@ -23,6 +24,7 @@ const MENU_DATA = [
   {
     line: "DEEP LINE",
     price: "12,900",
+    priceNum: 12900,
     desc: "한 단계 깊어지는 밤",
     color: "#D4A537",
     bg: "rgba(212,165,55,0.06)",
@@ -40,6 +42,7 @@ const MENU_DATA = [
   {
     line: "PREMIUM LINE",
     price: "14,900",
+    priceNum: 14900,
     desc: "오늘 밤의 주인공",
     color: "#C47AFF",
     bg: "rgba(196,122,255,0.06)",
@@ -57,10 +60,10 @@ const MENU_DATA = [
 ];
 
 const ALL_DRINKS = MENU_DATA.flatMap(section =>
-  section.items.map(item => ({ ...item, line: section.line, price: section.price, lineColor: section.color, lineBg: section.bg, lineBorder: section.border }))
+  section.items.map(item => ({ ...item, line: section.line, price: section.price, priceNum: section.priceNum, lineColor: section.color, lineBg: section.bg, lineBorder: section.border }))
 );
 
-function DrinkDetail({ drink, lineColor, onClose }) {
+function DrinkDetail({ drink, lineColor, onClose, onOrder, ordering, justOrdered }) {
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -105,7 +108,7 @@ function DrinkDetail({ drink, lineColor, onClose }) {
           fontSize: "clamp(12px, 3vw, 13px)", color: "rgba(255,255,255,0.45)",
           lineHeight: 1.7, marginBottom: 20,
         }}>{drink.desc}</div>
-        <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: 12, marginBottom: 20 }}>
           <div style={{
             background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
             borderRadius: 10, padding: "10px 16px",
@@ -124,6 +127,67 @@ function DrinkDetail({ drink, lineColor, onClose }) {
             <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>맛</span>
             <span style={{ fontSize: 15, fontWeight: 500, color: "#F5E6C8" }}>{drink.taste}</span>
           </div>
+        </div>
+
+        {/* 가격 + 주문 버튼 */}
+        <div style={{
+          padding: "14px 16px",
+          background: "rgba(0,0,0,0.3)",
+          borderRadius: 12,
+          marginBottom: 12,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em" }}>가격</span>
+          <span style={{
+            fontSize: 20, fontWeight: 400, color: lineColor,
+            fontFamily: "'Noto Serif KR', serif",
+          }}>
+            {drink.price}<span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 4 }}>원</span>
+          </span>
+        </div>
+
+        <motion.button
+          whileTap={!ordering && !justOrdered ? { scale: 0.96 } : {}}
+          onClick={() => { if (!ordering && !justOrdered) onOrder(drink); }}
+          disabled={ordering || justOrdered}
+          style={{
+            width: "100%", padding: "14px",
+            border: "none", borderRadius: 12,
+            background: justOrdered
+              ? "linear-gradient(135deg, #6AB06A, #4A9A4A)"
+              : ordering
+              ? "rgba(255,255,255,0.08)"
+              : `linear-gradient(135deg, ${lineColor}, ${lineColor}aa)`,
+            color: justOrdered ? "#fff" : ordering ? "rgba(255,255,255,0.4)" : "#0D0B08",
+            fontSize: 14, fontWeight: 600,
+            cursor: ordering || justOrdered ? "default" : "pointer",
+            fontFamily: "inherit",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            transition: "all 0.3s",
+            WebkitTapHighlightColor: "transparent",
+            minHeight: 48,
+          }}
+        >
+          {justOrdered ? (
+            <>
+              <Check size={16} />
+              주문 완료!
+            </>
+          ) : ordering ? (
+            "주문 중..."
+          ) : (
+            <>
+              <ShoppingBag size={16} />
+              주문하기
+            </>
+          )}
+        </motion.button>
+
+        <div style={{
+          fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 10,
+          lineHeight: 1.5,
+        }}>
+          주문 시 사장님께 바로 알림이 전달됩니다
         </div>
       </motion.div>
     </motion.div>
@@ -257,9 +321,122 @@ function RandomPicker() {
   );
 }
 
-export default function MenuScreen() {
+// 주문 탭 카드 (내 주문 내역 · 화면 상단)
+function MyTabCard({ orders, totalAmount, seat }) {
+  if (orders.length === 0) return null;
+
+  const pendingCount = orders.filter(o => o.status === "pending").length;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{
+        background: "linear-gradient(135deg, rgba(212,165,55,0.08), rgba(180,120,30,0.04))",
+        border: "1px solid rgba(212,165,55,0.25)",
+        borderRadius: 14,
+        padding: "14px 16px",
+        marginBottom: 20,
+      }}
+    >
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        marginBottom: 10,
+      }}>
+        <div>
+          <div style={{
+            fontSize: 9, letterSpacing: "0.2em",
+            color: "rgba(212,165,55,0.6)",
+            fontFamily: "'Noto Serif KR', serif",
+          }}>MY TAB</div>
+          <div style={{
+            fontSize: 14, color: "#D4A537", fontWeight: 500,
+            fontFamily: "'Noto Serif KR', serif", marginTop: 2,
+          }}>📍 {seat}</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)" }}>총 {orders.length}건</div>
+          <div style={{
+            fontSize: 17, color: "#D4A537", fontWeight: 500,
+            fontFamily: "'Noto Serif KR', serif", marginTop: 2,
+          }}>
+            {totalAmount.toLocaleString()}<span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginLeft: 2 }}>원</span>
+          </div>
+        </div>
+      </div>
+      <div style={{
+        display: "flex", flexDirection: "column", gap: 4,
+        padding: "10px 12px",
+        background: "rgba(0,0,0,0.25)",
+        borderRadius: 10,
+        maxHeight: 120, overflowY: "auto",
+      }}>
+        {orders.map((o) => (
+          <div key={o.id} style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            fontSize: 11, padding: "3px 0",
+          }}>
+            <span style={{ color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", gap: 6 }}>
+              <span>{o.menu_icon}</span>
+              <span>{o.menu_name}</span>
+              {o.status === "served" && (
+                <span style={{
+                  fontSize: 8, padding: "1px 5px", borderRadius: 4,
+                  background: "rgba(106,176,106,0.15)", color: "#6AB06A",
+                }}>✓ 제공됨</span>
+              )}
+            </span>
+            <span style={{ color: "rgba(212,165,55,0.7)" }}>
+              {o.price.toLocaleString()}원
+            </span>
+          </div>
+        ))}
+      </div>
+      {pendingCount > 0 && (
+        <div style={{
+          fontSize: 10, color: "rgba(212,165,55,0.6)",
+          textAlign: "center", marginTop: 8,
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+        }}>
+          <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ duration: 2, repeat: Infinity }}>
+            ⏳
+          </motion.span>
+          {pendingCount}건 제조 중
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, mySeat }) {
   const [selectedDrink, setSelectedDrink] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
+  const [ordering, setOrdering] = useState(false);
+  const [justOrdered, setJustOrdered] = useState(false);
+
+  const handleOrder = async (drink) => {
+    if (!createOrder) {
+      alert("주문 기능을 사용할 수 없습니다");
+      return;
+    }
+    setOrdering(true);
+    const result = await createOrder({
+      menuName: drink.name,
+      menuIcon: drink.icon,
+      price: drink.priceNum,
+    });
+    setOrdering(false);
+
+    if (result) {
+      setJustOrdered(true);
+      setTimeout(() => {
+        setSelectedDrink(null);
+        setJustOrdered(false);
+      }, 1500);
+    } else {
+      alert("주문에 실패했어요. 다시 시도해주세요.");
+    }
+  };
 
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
@@ -272,6 +449,9 @@ export default function MenuScreen() {
       }}>
         오늘 밤, 무엇을 마실까요?
       </div>
+
+      {/* My TAB 카드 */}
+      <MyTabCard orders={orders} totalAmount={totalAmount} seat={mySeat} />
 
       <RandomPicker />
 
@@ -314,7 +494,10 @@ export default function MenuScreen() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: si * 0.12 + ii * 0.04 }}
-                onClick={() => { setSelectedDrink(item); setSelectedColor(section.color); }}
+                onClick={() => {
+                  setSelectedDrink({ ...item, price: section.price, priceNum: section.priceNum });
+                  setSelectedColor(section.color);
+                }}
                 style={{
                   display: "flex", alignItems: "center", gap: "clamp(10px, 3vw, 14px)",
                   padding: "clamp(10px, 3vw, 13px) clamp(12px, 3.5vw, 14px)",
@@ -346,8 +529,12 @@ export default function MenuScreen() {
                   </div>
                 </div>
                 <div style={{
-                  fontSize: "clamp(9px, 2.2vw, 10px)", color: "rgba(255,255,255,0.2)", flexShrink: 0,
-                }}>상세보기</div>
+                  fontSize: "clamp(9px, 2.2vw, 10px)", color: section.color, flexShrink: 0,
+                  display: "flex", alignItems: "center", gap: 3,
+                }}>
+                  <ShoppingBag size={10} />
+                  <span>주문</span>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -359,7 +546,15 @@ export default function MenuScreen() {
           <DrinkDetail
             drink={selectedDrink}
             lineColor={selectedColor}
-            onClose={() => setSelectedDrink(null)}
+            onClose={() => {
+              if (!ordering) {
+                setSelectedDrink(null);
+                setJustOrdered(false);
+              }
+            }}
+            onOrder={handleOrder}
+            ordering={ordering}
+            justOrdered={justOrdered}
           />
         )}
       </AnimatePresence>

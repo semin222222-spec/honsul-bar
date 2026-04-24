@@ -18,6 +18,7 @@ import MyProfileCard from "./components/MyProfileCard";
 import { usePresence } from "./hooks/usePresence";
 import { useMatchmaking } from "./hooks/useMatchmaking";
 import { useSession } from "./hooks/useSession";
+import { useOrders } from "./hooks/useOrders";
 
 const QUESTS = [
   { id: "q1", title: "바에 안착하기", desc: "자리에 앉아 첫 주문을 해보세요", icon: "🪑", xp: 10 },
@@ -343,6 +344,9 @@ export default function App() {
 
   const mySeat = session?.seat_label || null;
 
+  // 주문 훅
+  const { orders, totalAmount, createOrder } = useOrders(session?.id, mySeat);
+
   const presence = usePresence(mySeat, inMatchState, {
     myId,
     initialNickname: session?.nickname,
@@ -440,7 +444,7 @@ export default function App() {
               {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
               {tab === "wall" && <TalkWallScreen onQuestComplete={completeQuest} />}
               {tab === "question" && <QuestionCardScreen />}
-              {tab === "menu" && <MenuScreen />}
+              {tab === "menu" && <MenuScreen createOrder={createOrder} orders={orders} totalAmount={totalAmount} mySeat={mySeat} />}
               {tab === "game" && (
                 <GameCenter
                   users={users}

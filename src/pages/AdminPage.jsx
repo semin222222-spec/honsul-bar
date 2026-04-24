@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell, Check, Clock, Coffee, MessageCircle, Moon, Wine, Shield,
-  Loader2, WifiOff, RefreshCw, Armchair, AlertTriangle, X,
+  Loader2, WifiOff, RefreshCw, Armchair, AlertTriangle, X, ShoppingBag, Trash2,
 } from "lucide-react";
 import { useSOSAdmin } from "../hooks/useSOSSignals";
 import { useSessionsAdmin } from "../hooks/useSessionsAdmin";
+import { useOrdersAdmin } from "../hooks/useOrdersAdmin";
 
 const TYPE_MAP = {
   join_chat: { label: "대화에 끼고 싶어요", icon: <MessageCircle size={18} />, color: "#D4A537" },
@@ -125,7 +126,7 @@ function SOSCard({ signal, onAccept, onResolve }) {
 }
 
 // ───────── 세션(좌석) 카드 ─────────
-function SessionCard({ session, onClose }) {
+function SessionCard({ session, orders, onClose }) {
   const [elapsed, setElapsed] = useState(sessionDuration(session.opened_at));
   const [confirmClose, setConfirmClose] = useState(false);
 
@@ -138,6 +139,10 @@ function SessionCard({ session, onClose }) {
   const lastActive = session.last_active_at ? new Date(session.last_active_at) : null;
   const inactiveMin = lastActive ? Math.floor((Date.now() - lastActive.getTime()) / 60000) : 0;
   const isInactive = inactiveMin >= 30;
+
+  // 이 세션의 주문들
+  const sessionOrders = (orders || []).filter(o => o.session_id === session.id);
+  const sessionTotal = sessionOrders.reduce((sum, o) => sum + (o.price || 0), 0);
 
   return (
     <motion.div
@@ -177,14 +182,46 @@ function SessionCard({ session, onClose }) {
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
+          {sessionTotal > 0 && (
+            <div style={{
+              fontSize: 15, color: "#D4A537", fontWeight: 500,
+              fontFamily: "'Noto Serif KR', serif", marginBottom: 2,
+            }}>
+              {sessionTotal.toLocaleString()}<span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginLeft: 2 }}>원</span>
+            </div>
+          )}
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>
             {formatTime(session.opened_at)} 입장
           </div>
-          <div style={{ fontSize: 11, color: "rgba(212,165,55,0.7)", marginTop: 2, fontWeight: 500 }}>
+          <div style={{ fontSize: 10, color: "rgba(212,165,55,0.7)", marginTop: 2, fontWeight: 500 }}>
             {elapsed}
           </div>
         </div>
       </div>
+
+      {/* 주문 칩 */}
+      {sessionOrders.length > 0 && (
+        <div style={{
+          display: "flex", flexWrap: "wrap", gap: 4,
+          marginBottom: 10,
+          padding: "8px 10px",
+          background: "rgba(0,0,0,0.2)",
+          borderRadius: 8,
+        }}>
+          {sessionOrders.map((o) => (
+            <span key={o.id} style={{
+              fontSize: 10, padding: "3px 7px",
+              background: o.status === "pending" ? "rgba(212,165,55,0.1)" : "rgba(106,176,106,0.08)",
+              color: o.status === "pending" ? "rgba(212,165,55,0.8)" : "rgba(106,176,106,0.8)",
+              borderRadius: 5,
+              display: "inline-flex", alignItems: "center", gap: 3,
+            }}>
+              {o.menu_icon} {o.menu_name}
+              {o.status === "pending" && <span style={{ fontSize: 8 }}>⏳</span>}
+            </span>
+          ))}
+        </div>
+      )}
 
       {isInactive && (
         <div style={{
@@ -267,24 +304,192 @@ function SessionCard({ session, onClose }) {
   );
 }
 
+// ───────── 주문 카드 ─────────
+function OrderCard({ order, onServed, onCancel }) {
+  const [elapsed, setElapsed] = useState(timeAgo(order.created_at));
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  useEffect(() => {
+    const iv = setInterval(() => setElapsed(timeAgo(order.created_at)), 10000);
+    return () => clearInterval(iv);
+  }, [order.created_at]);
+
+  const isPending = order.status === "pending";
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 200, transition: { duration: 0.3 } }}
+      transition={{ type: "spring", damping: 26, stiffness: 300 }}
+      style={{
+        background: isPending ? "rgba(212,165,55,0.06)" : "rgba(255,255,255,0.02)",
+        backdropFilter: "blur(16px)",
+        border: "1px solid " + (isPending ? "rgba(212,165,55,0.25)" : "rgba(255,255,255,0.06)"),
+        borderRadius: 16, padding: "16px 18px", marginBottom: 10,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 12,
+            background: isPending ? "rgba(212,165,55,0.15)" : "rgba(255,255,255,0.04)",
+            border: "1.5px solid " + (isPending ? "rgba(212,165,55,0.3)" : "rgba(255,255,255,0.06)"),
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 22,
+          }}>
+            {order.menu_icon || "🥃"}
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "#F5E6C8" }}>
+              {order.menu_name}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ color: "#D4A537", fontWeight: 500 }}>📍 {order.seat_label}</span>
+              <span>·</span>
+              <span>{order.session?.nickname || "손님"}</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{
+            fontSize: 16, color: "#D4A537", fontWeight: 500,
+            fontFamily: "'Noto Serif KR', serif",
+          }}>
+            {order.price.toLocaleString()}<span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginLeft: 2 }}>원</span>
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{elapsed}</div>
+        </div>
+      </div>
+
+      {isPending && !confirmCancel && (
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={() => setConfirmCancel(true)}
+            style={{
+              padding: "9px 14px", borderRadius: 9,
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "rgba(255,255,255,0.45)",
+              fontSize: 11, fontWeight: 500, cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            <Trash2 size={12} />
+            취소
+          </button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onServed(order.id)}
+            style={{
+              flex: 1, padding: "9px", borderRadius: 9,
+              background: "linear-gradient(135deg, #4A9A4A, #3A7A3A)",
+              border: "none",
+              color: "#fff",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            }}
+          >
+            <Check size={13} />
+            제공 완료
+          </motion.button>
+        </div>
+      )}
+
+      {confirmCancel && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            padding: "10px 12px",
+            background: "rgba(226,75,74,0.08)",
+            border: "1px solid rgba(226,75,74,0.3)",
+            borderRadius: 9,
+          }}
+        >
+          <div style={{ fontSize: 11, color: "rgba(255,180,180,0.9)", marginBottom: 8, textAlign: "center" }}>
+            이 주문을 취소(삭제)하시겠어요?
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => setConfirmCancel(false)}
+              style={{
+                flex: 1, padding: "7px", borderRadius: 7,
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.6)", fontSize: 11, cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              아니요
+            </button>
+            <button
+              onClick={() => onCancel(order.id)}
+              style={{
+                flex: 1.5, padding: "7px", borderRadius: 7,
+                background: "linear-gradient(135deg, #E24B4A, #B03838)",
+                border: "none", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              네, 취소
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {!isPending && (
+        <div style={{
+          padding: "6px 10px",
+          background: "rgba(106,176,106,0.08)",
+          borderRadius: 7,
+          fontSize: 10,
+          color: "rgba(106,176,106,0.9)",
+          textAlign: "center",
+        }}>
+          ✓ 제공 완료됨
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 // ───────── 메인 어드민 페이지 ─────────
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState("sos"); // sos | seats
+  const [activeTab, setActiveTab] = useState("sos"); // sos | seats | orders
 
   const { signals, loading: sosLoading, acceptSignal, resolveSignal, refetch: refetchSOS } = useSOSAdmin();
   const { sessions, loading: sessionsLoading, closeSession, refetch: refetchSessions } = useSessionsAdmin();
+  const { orders, pendingCount: pendingOrdersCount, loading: ordersLoading, markServed, cancelOrder, refetch: refetchOrders } = useOrdersAdmin();
 
   const [prevSOSCount, setPrevSOSCount] = useState(0);
+  const [prevOrdersCount, setPrevOrdersCount] = useState(0);
   const [flashHeader, setFlashHeader] = useState(false);
+  const [flashType, setFlashType] = useState(null); // 'sos' | 'order'
   const pendingSOSCount = signals.filter((s) => s.state === "pending").length;
 
+  // 새 SOS 알림
   useEffect(() => {
     if (signals.length > prevSOSCount && prevSOSCount > 0) {
       setFlashHeader(true);
+      setFlashType("sos");
       setTimeout(() => setFlashHeader(false), 1500);
     }
     setPrevSOSCount(signals.length);
   }, [signals.length]);
+
+  // 새 주문 알림
+  useEffect(() => {
+    if (orders.length > prevOrdersCount && prevOrdersCount > 0) {
+      setFlashHeader(true);
+      setFlashType("order");
+      setTimeout(() => setFlashHeader(false), 1500);
+    }
+    setPrevOrdersCount(orders.length);
+  }, [orders.length]);
 
   return (
     <div style={{
@@ -309,7 +514,11 @@ export default function AdminPage() {
       <div style={{ position: "relative", zIndex: 1, padding: "20px" }}>
         {/* 헤더 */}
         <motion.div
-          animate={flashHeader ? { boxShadow: ["0 0 0 0 rgba(212,165,55,0)", "0 0 30px 10px rgba(212,165,55,0.15)", "0 0 0 0 rgba(212,165,55,0)"] } : {}}
+          animate={flashHeader ? {
+            boxShadow: flashType === "order"
+              ? ["0 0 0 0 rgba(212,165,55,0)", "0 0 40px 12px rgba(212,165,55,0.25)", "0 0 0 0 rgba(212,165,55,0)"]
+              : ["0 0 0 0 rgba(226,75,74,0)", "0 0 40px 12px rgba(226,75,74,0.2)", "0 0 0 0 rgba(226,75,74,0)"]
+          } : {}}
           transition={{ duration: 1.2 }}
           style={{
             padding: "20px", borderRadius: 20, marginBottom: 16,
@@ -328,7 +537,7 @@ export default function AdminPage() {
             </div>
             <motion.button
               whileTap={{ scale: 0.9, rotate: 180 }}
-              onClick={() => { refetchSOS(); refetchSessions(); }}
+              onClick={() => { refetchSOS(); refetchSessions(); refetchOrders(); }}
               style={{
                 width: 38, height: 38, borderRadius: 12,
                 background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
@@ -341,30 +550,38 @@ export default function AdminPage() {
           </div>
 
           <div style={{
-            display: "flex", gap: 14, marginTop: 18,
-            padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.02)",
+            display: "flex", gap: 10, marginTop: 18,
+            padding: "14px 12px", borderRadius: 14, background: "rgba(255,255,255,0.02)",
           }}>
             <div style={{ flex: 1, textAlign: "center" }}>
               <motion.div key={pendingSOSCount} initial={{ scale: 0.5 }} animate={{ scale: 1 }}
-                style={{ fontSize: 28, fontWeight: 300, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>
+                style={{ fontSize: 26, fontWeight: 300, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>
                 {pendingSOSCount}
               </motion.div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>대기 SOS</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>대기 SOS</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.06)", alignSelf: "stretch" }} />
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <motion.div key={pendingOrdersCount} initial={{ scale: 0.5 }} animate={{ scale: 1 }}
+                style={{ fontSize: 26, fontWeight: 300, color: "#E24B4A", fontFamily: "'Noto Serif KR', serif" }}>
+                {pendingOrdersCount}
+              </motion.div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>대기 주문</div>
             </div>
             <div style={{ width: 1, background: "rgba(255,255,255,0.06)", alignSelf: "stretch" }} />
             <div style={{ flex: 1, textAlign: "center" }}>
               <motion.div key={sessions.length} initial={{ scale: 0.5 }} animate={{ scale: 1 }}
-                style={{ fontSize: 28, fontWeight: 300, color: "#6AB06A", fontFamily: "'Noto Serif KR', serif" }}>
+                style={{ fontSize: 26, fontWeight: 300, color: "#6AB06A", fontFamily: "'Noto Serif KR', serif" }}>
                 {sessions.length}
               </motion.div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>활성 좌석</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>활성 좌석</div>
             </div>
           </div>
         </motion.div>
 
         {/* 탭 바 */}
         <div style={{
-          display: "flex", gap: 6, marginBottom: 16,
+          display: "flex", gap: 4, marginBottom: 16,
           padding: 4,
           background: "rgba(255,255,255,0.02)",
           borderRadius: 12,
@@ -373,40 +590,67 @@ export default function AdminPage() {
           <button
             onClick={() => setActiveTab("sos")}
             style={{
-              flex: 1, padding: "10px", borderRadius: 9, border: "none",
+              flex: 1, padding: "10px 6px", borderRadius: 9, border: "none",
               background: activeTab === "sos" ? "rgba(212,165,55,0.15)" : "transparent",
               color: activeTab === "sos" ? "#D4A537" : "rgba(255,255,255,0.5)",
-              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              fontSize: 11, fontWeight: 600, cursor: "pointer",
               fontFamily: "inherit",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
             }}
           >
-            <Bell size={14} /> SOS
+            <Bell size={13} /> SOS
             {pendingSOSCount > 0 && (
               <span style={{
-                padding: "1px 6px", borderRadius: 5,
+                padding: "1px 5px", borderRadius: 5,
                 background: "#D4A537", color: "#0D0B08",
-                fontSize: 10, fontWeight: 700,
+                fontSize: 9, fontWeight: 700,
               }}>{pendingSOSCount}</span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab("orders")}
+            style={{
+              flex: 1, padding: "10px 6px", borderRadius: 9, border: "none",
+              background: activeTab === "orders" ? "rgba(226,75,74,0.12)" : "transparent",
+              color: activeTab === "orders" ? "#E87A79" : "rgba(255,255,255,0.5)",
+              fontSize: 11, fontWeight: 600, cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+            }}
+          >
+            <ShoppingBag size={13} /> 주문
+            {pendingOrdersCount > 0 && (
+              <motion.span
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                style={{
+                  padding: "1px 5px", borderRadius: 5,
+                  background: "#E24B4A", color: "#fff",
+                  fontSize: 9, fontWeight: 700,
+                  display: "inline-block",
+                }}
+              >
+                {pendingOrdersCount}
+              </motion.span>
             )}
           </button>
           <button
             onClick={() => setActiveTab("seats")}
             style={{
-              flex: 1, padding: "10px", borderRadius: 9, border: "none",
+              flex: 1, padding: "10px 6px", borderRadius: 9, border: "none",
               background: activeTab === "seats" ? "rgba(106,176,106,0.12)" : "transparent",
               color: activeTab === "seats" ? "#6AB06A" : "rgba(255,255,255,0.5)",
-              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              fontSize: 11, fontWeight: 600, cursor: "pointer",
               fontFamily: "inherit",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
             }}
           >
-            <Armchair size={14} /> 좌석
+            <Armchair size={13} /> 좌석
             {sessions.length > 0 && (
               <span style={{
-                padding: "1px 6px", borderRadius: 5,
+                padding: "1px 5px", borderRadius: 5,
                 background: "#6AB06A", color: "#0D0B08",
-                fontSize: 10, fontWeight: 700,
+                fontSize: 9, fontWeight: 700,
               }}>{sessions.length}</span>
             )}
           </button>
@@ -449,6 +693,62 @@ export default function AdminPage() {
                     <SOSCard key={signal.id} signal={signal} onAccept={acceptSignal} onResolve={resolveSignal} />
                   ))}
                 </AnimatePresence>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === "orders" && (
+            <motion.div
+              key="orders"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              transition={{ duration: 0.25 }}
+            >
+              {ordersLoading ? (
+                <div style={{ textAlign: "center", padding: "60px 0" }}>
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                    style={{ display: "inline-block", color: "rgba(226,75,74,0.4)" }}>
+                    <Loader2 size={32} />
+                  </motion.div>
+                </div>
+              ) : orders.length === 0 ? (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  style={{ textAlign: "center", padding: "60px 20px" }}>
+                  <div style={{ fontSize: 44, marginBottom: 16 }}>🍸</div>
+                  <div style={{
+                    fontSize: 17, fontWeight: 300, color: "rgba(255,255,255,0.35)",
+                    fontFamily: "'Noto Serif KR', serif", marginBottom: 6,
+                  }}>
+                    아직 주문이 없어요
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
+                    새 주문이 들어오면 자동으로 알려드릴게요
+                  </div>
+                </motion.div>
+              ) : (
+                <>
+                  <div style={{
+                    fontSize: 11, color: "rgba(255,255,255,0.35)",
+                    marginBottom: 10, padding: "0 4px",
+                    display: "flex", justifyContent: "space-between",
+                  }}>
+                    <span>총 {orders.length}건</span>
+                    <span style={{ color: "rgba(226,75,74,0.8)" }}>
+                      {pendingOrdersCount > 0 ? `대기 ${pendingOrdersCount}건` : "모두 제공됨"}
+                    </span>
+                  </div>
+                  <AnimatePresence>
+                    {orders.map((order) => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        onServed={markServed}
+                        onCancel={cancelOrder}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </>
               )}
             </motion.div>
           )}
@@ -497,6 +797,7 @@ export default function AdminPage() {
                       <SessionCard
                         key={session.id}
                         session={session}
+                        orders={orders}
                         onClose={closeSession}
                       />
                     ))}
