@@ -440,7 +440,7 @@ export default function WhiskyNine({
       >
         <div>
           <div style={{ fontSize: 10, letterSpacing: "0.2em", color: "rgba(212,165,55,0.5)" }}>
-            THE NINE · 구룡투
+            THE NINE
           </div>
           <div
             style={{
