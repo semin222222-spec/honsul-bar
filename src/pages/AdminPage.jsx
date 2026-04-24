@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Check, Clock, Coffee, MessageCircle, Moon, Wine, Shield, Loader2, WifiOff, RefreshCw } from "lucide-react";
+import {
+  Bell, Check, Clock, Coffee, MessageCircle, Moon, Wine, Shield,
+  Loader2, WifiOff, RefreshCw, Armchair, AlertTriangle, X,
+} from "lucide-react";
 import { useSOSAdmin } from "../hooks/useSOSSignals";
+import { useSessionsAdmin } from "../hooks/useSessionsAdmin";
 
 const TYPE_MAP = {
   join_chat: { label: "대화에 끼고 싶어요", icon: <MessageCircle size={18} />, color: "#D4A537" },
@@ -27,6 +31,15 @@ function timeAgo(iso) {
   return Math.floor(diff / 3600) + "시간 전";
 }
 
+function sessionDuration(iso) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (diff < 60) return diff + "분 경과";
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  return `${h}시간 ${m}분 경과`;
+}
+
+// ───────── SOS 카드 ─────────
 function SOSCard({ signal, onAccept, onResolve }) {
   const typeInfo = TYPE_MAP[signal.request_type] || TYPE_MAP.join_chat;
   const stateInfo = STATE_BADGE[signal.state] || STATE_BADGE.pending;
@@ -50,7 +63,6 @@ function SOSCard({ signal, onAccept, onResolve }) {
         backdropFilter: "blur(16px)",
         border: "1px solid " + (isPending ? "rgba(212,165,55,0.15)" : "rgba(255,255,255,0.06)"),
         borderRadius: 18, padding: "18px 20px", marginBottom: 12,
-        transition: "border-color 0.3s, background 0.3s",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -112,28 +124,176 @@ function SOSCard({ signal, onAccept, onResolve }) {
   );
 }
 
-export default function AdminPage() {
-  const { signals, loading, error, acceptSignal, resolveSignal, refetch } = useSOSAdmin();
-  const [prevCount, setPrevCount] = useState(0);
-  const [flashHeader, setFlashHeader] = useState(false);
-  const pendingCount = signals.filter((s) => s.state === "pending").length;
+// ───────── 세션(좌석) 카드 ─────────
+function SessionCard({ session, onClose }) {
+  const [elapsed, setElapsed] = useState(sessionDuration(session.opened_at));
+  const [confirmClose, setConfirmClose] = useState(false);
 
   useEffect(() => {
-    if (signals.length > prevCount && prevCount > 0) {
+    const iv = setInterval(() => setElapsed(sessionDuration(session.opened_at)), 60000);
+    return () => clearInterval(iv);
+  }, [session.opened_at]);
+
+  // 마지막 활동이 30분 이상 없으면 경고
+  const lastActive = session.last_active_at ? new Date(session.last_active_at) : null;
+  const inactiveMin = lastActive ? Math.floor((Date.now() - lastActive.getTime()) / 60000) : 0;
+  const isInactive = inactiveMin >= 30;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 16, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, x: 200, transition: { duration: 0.3 } }}
+      transition={{ type: "spring", damping: 26, stiffness: 300 }}
+      style={{
+        background: isInactive ? "rgba(226,150,75,0.04)" : "rgba(255,255,255,0.03)",
+        backdropFilter: "blur(16px)",
+        border: "1px solid " + (isInactive ? "rgba(226,150,75,0.25)" : "rgba(255,255,255,0.06)"),
+        borderRadius: 16, padding: "16px 18px", marginBottom: 10,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 10,
+            background: "rgba(212,165,55,0.1)",
+            border: "1.5px solid rgba(212,165,55,0.25)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18,
+          }}>
+            {session.avatar || "🥃"}
+          </div>
+          <div>
+            <div style={{
+              fontSize: 14, fontWeight: 600, color: "#F5E6C8",
+              fontFamily: "'Noto Serif KR', serif",
+            }}>
+              📍 {session.seat_label}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+              {session.nickname || "손님"}
+            </div>
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>
+            {formatTime(session.opened_at)} 입장
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(212,165,55,0.7)", marginTop: 2, fontWeight: 500 }}>
+            {elapsed}
+          </div>
+        </div>
+      </div>
+
+      {isInactive && (
+        <div style={{
+          padding: "8px 10px",
+          background: "rgba(226,150,75,0.1)",
+          border: "1px solid rgba(226,150,75,0.25)",
+          borderRadius: 8,
+          display: "flex", alignItems: "center", gap: 6,
+          marginBottom: 10,
+          fontSize: 11,
+          color: "rgba(255,200,130,0.9)",
+        }}>
+          <AlertTriangle size={13} />
+          마지막 활동이 {inactiveMin}분 전 — 자리를 뜬 걸 수도 있어요
+        </div>
+      )}
+
+      {!confirmClose ? (
+        <button
+          onClick={() => setConfirmClose(true)}
+          style={{
+            width: "100%", padding: "10px", borderRadius: 10,
+            background: isInactive ? "rgba(226,150,75,0.12)" : "rgba(255,255,255,0.03)",
+            border: "1px solid " + (isInactive ? "rgba(226,150,75,0.35)" : "rgba(255,255,255,0.08)"),
+            color: isInactive ? "rgba(255,200,130,0.9)" : "rgba(255,255,255,0.5)",
+            fontSize: 12, fontWeight: 500, cursor: "pointer",
+            fontFamily: "inherit",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          }}
+        >
+          <X size={13} /> 자리 비우기 (강제 해제)
+        </button>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            padding: "10px 12px",
+            background: "rgba(226,75,74,0.08)",
+            border: "1px solid rgba(226,75,74,0.3)",
+            borderRadius: 10,
+          }}
+        >
+          <div style={{
+            fontSize: 12, color: "rgba(255,180,180,0.95)",
+            marginBottom: 8, textAlign: "center", lineHeight: 1.5,
+          }}>
+            정말 <strong style={{ color: "#fff" }}>{session.seat_label}</strong> 자리를<br />
+            비우시겠어요?
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => setConfirmClose(false)}
+              style={{
+                flex: 1, padding: "8px", borderRadius: 8,
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.6)", fontSize: 11, cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              취소
+            </button>
+            <button
+              onClick={() => onClose(session.id)}
+              style={{
+                flex: 1.5, padding: "8px", borderRadius: 8,
+                background: "linear-gradient(135deg, #E24B4A, #B03838)",
+                border: "none",
+                color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              비우기 확정
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </motion.div>
+  );
+}
+
+// ───────── 메인 어드민 페이지 ─────────
+export default function AdminPage() {
+  const [activeTab, setActiveTab] = useState("sos"); // sos | seats
+
+  const { signals, loading: sosLoading, acceptSignal, resolveSignal, refetch: refetchSOS } = useSOSAdmin();
+  const { sessions, loading: sessionsLoading, closeSession, refetch: refetchSessions } = useSessionsAdmin();
+
+  const [prevSOSCount, setPrevSOSCount] = useState(0);
+  const [flashHeader, setFlashHeader] = useState(false);
+  const pendingSOSCount = signals.filter((s) => s.state === "pending").length;
+
+  useEffect(() => {
+    if (signals.length > prevSOSCount && prevSOSCount > 0) {
       setFlashHeader(true);
       setTimeout(() => setFlashHeader(false), 1500);
     }
-    setPrevCount(signals.length);
+    setPrevSOSCount(signals.length);
   }, [signals.length]);
 
   return (
     <div style={{
       maxWidth: 600, margin: "0 auto", minHeight: "100vh",
       background: "#0D0B08", color: "#F5E6C8",
-      fontFamily: "'Pretendard', -apple-system, sans-seriff",
+      fontFamily: "'Pretendard', -apple-system, sans-serif",
     }}>
       <style>{
-        "@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=DM+Sans:wght@300;400;500;600;700&display=swap');" +
+        "@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500;600;700&family=Pretendard:wght@300;400;500;600;700&display=swap');" +
         "* { box-sizing: border-box; margin: 0; padding: 0; }" +
         "body { background: #0D0B08; -webkit-font-smoothing: antialiased; }"
       }</style>
@@ -147,11 +307,12 @@ export default function AdminPage() {
       </div>
 
       <div style={{ position: "relative", zIndex: 1, padding: "20px" }}>
+        {/* 헤더 */}
         <motion.div
           animate={flashHeader ? { boxShadow: ["0 0 0 0 rgba(212,165,55,0)", "0 0 30px 10px rgba(212,165,55,0.15)", "0 0 0 0 rgba(212,165,55,0)"] } : {}}
           transition={{ duration: 1.2 }}
           style={{
-            padding: "20px", borderRadius: 20, marginBottom: 24,
+            padding: "20px", borderRadius: 20, marginBottom: 16,
             background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)",
           }}
         >
@@ -162,88 +323,189 @@ export default function AdminPage() {
                 <span style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.6)", textTransform: "uppercase" }}>HOST DASHBOARD</span>
               </div>
               <div style={{ fontSize: 24, fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif" }}>
-                SOS 시그널 관리
+                오늘, 혼술 관리자
               </div>
             </div>
-            <motion.button whileTap={{ scale: 0.9, rotate: 180 }} onClick={refetch}
+            <motion.button
+              whileTap={{ scale: 0.9, rotate: 180 }}
+              onClick={() => { refetchSOS(); refetchSessions(); }}
               style={{
                 width: 38, height: 38, borderRadius: 12,
                 background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 cursor: "pointer", color: "rgba(255,255,255,0.4)",
-              }}>
+              }}
+            >
               <RefreshCw size={16} />
             </motion.button>
           </div>
 
           <div style={{
-            display: "flex", gap: 16, marginTop: 18,
+            display: "flex", gap: 14, marginTop: 18,
             padding: "14px 16px", borderRadius: 14, background: "rgba(255,255,255,0.02)",
           }}>
             <div style={{ flex: 1, textAlign: "center" }}>
-              <motion.div key={pendingCount} initial={{ scale: 0.5 }} animate={{ scale: 1 }}
+              <motion.div key={pendingSOSCount} initial={{ scale: 0.5 }} animate={{ scale: 1 }}
                 style={{ fontSize: 28, fontWeight: 300, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>
-                {pendingCount}
+                {pendingSOSCount}
               </motion.div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>대기 중</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>대기 SOS</div>
             </div>
             <div style={{ width: 1, background: "rgba(255,255,255,0.06)", alignSelf: "stretch" }} />
             <div style={{ flex: 1, textAlign: "center" }}>
-              <div style={{ fontSize: 28, fontWeight: 300, color: "rgba(255,255,255,0.5)", fontFamily: "'Noto Serif KR', serif" }}>
-                {signals.length}
-              </div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>전체 활성</div>
+              <motion.div key={sessions.length} initial={{ scale: 0.5 }} animate={{ scale: 1 }}
+                style={{ fontSize: 28, fontWeight: 300, color: "#6AB06A", fontFamily: "'Noto Serif KR', serif" }}>
+                {sessions.length}
+              </motion.div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>활성 좌석</div>
             </div>
           </div>
         </motion.div>
 
-        {error && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        {/* 탭 바 */}
+        <div style={{
+          display: "flex", gap: 6, marginBottom: 16,
+          padding: 4,
+          background: "rgba(255,255,255,0.02)",
+          borderRadius: 12,
+          border: "1px solid rgba(255,255,255,0.04)",
+        }}>
+          <button
+            onClick={() => setActiveTab("sos")}
             style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "12px 16px", marginBottom: 16,
-              background: "rgba(220,60,60,0.08)", border: "1px solid rgba(220,60,60,0.15)",
-              borderRadius: 12, color: "rgba(220,130,130,0.8)", fontSize: 13,
-            }}>
-            <WifiOff size={16} />연결 오류
-          </motion.div>
-        )}
-
-        {loading && (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-              style={{ display: "inline-block", color: "rgba(212,165,55,0.4)" }}>
-              <Loader2 size={32} />
-            </motion.div>
-            <div style={{ marginTop: 14, fontSize: 14, color: "rgba(255,255,255,0.25)" }}>시그널을 불러오는 중...</div>
-          </div>
-        )}
-
-        {!loading && (
-          <AnimatePresence>
-            {signals.length === 0 ? (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-                style={{ textAlign: "center", padding: "60px 20px" }}>
-                <div style={{ fontSize: 44, marginBottom: 16 }}>🍸</div>
-                <div style={{ fontSize: 17, fontWeight: 300, color: "rgba(255,255,255,0.35)", fontFamily: "'Noto Serif KR', serif", marginBottom: 6 }}>
-                  모든 시그널이 처리되었어요
-                </div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", lineHeight: 1.6 }}>
-                  새로운 SOS가 들어오면 자동으로 여기에 표시됩니다
-                </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 28 }}>
-                  <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity }}
-                    style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(212,165,55,0.4)" }} />
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>실시간 대기 중</span>
-                </div>
-              </motion.div>
-            ) : (
-              signals.map((signal) => (
-                <SOSCard key={signal.id} signal={signal} onAccept={acceptSignal} onResolve={resolveSignal} />
-              ))
+              flex: 1, padding: "10px", borderRadius: 9, border: "none",
+              background: activeTab === "sos" ? "rgba(212,165,55,0.15)" : "transparent",
+              color: activeTab === "sos" ? "#D4A537" : "rgba(255,255,255,0.5)",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            }}
+          >
+            <Bell size={14} /> SOS
+            {pendingSOSCount > 0 && (
+              <span style={{
+                padding: "1px 6px", borderRadius: 5,
+                background: "#D4A537", color: "#0D0B08",
+                fontSize: 10, fontWeight: 700,
+              }}>{pendingSOSCount}</span>
             )}
-          </AnimatePresence>
-        )}
+          </button>
+          <button
+            onClick={() => setActiveTab("seats")}
+            style={{
+              flex: 1, padding: "10px", borderRadius: 9, border: "none",
+              background: activeTab === "seats" ? "rgba(106,176,106,0.12)" : "transparent",
+              color: activeTab === "seats" ? "#6AB06A" : "rgba(255,255,255,0.5)",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            }}
+          >
+            <Armchair size={14} /> 좌석
+            {sessions.length > 0 && (
+              <span style={{
+                padding: "1px 6px", borderRadius: 5,
+                background: "#6AB06A", color: "#0D0B08",
+                fontSize: 10, fontWeight: 700,
+              }}>{sessions.length}</span>
+            )}
+          </button>
+        </div>
+
+        {/* 탭 내용 */}
+        <AnimatePresence mode="wait">
+          {activeTab === "sos" && (
+            <motion.div
+              key="sos"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.25 }}
+            >
+              {sosLoading ? (
+                <div style={{ textAlign: "center", padding: "60px 0" }}>
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                    style={{ display: "inline-block", color: "rgba(212,165,55,0.4)" }}>
+                    <Loader2 size={32} />
+                  </motion.div>
+                </div>
+              ) : signals.length === 0 ? (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  style={{ textAlign: "center", padding: "60px 20px" }}>
+                  <div style={{ fontSize: 44, marginBottom: 16 }}>🍸</div>
+                  <div style={{
+                    fontSize: 17, fontWeight: 300, color: "rgba(255,255,255,0.35)",
+                    fontFamily: "'Noto Serif KR', serif", marginBottom: 6,
+                  }}>
+                    모든 시그널이 처리되었어요
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
+                    새로운 SOS가 들어오면 자동으로 표시됩니다
+                  </div>
+                </motion.div>
+              ) : (
+                <AnimatePresence>
+                  {signals.map((signal) => (
+                    <SOSCard key={signal.id} signal={signal} onAccept={acceptSignal} onResolve={resolveSignal} />
+                  ))}
+                </AnimatePresence>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === "seats" && (
+            <motion.div
+              key="seats"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.25 }}
+            >
+              {sessionsLoading ? (
+                <div style={{ textAlign: "center", padding: "60px 0" }}>
+                  <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+                    style={{ display: "inline-block", color: "rgba(106,176,106,0.4)" }}>
+                    <Loader2 size={32} />
+                  </motion.div>
+                </div>
+              ) : sessions.length === 0 ? (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  style={{ textAlign: "center", padding: "60px 20px" }}>
+                  <div style={{ fontSize: 44, marginBottom: 16 }}>🪑</div>
+                  <div style={{
+                    fontSize: 17, fontWeight: 300, color: "rgba(255,255,255,0.35)",
+                    fontFamily: "'Noto Serif KR', serif", marginBottom: 6,
+                  }}>
+                    지금 활성 좌석이 없어요
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
+                    손님이 입장하면 이곳에 표시됩니다
+                  </div>
+                </motion.div>
+              ) : (
+                <>
+                  <div style={{
+                    fontSize: 11, color: "rgba(255,255,255,0.35)",
+                    marginBottom: 10, padding: "0 4px",
+                    display: "flex", justifyContent: "space-between",
+                  }}>
+                    <span>현재 {sessions.length}명의 손님</span>
+                    <span style={{ color: "rgba(226,150,75,0.7)" }}>⚠ 30분+ 비활성</span>
+                  </div>
+                  <AnimatePresence>
+                    {sessions.map((session) => (
+                      <SessionCard
+                        key={session.id}
+                        session={session}
+                        onClose={closeSession}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

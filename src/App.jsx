@@ -17,6 +17,7 @@ import MatchInviteModal from "./components/MatchInviteModal";
 import MyProfileCard from "./components/MyProfileCard";
 import { usePresence } from "./hooks/usePresence";
 import { useMatchmaking } from "./hooks/useMatchmaking";
+import { useSession } from "./hooks/useSession";
 
 const QUESTS = [
   { id: "q1", title: "바에 안착하기", desc: "자리에 앉아 첫 주문을 해보세요", icon: "🪑", xp: 10 },
@@ -316,11 +317,39 @@ function SOSFAB({ onClick }) {
 }
 
 export default function App() {
-  const [mySeat, setMySeat] = useState(null);
   const [tab, setTab] = useState("hub");
-  const [inMatchState, setInMatchState] = useState(false); // usePresence에 전달할 플래그
-  const presence = usePresence(mySeat, inMatchState);
-  const { users, userCount, myId, myNickname, myAvatar, myStatus, setMyStatus, rerollNickname } = presence;
+  const [inMatchState, setInMatchState] = useState(false);
+
+  // 1. 기본 UUID + 닉네임 만들기 (좌석 없어도 생성됨)
+  // 2. session 훅으로 DB의 내 세션 확인 → 자동 복구
+  // 3. session이 있으면 mySeat도 자동 세팅됨
+
+  // 먼저 customer 정보 확보 (localStorage에 persist)
+  const [myId] = useState(() => {
+    let id = localStorage.getItem("honsul_customer_id");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("honsul_customer_id", id);
+    }
+    return id;
+  });
+
+  // 세션 훅
+  const { session, loading: sessionLoading, createSession } = useSession({
+    myId,
+    myNickname: null, // 나중에 presence에서 업데이트
+    myAvatar: null,
+  });
+
+  const mySeat = session?.seat_label || null;
+
+  const presence = usePresence(mySeat, inMatchState, {
+    myId,
+    initialNickname: session?.nickname,
+    initialAvatar: session?.avatar,
+  });
+  const { users, userCount, myNickname, myAvatar, myStatus, setMyStatus, rerollNickname } = presence;
+
   const [completedQuests, setCompletedQuests] = useState(new Set(["q1"]));
   const [sosOpen, setSosOpen] = useState(false);
 
@@ -340,7 +369,30 @@ export default function App() {
     if (s === "open") completeQuest("q6");
   }, [setMyStatus, completeQuest]);
 
-  if (!mySeat) return <SeatPicker onSelect={setMySeat} />;
+  // 좌석 선택 → 세션 생성
+  const handleSeatSelect = useCallback(async (seatLabel) => {
+    await createSession(seatLabel);
+  }, [createSession]);
+
+  // 세션 로딩 중 (재접속 복구 체크)
+  if (sessionLoading) {
+    return (
+      <div style={{
+        minHeight: "100vh", background: "#0D0B08", color: "#F5E6C8",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontFamily: "'Pretendard', -apple-system, sans-serif",
+      }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🥃</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", letterSpacing: "0.15em" }}>
+            잠시만요...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!mySeat) return <SeatPicker onSelect={handleSeatSelect} />;
 
   const inMatch = !!mm.match;
 
