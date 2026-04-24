@@ -1,19 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Home, MessageCircle, Trophy, Radio, Send, Heart,
-  HelpCircle, ChevronRight, Check, X, Users, Wine, Gamepad2,
-  HandMetal, Coffee, Bell, Sparkles,
-  MessageSquare, Clock, Star, Smile, Moon
+  Home, MessageCircle, Trophy, Wine, Gamepad2,
+  HandMetal, Bell, Sparkles, MessageSquare, Smile, Moon,
+  ChevronRight, Check, Swords,
 } from "lucide-react";
 import TalkWallScreen from "./components/TalkWallScreen";
 import SOSModal from "./components/SOSModal";
 import SeatPicker from "./components/SeatPicker";
 import QuestionCardScreen from "./components/QuestionCard";
 import MenuScreen from "./components/MenuScreen";
-import StackingGame from "./components/StackingGame";
 import AmbientBG from "./components/AmbientBG";
+import GameCenter from "./components/GameCenter";
+import WhiskyNine from "./components/WhiskyNine";
+import MatchInviteModal from "./components/MatchInviteModal";
 import { usePresence } from "./hooks/usePresence";
+import { useMatchmaking } from "./hooks/useMatchmaking";
 
 const QUESTS = [
   { id: "q1", title: "바에 안착하기", desc: "자리에 앉아 첫 주문을 해보세요", icon: "🪑", xp: 10 },
@@ -64,9 +66,8 @@ function PulseDot({ color = "#D4A537", size = 8 }) {
 function TabBar({ active, onChange }) {
   const tabs = [
     { id: "hub", icon: Home, label: "허브" },
-    { id: "status", icon: Radio, label: "시그널" },
     { id: "wall", icon: MessageSquare, label: "토크 월" },
-    { id: "question", icon: MessageCircle, label: "카드질문" },
+    { id: "question", icon: MessageCircle, label: "카드" },
     { id: "menu", icon: Wine, label: "메뉴" },
     { id: "game", icon: Gamepad2, label: "게임" },
     { id: "quest", icon: Trophy, label: "퀘스트" },
@@ -101,7 +102,7 @@ function TabBar({ active, onChange }) {
               }} />
             )}
             <Icon size={18} strokeWidth={isActive ? 2.2 : 1.5} />
-            <span style={{ fontSize: 8, fontWeight: isActive ? 600 : 400 }}>{t.label}</span>
+            <span style={{ fontSize: 9, fontWeight: isActive ? 600 : 400 }}>{t.label}</span>
           </button>
         );
       })}
@@ -124,7 +125,7 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}
         style={{ textAlign: "center", marginBottom: "clamp(16px, 5vw, 28px)" }}>
         <div style={{ fontSize: "clamp(9px, 2.5vw, 11px)", letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(212,165,55,0.6)", marginBottom: 8, fontFamily: "'Noto Serif KR', serif" }}>오늘, 혼술</div>
-<div style={{ fontSize: "clamp(10px, 2.5vw, 12px)", letterSpacing: "0.12em", color: "rgba(212,165,55,0.4)", marginTop: 4, fontFamily: "'Noto Serif KR', serif" }}>혼술바 소셜 가이드</div>
+        <div style={{ fontSize: "clamp(10px, 2.5vw, 12px)", letterSpacing: "0.12em", color: "rgba(212,165,55,0.4)", marginTop: 4, fontFamily: "'Noto Serif KR', serif" }}>혼술바 소셜 가이드</div>
         <div style={{ fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", lineHeight: 1.3 }}>
           <AnimatePresence mode="wait">
             <motion.span key={gi} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.5 }} style={{ display: "block" }}>{greetings[gi]}</motion.span>
@@ -172,8 +173,8 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "clamp(8px, 2.5vw, 12px)", marginBottom: "clamp(10px, 3vw, 16px)" }}>
         {[
-          { label: "토크 월", sub: "익명 피드", icon: <MessageSquare size={20} />, tab: "wall", delay: 0.3 },
-          { label: "뉴비 퀘스트", sub: "미션 도전", icon: <Trophy size={20} />, tab: "quest", delay: 0.35 },
+          { label: "대결 신청", sub: "더 나인 1:1", icon: <Swords size={20} />, tab: "game", delay: 0.3 },
+          { label: "토크 월", sub: "익명 피드", icon: <MessageSquare size={20} />, tab: "wall", delay: 0.35 },
         ].map(item => (
           <GlassCard key={item.tab} delay={item.delay} onClick={() => onGoTo(item.tab)} style={{ cursor: "pointer", padding: "clamp(14px, 4vw, 18px) clamp(10px, 3vw, 14px)", minHeight: 44 }}>
             <div style={{ color: "#D4A537", marginBottom: 10 }}>{item.icon}</div>
@@ -317,9 +318,12 @@ function SOSFAB({ onClick }) {
 export default function App() {
   const [mySeat, setMySeat] = useState(null);
   const [tab, setTab] = useState("hub");
-  const { users, userCount, myId, myStatus, setMyStatus } = usePresence(mySeat);
+  const presence = usePresence(mySeat);
+  const { users, userCount, myId, myNickname, myAvatar, myStatus, setMyStatus } = presence;
   const [completedQuests, setCompletedQuests] = useState(new Set(["q1"]));
   const [sosOpen, setSosOpen] = useState(false);
+
+  const mm = useMatchmaking({ myId, myNickname, myAvatar, mySeat });
 
   const completeQuest = useCallback((qid) => {
     setCompletedQuests(prev => { const next = new Set(prev); next.add(qid); return next; });
@@ -332,10 +336,12 @@ export default function App() {
 
   if (!mySeat) return <SeatPicker onSelect={setMySeat} />;
 
+  const inMatch = !!mm.match;
+
   return (
     <div style={{
       width: "100%", maxWidth: 430, margin: "0 auto",
-      minHeight: "100vh", minHeight: "100dvh", position: "relative",
+      minHeight: "100vh", position: "relative",
       background: "#0D0B08", color: "#F5E6C8",
       fontFamily: "'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif",
       overflowX: "hidden",
@@ -347,22 +353,49 @@ export default function App() {
         paddingTop: "max(16px, env(safe-area-inset-top))",
         paddingBottom: "calc(70px + max(8px, env(safe-area-inset-bottom)))",
       }}>
-        <AnimatePresence mode="wait">
-          <motion.div key={tab} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
-            {tab === "hub" && <HubScreen userCount={userCount} myStatus={myStatus} onGoTo={setTab} users={users} mySeat={mySeat} />}
-            {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
-            {tab === "wall" && <TalkWallScreen onQuestComplete={completeQuest} />}
-            {tab === "question" && <QuestionCardScreen />}
-            {tab === "menu" && <MenuScreen />}
-            {tab === "game" && <StackingGame />}
-            {tab === "quest" && <QuestScreen completed={completedQuests} onComplete={completeQuest} />}
-          </motion.div>
-        </AnimatePresence>
+        {inMatch ? (
+          <WhiskyNine
+            match={mm.match}
+            opponentMove={mm.opponentMove}
+            opponentReady={mm.opponentReady}
+            onSendMove={mm.sendMove}
+            onLeave={mm.leaveMatch}
+            myNickname={myNickname}
+            myAvatar={myAvatar}
+          />
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div key={tab} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
+              {tab === "hub" && <HubScreen userCount={userCount} myStatus={myStatus} onGoTo={setTab} users={users} mySeat={mySeat} />}
+              {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
+              {tab === "wall" && <TalkWallScreen onQuestComplete={completeQuest} />}
+              {tab === "question" && <QuestionCardScreen />}
+              {tab === "menu" && <MenuScreen />}
+              {tab === "game" && (
+                <GameCenter
+                  users={users}
+                  myId={myId}
+                  myStatus={myStatus}
+                  onSendInvite={mm.sendInvite}
+                  outgoingInvite={mm.outgoingInvite}
+                  onCancelOutgoing={mm.cancelOutgoing}
+                />
+              )}
+              {tab === "quest" && <QuestScreen completed={completedQuests} onComplete={completeQuest} />}
+            </motion.div>
+          </AnimatePresence>
+        )}
       </div>
-      <SOSFAB onClick={() => setSosOpen(true)} />
+      {!inMatch && <SOSFAB onClick={() => setSosOpen(true)} />}
       <SOSModal open={sosOpen} onClose={() => setSosOpen(false)} seatLabel={mySeat} />
-      <TabBar active={tab} onChange={setTab} />
+      {!inMatch && <TabBar active={tab} onChange={setTab} />}
+
+      <MatchInviteModal
+        invite={mm.incomingInvite}
+        onAccept={mm.acceptInvite}
+        onDecline={mm.declineInvite}
+      />
     </div>
   );
 }
