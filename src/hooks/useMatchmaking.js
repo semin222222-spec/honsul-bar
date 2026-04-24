@@ -82,14 +82,8 @@ export function useMatchmaking({ myId, myNickname, myAvatar, mySeat }) {
       });
 
       channel
-        .on("broadcast", { event: "move-selected" }, ({ payload }) => {
-          // 상대가 카드를 골랐다 (숫자는 숨김)
-          if (payload.from !== myId) {
-            setOpponentMove({ round: payload.round, hidden: true });
-          }
-        })
         .on("broadcast", { event: "move-reveal" }, ({ payload }) => {
-          // 양쪽 공개 — 이건 host가 양쪽 move 다 받은 후 트리거
+          // 상대의 카드 도착 — 숫자 바로 공개
           if (payload.from !== myId) {
             setOpponentMove({
               round: payload.round,
@@ -231,13 +225,13 @@ export function useMatchmaking({ myId, myNickname, myAvatar, mySeat }) {
 
   // ───── 게임 중: 내 카드 선택 전송 ─────
   const sendMove = useCallback(
-    async ({ round, card, reveal = false }) => {
+    async ({ round, card }) => {
       const ch = matchChannelRef.current;
       if (!ch) return;
       await ch.send({
         type: "broadcast",
-        event: reveal ? "move-reveal" : "move-selected",
-        payload: { from: myId, round, card: reveal ? card : undefined },
+        event: "move-reveal",
+        payload: { from: myId, round, card },
       });
     },
     [myId]

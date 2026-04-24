@@ -14,6 +14,7 @@ import AmbientBG from "./components/AmbientBG";
 import GameCenter from "./components/GameCenter";
 import WhiskyNine from "./components/WhiskyNine";
 import MatchInviteModal from "./components/MatchInviteModal";
+import MyProfileCard from "./components/MyProfileCard";
 import { usePresence } from "./hooks/usePresence";
 import { useMatchmaking } from "./hooks/useMatchmaking";
 
@@ -63,6 +64,8 @@ function PulseDot({ color = "#D4A537", size = 8 }) {
   );
 }
 
+// ───── 내 프로필 카드는 components/MyProfileCard.jsx 에서 import하여 사용 ─────
+
 function TabBar({ active, onChange }) {
   const tabs = [
     { id: "hub", icon: Home, label: "허브" },
@@ -110,7 +113,7 @@ function TabBar({ active, onChange }) {
   );
 }
 
-function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
+function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myAvatar, onReroll }) {
   const greetings = ["오늘 밤도 수고했어요.", "이 한 잔의 여유, 당신 것입니다.", "혼자여도 외롭지 않은 밤."];
   const [gi, setGi] = useState(0);
   useEffect(() => {
@@ -133,6 +136,15 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
         </div>
       </motion.div>
 
+      {/* ✨ 내 프로필 카드 (맨 위로!) */}
+      <MyProfileCard
+        nickname={myNickname}
+        avatar={myAvatar}
+        seat={mySeat}
+        onReroll={onReroll}
+        delay={0.05}
+      />
+
       <GlassCard delay={0.1} style={{ textAlign: "center", padding: "clamp(14px, 4vw, 20px)", marginBottom: "clamp(10px, 3vw, 16px)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 6 }}>
           <PulseDot /><span style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)" }}>지금 이 바에</span>
@@ -143,18 +155,6 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat }) {
         </div>
         <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: "clamp(10px, 3vw, 16px)", fontSize: 12 }}>
           {Object.entries(STATUS_MAP).map(([k, v]) => (<span key={k} style={{ display: "flex", alignItems: "center", gap: 4, color: v.color }}>{v.icon} <span>{statusCounts[k]}</span></span>))}
-        </div>
-      </GlassCard>
-
-      <GlassCard delay={0.15} style={{ marginBottom: "clamp(10px, 3vw, 16px)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>내 자리</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 16 }}>📍</span>
-              <span style={{ color: "#D4A537", fontSize: "clamp(13px, 3.5vw, 15px)", fontWeight: 500 }}>{mySeat}</span>
-            </div>
-          </div>
         </div>
       </GlassCard>
 
@@ -319,7 +319,7 @@ export default function App() {
   const [mySeat, setMySeat] = useState(null);
   const [tab, setTab] = useState("hub");
   const presence = usePresence(mySeat);
-  const { users, userCount, myId, myNickname, myAvatar, myStatus, setMyStatus } = presence;
+  const { users, userCount, myId, myNickname, myAvatar, myStatus, setMyStatus, rerollNickname } = presence;
   const [completedQuests, setCompletedQuests] = useState(new Set(["q1"]));
   const [sosOpen, setSosOpen] = useState(false);
 
@@ -367,7 +367,18 @@ export default function App() {
           <AnimatePresence mode="wait">
             <motion.div key={tab} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
-              {tab === "hub" && <HubScreen userCount={userCount} myStatus={myStatus} onGoTo={setTab} users={users} mySeat={mySeat} />}
+              {tab === "hub" && (
+                <HubScreen
+                  userCount={userCount}
+                  myStatus={myStatus}
+                  onGoTo={setTab}
+                  users={users}
+                  mySeat={mySeat}
+                  myNickname={myNickname}
+                  myAvatar={myAvatar}
+                  onReroll={rerollNickname}
+                />
+              )}
               {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
               {tab === "wall" && <TalkWallScreen onQuestComplete={completeQuest} />}
               {tab === "question" && <QuestionCardScreen />}
@@ -376,7 +387,11 @@ export default function App() {
                 <GameCenter
                   users={users}
                   myId={myId}
+                  myNickname={myNickname}
+                  myAvatar={myAvatar}
+                  mySeat={mySeat}
                   myStatus={myStatus}
+                  onReroll={rerollNickname}
                   onSendInvite={mm.sendInvite}
                   outgoingInvite={mm.outgoingInvite}
                   onCancelOutgoing={mm.cancelOutgoing}

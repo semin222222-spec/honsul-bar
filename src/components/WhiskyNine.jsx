@@ -154,10 +154,8 @@ export default function WhiskyNine({
     if (phase !== "waiting") return;
     if (myCommittedCard === null) return;
     if (!opponentMove || opponentMove.round !== round) return;
-    if (!opponentMove.card && opponentMove.card !== 0) {
-      // 아직 숨김 상태(move-selected만 받음)
-      return;
-    }
+    // opponentMove.card가 있으면 진행 (reveal 받음)
+    if (opponentMove.card === undefined || opponentMove.card === null) return;
     if (resolvingRef.current) return;
 
     resolvingRef.current = true;
@@ -195,28 +193,16 @@ export default function WhiskyNine({
     }, delay);
   }, [phase, opponentMove, myCommittedCard, round]);
 
-  // ───── 상대가 move-selected만 보냈을 때 내가 이미 냈다면 내 reveal 트리거 ─────
-  // (host/guest 구분 없이, 양쪽 다 자기 카드를 "reveal" 이벤트로 재전송하는 방식이 가장 단순)
-  useEffect(() => {
-    if (phase !== "waiting") return;
-    if (!opponentMove || opponentMove.round !== round) return;
-    if (opponentMove.card !== undefined) return; // 이미 공개된 상태
-    if (myCommittedCard === null) return;
-    // 상대가 선택했다는 신호만 받음 → 나도 reveal 전송
-    onSendMove({ round, card: myCommittedCard, reveal: true });
-  }, [phase, opponentMove, myCommittedCard, round, onSendMove]);
-
   // ───── 카드 제출 ─────
   const submitCard = async () => {
     if (phase !== "selecting" || selectedCard === null) return;
-    setMyCommittedCard(selectedCard);
+    const pickedCard = selectedCard;
+    setMyCommittedCard(pickedCard);
     setPhase("waiting");
-    // 먼저 "선택 완료" 시그널 (숫자 숨김)
-    await onSendMove({ round, reveal: false });
+    // 한 번에 카드 숫자 포함해서 전송 (교착 방지)
+    // UI에서는 opponentMove.card가 도착하고 내가 제출한 뒤에만 공개됨
+    await onSendMove({ round, card: pickedCard, reveal: true });
   };
-
-  // 상대 선택 신호 받자마자 reveal 전송 (위 useEffect에서 처리)
-  // 또는 내가 이미 냈는데 상대가 먼저 낸 경우도 같은 경로
 
   // ───── 게임 종료 시 랭킹 저장 ─────
   const saveRanking = async () => {
@@ -535,24 +521,59 @@ export default function WhiskyNine({
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <span style={{ fontSize: 17 }}>{match.opponent.avatar}</span>
-            <span style={{ fontSize: 12, color: "#F5E6C8", fontWeight: 500 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.06)",
+                border: "1.5px solid rgba(226,75,74,0.3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 18,
+                flexShrink: 0,
+              }}
+            >
+              {match.opponent.avatar}
+            </div>
+            <span
+              style={{
+                fontSize: 12,
+                color: "#F5E6C8",
+                fontWeight: 500,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontFamily: "'Noto Serif KR', serif",
+              }}
+            >
               {match.opponent.nickname}
             </span>
             <span
               style={{
-                fontSize: 10,
+                fontSize: 9,
+                padding: "2px 7px",
+                borderRadius: 6,
+                background:
+                  opponentMove?.round === round && myCommittedCard === null
+                    ? "rgba(212,165,55,0.15)"
+                    : "rgba(255,255,255,0.05)",
                 color:
-                  opponentMove?.round === round && opponentMove?.hidden
+                  opponentMove?.round === round && myCommittedCard === null
                     ? "#D4A537"
-                    : "rgba(255,255,255,0.4)",
+                    : "rgba(255,255,255,0.5)",
+                fontWeight: 500,
+                flexShrink: 0,
               }}
             >
               {phase === "reveal" && lastOpp
                 ? `${lastOpp.num} 제출`
-                : opponentMove?.round === round && opponentMove?.hidden
-                ? "🤔 고민 중..."
+                : opponentMove?.round === round && myCommittedCard === null
+                ? "✓ 제출 완료"
+                : opponentMove?.round === round && myCommittedCard !== null && phase === "waiting"
+                ? "🎴 공개 중..."
                 : `${oppWins}승`}
             </span>
           </div>
@@ -728,24 +749,79 @@ export default function WhiskyNine({
       {/* 내 존 */}
       <div
         style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(212,165,55,0.15)",
+          background: "linear-gradient(135deg, rgba(212,165,55,0.06), rgba(180,120,30,0.03))",
+          border: "1px solid rgba(212,165,55,0.25)",
           borderRadius: 14,
           padding: "10px 12px",
           marginBottom: 10,
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-            <span style={{ fontSize: 17 }}>{myAvatar}</span>
-            <span style={{ fontSize: 12, color: "#F5E6C8", fontWeight: 500 }}>
-              {myNickname} (나)
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 10,
+                background: "rgba(212,165,55,0.12)",
+                border: "1.5px solid rgba(212,165,55,0.4)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 18,
+                flexShrink: 0,
+              }}
+            >
+              {myAvatar}
+            </div>
+            <span
+              style={{
+                fontSize: 12,
+                color: "#F5E6C8",
+                fontWeight: 500,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontFamily: "'Noto Serif KR', serif",
+              }}
+            >
+              {myNickname}
             </span>
-            <span style={{ fontSize: 10, color: myCommittedCard !== null ? "#D4A537" : "rgba(255,255,255,0.4)" }}>
+            <span
+              style={{
+                fontSize: 9,
+                padding: "2px 6px",
+                borderRadius: 6,
+                background: "rgba(212,165,55,0.2)",
+                color: "#D4A537",
+                fontWeight: 600,
+                letterSpacing: "0.05em",
+                flexShrink: 0,
+              }}
+            >
+              나
+            </span>
+            <span
+              style={{
+                fontSize: 9,
+                padding: "2px 7px",
+                borderRadius: 6,
+                background:
+                  myCommittedCard !== null
+                    ? "rgba(106,176,106,0.15)"
+                    : "rgba(255,255,255,0.05)",
+                color:
+                  myCommittedCard !== null
+                    ? "#6AB06A"
+                    : "rgba(255,255,255,0.5)",
+                fontWeight: 500,
+                flexShrink: 0,
+              }}
+            >
               {phase === "reveal" && lastMy
                 ? `${lastMy.num} 제출`
                 : myCommittedCard !== null
-                ? "✓ 제출 완료"
+                ? "✓ 완료"
                 : `${myWins}승`}
             </span>
           </div>

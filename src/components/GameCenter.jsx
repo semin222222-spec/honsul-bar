@@ -1,26 +1,24 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Swords } from "lucide-react";
+import { motion } from "framer-motion";
+import { ChevronLeft } from "lucide-react";
 import StackingGame from "./StackingGame";
 import LoungeScreen from "./LoungeScreen";
+import MyProfileCard from "./MyProfileCard";
 
-/**
- * GameCenter
- * - 게임 탭의 허브 역할
- * - 메뉴에서 '잔 쌓기' 또는 '더 나인' 선택
- * - 각 게임 화면으로 전환
- */
 export default function GameCenter({
   users,
   myId,
+  myNickname,
+  myAvatar,
+  mySeat,
   myStatus,
+  onReroll,
   onSendInvite,
   outgoingInvite,
   onCancelOutgoing,
 }) {
-  const [view, setView] = useState("menu"); // menu | stacking | nine
+  const [view, setView] = useState("menu");
 
-  // 메뉴 화면
   if (view === "menu") {
     return (
       <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
@@ -40,18 +38,27 @@ export default function GameCenter({
             fontWeight: 300,
             color: "#F5E6C8",
             fontFamily: "'Noto Serif KR', serif",
-            marginBottom: 20,
+            marginBottom: 16,
           }}
         >
           무엇을 즐기시겠어요?
         </div>
+
+        {/* ✨ 내 프로필 (게임 탭에도 노출) */}
+        <MyProfileCard
+          nickname={myNickname}
+          avatar={myAvatar}
+          seat={mySeat}
+          onReroll={onReroll}
+          delay={0.03}
+        />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {/* 잔 쌓기 카드 */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.05 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setView("stacking")}
             style={{
@@ -66,22 +73,8 @@ export default function GameCenter({
               overflow: "hidden",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 44,
-                  lineHeight: 1,
-                  flexShrink: 0,
-                }}
-              >
-                🥃
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ fontSize: 44, lineHeight: 1, flexShrink: 0 }}>🥃</div>
               <div style={{ flex: 1 }}>
                 <div
                   style={{
@@ -123,11 +116,12 @@ export default function GameCenter({
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.12 }}
+            transition={{ duration: 0.4, delay: 0.17 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setView("nine")}
             style={{
-              background: "linear-gradient(135deg, rgba(212,165,55,0.08), rgba(180,120,30,0.05))",
+              background:
+                "linear-gradient(135deg, rgba(212,165,55,0.08), rgba(180,120,30,0.05))",
               backdropFilter: "blur(16px)",
               border: "1px solid rgba(212,165,55,0.2)",
               borderRadius: 16,
@@ -138,14 +132,14 @@ export default function GameCenter({
               overflow: "hidden",
             }}
           >
-            {/* 반짝이는 효과 */}
             <motion.div
               animate={{ opacity: [0.3, 0.5, 0.3] }}
               transition={{ duration: 3, repeat: Infinity }}
               style={{
                 position: "absolute",
                 inset: 0,
-                background: "radial-gradient(circle at 80% 30%, rgba(212,165,55,0.12), transparent 50%)",
+                background:
+                  "radial-gradient(circle at 80% 30%, rgba(212,165,55,0.12), transparent 50%)",
                 pointerEvents: "none",
               }}
             />
@@ -157,15 +151,7 @@ export default function GameCenter({
                 position: "relative",
               }}
             >
-              <div
-                style={{
-                  fontSize: 44,
-                  lineHeight: 1,
-                  flexShrink: 0,
-                }}
-              >
-                ⚔️
-              </div>
+              <div style={{ fontSize: 44, lineHeight: 1, flexShrink: 0 }}>⚔️</div>
               <div style={{ flex: 1 }}>
                 <div
                   style={{
@@ -222,7 +208,6 @@ export default function GameCenter({
           </motion.div>
         </div>
 
-        {/* 안내 */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -239,14 +224,14 @@ export default function GameCenter({
             textAlign: "center",
           }}
         >
-          🏆 모든 게임 기록은 <strong style={{ color: "rgba(212,165,55,0.7)" }}>명예의 전당</strong>에
+          🏆 모든 게임 기록은{" "}
+          <strong style={{ color: "rgba(212,165,55,0.7)" }}>명예의 전당</strong>에
           저장됩니다
         </motion.div>
       </div>
     );
   }
 
-  // 잔 쌓기 화면 (뒤로가기 버튼 추가)
   if (view === "stacking") {
     return (
       <div>
@@ -276,7 +261,6 @@ export default function GameCenter({
     );
   }
 
-  // 더 나인 화면 (라운지 = 상대 고르기)
   if (view === "nine") {
     return (
       <div>
