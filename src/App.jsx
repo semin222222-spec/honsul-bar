@@ -318,12 +318,18 @@ function SOSFAB({ onClick }) {
 export default function App() {
   const [mySeat, setMySeat] = useState(null);
   const [tab, setTab] = useState("hub");
-  const presence = usePresence(mySeat);
+  const [inMatchState, setInMatchState] = useState(false); // usePresence에 전달할 플래그
+  const presence = usePresence(mySeat, inMatchState);
   const { users, userCount, myId, myNickname, myAvatar, myStatus, setMyStatus, rerollNickname } = presence;
   const [completedQuests, setCompletedQuests] = useState(new Set(["q1"]));
   const [sosOpen, setSosOpen] = useState(false);
 
   const mm = useMatchmaking({ myId, myNickname, myAvatar, mySeat });
+
+  // 매치 시작/종료 시 presence inMatch 플래그 갱신
+  useEffect(() => {
+    setInMatchState(!!mm.match);
+  }, [mm.match]);
 
   const completeQuest = useCallback((qid) => {
     setCompletedQuests(prev => { const next = new Set(prev); next.add(qid); return next; });

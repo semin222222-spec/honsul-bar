@@ -203,7 +203,11 @@ export default function LoungeScreen({
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {filtered.map((u, i) => {
             const st = STATUS_MAP[u.status] || STATUS_MAP.hello;
-            const canInvite = myStatus !== "alone" && u.status !== "alone" && !outgoingInvite;
+            const canInvite =
+              myStatus !== "alone" &&
+              u.status !== "alone" &&
+              !outgoingInvite &&
+              !u.inMatch; // ★ 상대가 게임 중이면 못 보냄
 
             return (
               <GlassCard
@@ -211,6 +215,7 @@ export default function LoungeScreen({
                 delay={0.15 + i * 0.05}
                 style={{
                   padding: "clamp(10px, 3vw, 14px) clamp(12px, 3.5vw, 16px)",
+                  opacity: u.inMatch ? 0.6 : 1,
                 }}
               >
                 <div
@@ -257,21 +262,39 @@ export default function LoungeScreen({
                       >
                         {u.nickname}
                       </span>
-                      <span
-                        style={{
-                          fontSize: 9,
-                          padding: "2px 7px",
-                          borderRadius: 6,
-                          background: st.color + "18",
-                          color: st.color,
-                          fontWeight: 500,
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 3,
-                        }}
-                      >
-                        {st.icon} {st.label}
-                      </span>
+                      {u.inMatch ? (
+                        <span
+                          style={{
+                            fontSize: 9,
+                            padding: "2px 7px",
+                            borderRadius: 6,
+                            background: "rgba(226,75,74,0.15)",
+                            color: "rgba(255,180,180,0.9)",
+                            fontWeight: 500,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 3,
+                          }}
+                        >
+                          ⚔️ 대결 중
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            fontSize: 9,
+                            padding: "2px 7px",
+                            borderRadius: 6,
+                            background: st.color + "18",
+                            color: st.color,
+                            fontWeight: 500,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 3,
+                          }}
+                        >
+                          {st.icon} {st.label}
+                        </span>
+                      )}
                     </div>
                     <div
                       style={{
@@ -422,9 +445,13 @@ export default function LoungeScreen({
               )}
               {outgoingInvite.status === "declined" && (
                 <>
-                  <div style={{ fontSize: 44, marginBottom: 14 }}>🥀</div>
+                  <div style={{ fontSize: 44, marginBottom: 14 }}>
+                    {outgoingInvite.reason === "busy" ? "⚔️" : "🥀"}
+                  </div>
                   <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>
-                    {outgoingInvite.toNickname}님이 지금은 어렵대요
+                    {outgoingInvite.reason === "busy"
+                      ? `${outgoingInvite.toNickname}님은 지금 다른 대결 중이에요`
+                      : `${outgoingInvite.toNickname}님이 지금은 어렵대요`}
                   </div>
                 </>
               )}

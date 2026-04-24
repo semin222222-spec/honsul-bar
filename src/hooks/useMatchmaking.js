@@ -30,6 +30,11 @@ export function useMatchmaking({ myId, myNickname, myAvatar, mySeat }) {
 
   const inviteChannelRef = useRef(null);
   const matchChannelRef = useRef(null);
+  // ★ match 상태를 ref로도 유지 (useEffect 내부에서 최신값 참조용)
+  const matchRef = useRef(null);
+  useEffect(() => {
+    matchRef.current = match;
+  }, [match]);
 
   // ───── 내 전용 초대 채널 (언제나 수신 대기) ─────
   useEffect(() => {
@@ -40,7 +45,24 @@ export function useMatchmaking({ myId, myNickname, myAvatar, mySeat }) {
     });
 
     channel
-      .on("broadcast", { event: "invite" }, ({ payload }) => {
+      .on("broadcast", { event: "invite" }, async ({ payload }) => {
+        // ★ 이미 게임 중이면 자동 거절
+        if (matchRef.current) {
+          const senderChannel = supabase.channel(`nine-invite-${payload.from}`);
+          await senderChannel.subscribe();
+          await senderChannel.send({
+            type: "broadcast",
+            event: "invite-response",
+            payload: {
+              inviteId: payload.inviteId,
+              accepted: false,
+              reason: "busy", // 바쁜 중 표시 (선택)
+            },
+          });
+          supabase.removeChannel(senderChannel);
+          return; // 모달 안 띄움
+        }
+
         setIncomingInvite({
           from: payload.from,
           nickname: payload.nickname,
@@ -53,7 +75,11 @@ export function useMatchmaking({ myId, myNickname, myAvatar, mySeat }) {
         // 내가 보낸 초대에 대한 응답
         setOutgoingInvite((prev) => {
           if (!prev || prev.inviteId !== payload.inviteId) return prev;
-          return { ...prev, status: payload.accepted ? "accepted" : "declined" };
+          return {
+            ...prev,
+            status: payload.accepted ? "accepted" : "declined",
+            reason: payload.reason, // "busy" 등
+          };
         });
 
         if (payload.accepted) {
@@ -124,6 +150,8 @@ export function useMatchmaking({ myId, myNickname, myAvatar, mySeat }) {
   const sendInvite = useCallback(
     async (targetUser) => {
       if (!targetUser?.id || outgoingInvite) return;
+      // ★ 내가 이미 게임 중이면 보내지 않음 (이중 안전장치)
+      if (matchRef.current) return;
       const inviteId = crypto.randomUUID();
       const target = supabase.channel(`nine-invite-${targetUser.id}`);
       await target.subscribe();

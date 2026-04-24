@@ -42,12 +42,16 @@ function randomPick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// 형용사 + 명사 조합으로 닉네임 생성
 function generateNickname() {
   return `${randomPick(ADJECTIVES)} ${randomPick(NOUNS)}`;
 }
 
-export function usePresence(seatLabel) {
+/**
+ * usePresence
+ * @param {string} seatLabel - 내 좌석
+ * @param {boolean} inMatch - 현재 더 나인 게임 중인지 (선택)
+ */
+export function usePresence(seatLabel, inMatch = false) {
   const [users, setUsers] = useState([]);
   const [myId] = useState(() => crypto.randomUUID());
   const [myNickname, setMyNickname] = useState(() => generateNickname());
@@ -55,7 +59,6 @@ export function usePresence(seatLabel) {
   const [myStatus, setMyStatus] = useState("hello");
   const channelRef = useRef(null);
 
-  // 닉네임/아바타 다시 뽑기
   const rerollNickname = () => {
     setMyNickname(generateNickname());
     setMyAvatar(randomPick(AVATARS));
@@ -81,6 +84,7 @@ export function usePresence(seatLabel) {
               avatar: p.avatar,
               seat: p.seat,
               status: p.status,
+              inMatch: !!p.inMatch, // ★ 게임 중 여부
               joinedAt: p.joinedAt,
             });
           }
@@ -94,6 +98,7 @@ export function usePresence(seatLabel) {
             avatar: myAvatar,
             seat: seatLabel,
             status: myStatus,
+            inMatch,
             joinedAt: Date.now(),
           });
         }
@@ -110,7 +115,7 @@ export function usePresence(seatLabel) {
     };
   }, [seatLabel]);
 
-  // 닉네임/아바타/상태 변경 시 presence 업데이트
+  // 닉네임/아바타/상태/게임중 변경 시 presence 업데이트
   useEffect(() => {
     if (channelRef.current && seatLabel) {
       channelRef.current.track({
@@ -118,10 +123,11 @@ export function usePresence(seatLabel) {
         avatar: myAvatar,
         seat: seatLabel,
         status: myStatus,
+        inMatch,
         joinedAt: Date.now(),
       });
     }
-  }, [myStatus, myNickname, myAvatar]);
+  }, [myStatus, myNickname, myAvatar, inMatch]);
 
   return {
     users,
