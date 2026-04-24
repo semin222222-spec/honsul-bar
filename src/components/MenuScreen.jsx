@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, Droplets, Shuffle, ShoppingBag, Check } from "lucide-react";
+import { enableSound, playOrderSuccess } from "../lib/sounds";
 
 const MENU_DATA = [
   {
@@ -419,6 +420,8 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
       alert("주문 기능을 사용할 수 없습니다");
       return;
     }
+    // 유저 상호작용 순간 사운드 활성화 (브라우저 정책)
+    enableSound();
     setOrdering(true);
     const result = await createOrder({
       menuName: drink.name,
@@ -428,6 +431,7 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
     setOrdering(false);
 
     if (result) {
+      playOrderSuccess(); // 🔊 주문 성공 소리
       setJustOrdered(true);
       setTimeout(() => {
         setSelectedDrink(null);

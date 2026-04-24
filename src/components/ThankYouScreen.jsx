@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
+import { playSettled } from "../lib/sounds";
 
 /**
  * ThankYouScreen
@@ -6,6 +8,11 @@ import { motion } from "framer-motion";
  * - 닫을 때까지 계속 유지됨
  */
 export default function ThankYouScreen({ orders = [], totalAmount = 0, nickname, seat }) {
+  useEffect(() => {
+    // 화면 진입 시 정산 완료 소리
+    playSettled();
+  }, []);
+
   return (
     <div style={{
       minHeight: "100vh", minHeight: "100dvh",

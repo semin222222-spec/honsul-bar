@@ -3,10 +3,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell, Check, Clock, Coffee, MessageCircle, Moon, Wine, Shield,
   Loader2, WifiOff, RefreshCw, Armchair, AlertTriangle, X, ShoppingBag, Trash2,
+  Volume2, VolumeX,
 } from "lucide-react";
 import { useSOSAdmin } from "../hooks/useSOSSignals";
 import { useSessionsAdmin } from "../hooks/useSessionsAdmin";
 import { useOrdersAdmin } from "../hooks/useOrdersAdmin";
+import {
+  enableSound, disableSound, isSoundEnabled,
+  playOrderNotification, playSOSNotification,
+} from "../lib/sounds";
 
 const TYPE_MAP = {
   join_chat: { label: "대화에 끼고 싶어요", icon: <MessageCircle size={18} />, color: "#D4A537" },
@@ -557,13 +562,26 @@ export default function AdminPage() {
   const [prevOrdersCount, setPrevOrdersCount] = useState(0);
   const [flashHeader, setFlashHeader] = useState(false);
   const [flashType, setFlashType] = useState(null); // 'sos' | 'order'
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const pendingSOSCount = signals.filter((s) => s.state === "pending").length;
+
+  // 사운드 토글
+  const toggleSound = () => {
+    if (soundOn) {
+      disableSound();
+      setSoundOn(false);
+    } else {
+      enableSound();
+      setSoundOn(true);
+    }
+  };
 
   // 새 SOS 알림
   useEffect(() => {
     if (signals.length > prevSOSCount && prevSOSCount > 0) {
       setFlashHeader(true);
       setFlashType("sos");
+      playSOSNotification(); // 🔊 SOS 소리
       setTimeout(() => setFlashHeader(false), 1500);
     }
     setPrevSOSCount(signals.length);
@@ -574,6 +592,7 @@ export default function AdminPage() {
     if (orders.length > prevOrdersCount && prevOrdersCount > 0) {
       setFlashHeader(true);
       setFlashType("order");
+      playOrderNotification(); // 🔊 주문 소리
       setTimeout(() => setFlashHeader(false), 1500);
     }
     setPrevOrdersCount(orders.length);
@@ -623,18 +642,36 @@ export default function AdminPage() {
                 오늘, 혼술 관리자
               </div>
             </div>
-            <motion.button
-              whileTap={{ scale: 0.9, rotate: 180 }}
-              onClick={() => { refetchSOS(); refetchSessions(); refetchOrders(); }}
-              style={{
-                width: 38, height: 38, borderRadius: 12,
-                background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer", color: "rgba(255,255,255,0.4)",
-              }}
-            >
-              <RefreshCw size={16} />
-            </motion.button>
+            <div style={{ display: "flex", gap: 6 }}>
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={toggleSound}
+                style={{
+                  width: 38, height: 38, borderRadius: 12,
+                  background: soundOn ? "rgba(212,165,55,0.12)" : "rgba(255,255,255,0.05)",
+                  border: "1px solid " + (soundOn ? "rgba(212,165,55,0.3)" : "rgba(255,255,255,0.08)"),
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer",
+                  color: soundOn ? "#D4A537" : "rgba(255,255,255,0.4)",
+                  transition: "all 0.2s",
+                }}
+                title={soundOn ? "소리 알림 끄기" : "소리 알림 켜기"}
+              >
+                {soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.9, rotate: 180 }}
+                onClick={() => { refetchSOS(); refetchSessions(); refetchOrders(); }}
+                style={{
+                  width: 38, height: 38, borderRadius: 12,
+                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", color: "rgba(255,255,255,0.4)",
+                }}
+              >
+                <RefreshCw size={16} />
+              </motion.button>
+            </div>
           </div>
 
           <div style={{
@@ -702,6 +739,41 @@ export default function AdminPage() {
             </motion.div>
           </div>
         </motion.div>
+
+        {/* 사운드 비활성 시 알림 배너 */}
+        {!soundOn && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={toggleSound}
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 14px", marginBottom: 14,
+              background: "linear-gradient(135deg, rgba(212,165,55,0.08), rgba(180,120,30,0.04))",
+              border: "1px solid rgba(212,165,55,0.2)",
+              borderRadius: 12,
+              cursor: "pointer",
+            }}
+          >
+            <VolumeX size={16} style={{ color: "#D4A537", flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: "#F5E6C8", fontWeight: 500 }}>
+                소리 알림이 꺼져 있어요
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
+                여기를 탭하면 새 주문/SOS가 올 때 소리로 알려드려요
+              </div>
+            </div>
+            <div style={{
+              padding: "5px 10px", borderRadius: 7,
+              background: "rgba(212,165,55,0.2)",
+              color: "#D4A537", fontSize: 10, fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}>
+              켜기
+            </div>
+          </motion.div>
+        )}
 
         {/* 탭 바 */}
         <div style={{
