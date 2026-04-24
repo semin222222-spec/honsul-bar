@@ -126,9 +126,9 @@ function SOSCard({ signal, onAccept, onResolve }) {
 }
 
 // ───────── 세션(좌석) 카드 ─────────
-function SessionCard({ session, orders, onClose }) {
+function SessionCard({ session, orders, onClose, onSettle }) {
   const [elapsed, setElapsed] = useState(sessionDuration(session.opened_at));
-  const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null); // null | 'empty' | 'settle'
 
   useEffect(() => {
     const iv = setInterval(() => setElapsed(sessionDuration(session.opened_at)), 60000);
@@ -239,22 +239,42 @@ function SessionCard({ session, orders, onClose }) {
         </div>
       )}
 
-      {!confirmClose ? (
-        <button
-          onClick={() => setConfirmClose(true)}
-          style={{
-            width: "100%", padding: "10px", borderRadius: 10,
-            background: isInactive ? "rgba(226,150,75,0.12)" : "rgba(255,255,255,0.03)",
-            border: "1px solid " + (isInactive ? "rgba(226,150,75,0.35)" : "rgba(255,255,255,0.08)"),
-            color: isInactive ? "rgba(255,200,130,0.9)" : "rgba(255,255,255,0.5)",
-            fontSize: 12, fontWeight: 500, cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-          }}
-        >
-          <X size={13} /> 자리 비우기 (강제 해제)
-        </button>
-      ) : (
+      {!confirmAction ? (
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={() => setConfirmAction("empty")}
+            style={{
+              flex: sessionTotal > 0 ? 0.7 : 1,
+              padding: "10px 8px", borderRadius: 10,
+              background: isInactive ? "rgba(226,150,75,0.12)" : "rgba(255,255,255,0.03)",
+              border: "1px solid " + (isInactive ? "rgba(226,150,75,0.35)" : "rgba(255,255,255,0.08)"),
+              color: isInactive ? "rgba(255,200,130,0.9)" : "rgba(255,255,255,0.5)",
+              fontSize: 11, fontWeight: 500, cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+            }}
+          >
+            <X size={12} /> 자리 비우기
+          </button>
+          {sessionTotal > 0 && (
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => setConfirmAction("settle")}
+              style={{
+                flex: 1.3, padding: "10px", borderRadius: 10,
+                background: "linear-gradient(135deg, #D4A537, #B8860B)",
+                border: "none",
+                color: "#0D0B08", fontSize: 12, fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+              }}
+            >
+              💰 정산 ({sessionTotal.toLocaleString()}원)
+            </motion.button>
+          )}
+        </div>
+      ) : confirmAction === "empty" ? (
         <motion.div
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -271,10 +291,20 @@ function SessionCard({ session, orders, onClose }) {
           }}>
             정말 <strong style={{ color: "#fff" }}>{session.seat_label}</strong> 자리를<br />
             비우시겠어요?
+            {sessionTotal > 0 && (
+              <div style={{
+                fontSize: 10, color: "rgba(255,200,130,0.9)",
+                marginTop: 6, padding: "6px 8px",
+                background: "rgba(226,150,75,0.1)",
+                borderRadius: 6,
+              }}>
+                ⚠ {sessionTotal.toLocaleString()}원 미정산 상태로 비워져요
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             <button
-              onClick={() => setConfirmClose(false)}
+              onClick={() => setConfirmAction(null)}
               style={{
                 flex: 1, padding: "8px", borderRadius: 8,
                 background: "rgba(255,255,255,0.05)",
@@ -297,6 +327,64 @@ function SessionCard({ session, orders, onClose }) {
             >
               비우기 확정
             </button>
+          </div>
+        </motion.div>
+      ) : (
+        /* 정산 확인 */
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            padding: "12px",
+            background: "linear-gradient(135deg, rgba(212,165,55,0.12), rgba(180,120,30,0.06))",
+            border: "1px solid rgba(212,165,55,0.35)",
+            borderRadius: 10,
+          }}
+        >
+          <div style={{ textAlign: "center", marginBottom: 10 }}>
+            <div style={{
+              fontSize: 11, color: "rgba(212,165,55,0.7)",
+              letterSpacing: "0.15em", marginBottom: 4,
+            }}>
+              정산 확인
+            </div>
+            <div style={{
+              fontSize: 22, color: "#D4A537", fontWeight: 500,
+              fontFamily: "'Noto Serif KR', serif",
+            }}>
+              {sessionTotal.toLocaleString()}<span style={{ fontSize: 11, marginLeft: 3, color: "rgba(255,255,255,0.5)" }}>원</span>
+            </div>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>
+              {session.seat_label} · {sessionOrders.length}건 주문
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => setConfirmAction(null)}
+              style={{
+                flex: 1, padding: "9px", borderRadius: 8,
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.6)", fontSize: 11, cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              취소
+            </button>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => onSettle(session.id)}
+              style={{
+                flex: 1.8, padding: "9px", borderRadius: 8,
+                background: "linear-gradient(135deg, #D4A537, #B8860B)",
+                border: "none",
+                color: "#0D0B08", fontSize: 12, fontWeight: 700,
+                cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              ✓ 정산 완료
+            </motion.button>
           </div>
         </motion.div>
       )}
@@ -462,7 +550,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("sos"); // sos | seats | orders
 
   const { signals, loading: sosLoading, acceptSignal, resolveSignal, refetch: refetchSOS } = useSOSAdmin();
-  const { sessions, loading: sessionsLoading, closeSession, refetch: refetchSessions } = useSessionsAdmin();
+  const { sessions, todayRevenue, loading: sessionsLoading, closeSession, settleSession, refetch: refetchSessions } = useSessionsAdmin();
   const { orders, pendingCount: pendingOrdersCount, loading: ordersLoading, markServed, cancelOrder, refetch: refetchOrders } = useOrdersAdmin();
 
   const [prevSOSCount, setPrevSOSCount] = useState(0);
@@ -576,6 +664,42 @@ export default function AdminPage() {
               </motion.div>
               <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>활성 좌석</div>
             </div>
+          </div>
+
+          {/* 오늘 매출 */}
+          <div style={{
+            marginTop: 10,
+            padding: "12px 14px",
+            background: "linear-gradient(135deg, rgba(212,165,55,0.1), rgba(180,120,30,0.04))",
+            border: "1px solid rgba(212,165,55,0.2)",
+            borderRadius: 12,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <div>
+              <div style={{
+                fontSize: 10, letterSpacing: "0.2em",
+                color: "rgba(212,165,55,0.7)",
+                fontFamily: "'Noto Serif KR', serif",
+              }}>
+                오늘 매출
+              </div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
+                정산 완료 건 합산
+              </div>
+            </div>
+            <motion.div
+              key={todayRevenue}
+              initial={{ scale: 0.7, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              style={{
+                fontSize: 22,
+                color: "#D4A537",
+                fontWeight: 500,
+                fontFamily: "'Noto Serif KR', serif",
+              }}
+            >
+              {todayRevenue.toLocaleString()}<span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 3 }}>원</span>
+            </motion.div>
           </div>
         </motion.div>
 
@@ -799,6 +923,7 @@ export default function AdminPage() {
                         session={session}
                         orders={orders}
                         onClose={closeSession}
+                        onSettle={settleSession}
                       />
                     ))}
                   </AnimatePresence>

@@ -15,6 +15,7 @@ import { supabase } from "../lib/supabaseClient";
 export function useSession({ myId, myNickname, myAvatar }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [justSettled, setJustSettled] = useState(null); // 최근 정산된 세션 정보 (ThankYou 화면용)
   const activeChannelRef = useRef(null);
 
   // ───── 활동 시간 업데이트 (3분마다) ─────
@@ -96,8 +97,9 @@ export function useSession({ myId, myNickname, myAvatar }) {
         (payload) => {
           const updated = payload.new;
           if (updated.status === "closed") {
-            // 사장님이 정산함 → 세션 종료
+            // 사장님이 정산함 → ThankYouScreen 표시를 위해 justSettled에 저장
             localStorage.removeItem("honsul_session_id");
+            setJustSettled(updated);
             setSession(null);
           } else {
             setSession(updated);
@@ -156,5 +158,7 @@ export function useSession({ myId, myNickname, myAvatar }) {
     session,
     loading,
     createSession,
+    justSettled,
+    dismissThankYou: () => setJustSettled(null),
   };
 }

@@ -10,6 +10,7 @@ import SOSModal from "./components/SOSModal";
 import SeatPicker from "./components/SeatPicker";
 import QuestionCardScreen from "./components/QuestionCard";
 import MenuScreen from "./components/MenuScreen";
+import ThankYouScreen from "./components/ThankYouScreen";
 import AmbientBG from "./components/AmbientBG";
 import GameCenter from "./components/GameCenter";
 import WhiskyNine from "./components/WhiskyNine";
@@ -336,11 +337,31 @@ export default function App() {
   });
 
   // 세션 훅
-  const { session, loading: sessionLoading, createSession } = useSession({
+  const { session, loading: sessionLoading, createSession, justSettled } = useSession({
     myId,
     myNickname: null, // 나중에 presence에서 업데이트
     myAvatar: null,
   });
+
+  // 정산 완료된 세션의 주문 기록 (ThankYou 화면에 표시용)
+  const [settledOrders, setSettledOrders] = useState([]);
+  useEffect(() => {
+    if (!justSettled?.id) {
+      setSettledOrders([]);
+      return;
+    }
+    // 정산된 세션의 주문 조회
+    import("./lib/supabaseClient").then(({ supabase }) => {
+      supabase
+        .from("orders")
+        .select("*")
+        .eq("session_id", justSettled.id)
+        .order("created_at", { ascending: true })
+        .then(({ data }) => {
+          setSettledOrders(data || []);
+        });
+    });
+  }, [justSettled?.id]);
 
   const mySeat = session?.seat_label || null;
 
@@ -393,6 +414,19 @@ export default function App() {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // 정산 완료 → ThankYouScreen 표시 (세션 없어질 때까지 유지)
+  if (justSettled) {
+    const settledTotal = settledOrders.reduce((sum, o) => sum + (o.price || 0), 0);
+    return (
+      <ThankYouScreen
+        orders={settledOrders}
+        totalAmount={settledTotal}
+        nickname={justSettled.nickname}
+        seat={justSettled.seat_label}
+      />
     );
   }
 
