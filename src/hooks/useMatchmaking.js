@@ -107,6 +107,9 @@ export function useMatchmaking({ myId, myNickname, myAvatar, mySeat }) {
         config: { broadcast: { self: false } },
       });
 
+      let readyInterval = null;
+      let opponentReadyState = false;
+
       channel
         .on("broadcast", { event: "move-reveal" }, ({ payload }) => {
           // 상대의 카드 도착 — 숫자 바로 공개
@@ -119,7 +122,21 @@ export function useMatchmaking({ myId, myNickname, myAvatar, mySeat }) {
           }
         })
         .on("broadcast", { event: "ready" }, ({ payload }) => {
-          if (payload.from !== myId) setOpponentReady(true);
+          if (payload.from !== myId) {
+            opponentReadyState = true;
+            setOpponentReady(true);
+            // 상대도 알아야 하니 즉시 ack 보내기
+            channel.send({
+              type: "broadcast",
+              event: "ready",
+              payload: { from: myId, ack: true },
+            });
+            // ready ping 중지 (이제 알았으니까)
+            if (readyInterval) {
+              clearInterval(readyInterval);
+              readyInterval = null;
+            }
+          }
         })
         .on("broadcast", { event: "leave" }, ({ payload }) => {
           if (payload.from !== myId) {
@@ -129,13 +146,37 @@ export function useMatchmaking({ myId, myNickname, myAvatar, mySeat }) {
         })
         .subscribe((status) => {
           if (status === "SUBSCRIBED") {
+            // 첫 ready 즉시 발송
             channel.send({
               type: "broadcast",
               event: "ready",
               payload: { from: myId },
             });
+            // 상대가 응답할 때까지 0.5초마다 재발송 (5초 후 자동 중지)
+            let attempts = 0;
+            readyInterval = setInterval(() => {
+              if (opponentReadyState || attempts > 10) {
+                clearInterval(readyInterval);
+                readyInterval = null;
+                return;
+              }
+              attempts++;
+              channel.send({
+                type: "broadcast",
+                event: "ready",
+                payload: { from: myId },
+              });
+            }, 500);
           }
         });
+
+      // 채널에 정리 함수 첨부 (leave시 인터벌 정리)
+      channel._readyCleanup = () => {
+        if (readyInterval) {
+          clearInterval(readyInterval);
+          readyInterval = null;
+        }
+      };
 
       matchChannelRef.current = channel;
       setMatch({ matchId, opponent, role });
@@ -269,6 +310,8 @@ export function useMatchmaking({ myId, myNickname, myAvatar, mySeat }) {
   const leaveMatch = useCallback(async () => {
     const ch = matchChannelRef.current;
     if (ch) {
+      // ready ping 인터벌 정리
+      if (ch._readyCleanup) ch._readyCleanup();
       await ch.send({
         type: "broadcast",
         event: "leave",
