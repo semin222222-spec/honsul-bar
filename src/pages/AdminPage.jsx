@@ -12,10 +12,13 @@ import { useMenus } from "../hooks/useMenus";
 import { useMenusAdmin } from "../hooks/useMenusAdmin";
 import { useSeatRows } from "../hooks/useSeatRows";
 import { useSeatRowsAdmin } from "../hooks/useSeatRowsAdmin";
+import { useSalesStats } from "../hooks/useSalesStats";
 import { useStoreId, useStore } from "../lib/StoreContext";
 import SeatMap from "../components/SeatMap";
 import MenuAdminPanel from "../components/MenuAdminPanel";
 import SeatRowsAdminPanel from "../components/SeatRowsAdminPanel";
+import SalesStatsPanel from "../components/SalesStatsPanel";
+import MonthlyHistoryPanel from "../components/MonthlyHistoryPanel";
 import {
   enableSound, disableSound, isSoundEnabled,
   playOrderNotification, playSOSNotification,
@@ -577,6 +580,9 @@ export default function AdminPage() {
   const { rows: seatRows, loading: seatRowsLoading, refetch: refetchSeatRows } = useSeatRows(storeId);
   const seatRowsAdmin = useSeatRowsAdmin(storeId, refetchSeatRows);
 
+  // 매출 통계
+  const { stats: salesStats, loading: salesStatsLoading } = useSalesStats(storeId);
+
   const [prevSOSCount, setPrevSOSCount] = useState(0);
   const [prevOrdersCount, setPrevOrdersCount] = useState(0);
   const [flashHeader, setFlashHeader] = useState(false);
@@ -1034,6 +1040,48 @@ export default function AdminPage() {
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {/* 매출 통계 카드 */}
+                    <motion.button
+                      onClick={() => setManagePanel("stats")}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        padding: 16,
+                        background: "linear-gradient(135deg, rgba(212,165,55,0.12), rgba(180,120,30,0.04))",
+                        border: "1px solid rgba(212,165,55,0.3)",
+                        borderRadius: 12,
+                        cursor: "pointer", fontFamily: "inherit",
+                        display: "flex", alignItems: "center", gap: 14,
+                        textAlign: "left",
+                      }}
+                    >
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 11,
+                        background: "rgba(212,165,55,0.15)",
+                        border: "1px solid rgba(212,165,55,0.3)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 20, flexShrink: 0,
+                      }}>
+                        📊
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: "#F5E6C8", fontWeight: 500, marginBottom: 3 }}>
+                          매출 통계
+                        </div>
+                        <div style={{ fontSize: 11, color: "rgba(212,165,55,0.85)" }}>
+                          오늘 {salesStats.todayRevenue.toLocaleString()}원
+                          {salesStats.yesterdayRevenue > 0 && (
+                            <span style={{
+                              marginLeft: 6,
+                              color: salesStats.revenueChangePct >= 0 ? "#6AB06A" : "rgba(255,150,150,0.85)",
+                            }}>
+                              {salesStats.revenueChangePct >= 0 ? "▲" : "▼"}{Math.abs(salesStats.revenueChangePct)}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
+                    </motion.button>
+
                     {/* 메뉴 관리 카드 */}
                     <motion.button
                       onClick={() => setManagePanel("menus")}
@@ -1152,6 +1200,54 @@ export default function AdminPage() {
                     💡 <strong>안내</strong><br/>
                     매출 통계, 사장님 가입 등 더 많은 기능이 곧 추가될 예정이에요
                   </div>
+                </div>
+              )}
+
+              {/* 매출 통계 패널 */}
+              {managePanel === "stats" && (
+                <div>
+                  <button
+                    onClick={() => setManagePanel(null)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "6px 10px", marginBottom: 12,
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 8,
+                      color: "rgba(255,255,255,0.6)",
+                      fontSize: 11, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    ← 관리 메뉴로
+                  </button>
+                  <SalesStatsPanel
+                    stats={salesStats}
+                    loading={salesStatsLoading}
+                    onShowHistory={() => setManagePanel("history")}
+                  />
+                </div>
+              )}
+
+              {/* 월별 히스토리 패널 */}
+              {managePanel === "history" && (
+                <div>
+                  <button
+                    onClick={() => setManagePanel("stats")}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "6px 10px", marginBottom: 12,
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 8,
+                      color: "rgba(255,255,255,0.6)",
+                      fontSize: 11, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    ← 매출 통계로
+                  </button>
+                  <MonthlyHistoryPanel
+                    history={salesStats.monthlyHistory || []}
+                  />
                 </div>
               )}
 
