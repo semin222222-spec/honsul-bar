@@ -122,7 +122,7 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
       </span>
       {!isEmpty && hasOrders && (
         <span style={{ fontSize: 9, opacity: 0.85, marginTop: 1 }}>
-          {(sessionTotal / 1000).toFixed(1)}k원
+          {sessionTotal.toLocaleString()}원
         </span>
       )}
       {!isEmpty && !hasOrders && (
