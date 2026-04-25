@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStore } from "../lib/StoreContext";
+import { useSeatRows } from "../hooks/useSeatRows";
 
 /**
  * QR 생성 페이지
@@ -10,13 +11,12 @@ import { useStore } from "../lib/StoreContext";
  */
 export default function QRPrintPage() {
   const { store } = useStore();
+  const { rows, allSeats, loading: seatsLoading } = useSeatRows(store?.id);
   const [size, setSize] = useState(180); // QR 크기 (px)
   const [showAdmin, setShowAdmin] = useState(false);
 
-  // 좌석 리스트 (A1~A20, B1~B20)
-  const seats = [];
-  for (let i = 1; i <= 20; i++) seats.push(`A-${i}`);
-  for (let i = 1; i <= 20; i++) seats.push(`B-${i}`);
+  // 좌석은 DB의 seat_rows에서 동적으로 받음 (allSeats: ['A-1', 'A-2', ..., 'B-20'])
+  const seats = allSeats;
 
   // 현재 매장 slug 기준 URL 만들기
   const baseURL = window.location.origin;
@@ -116,6 +116,23 @@ export default function QRPrintPage() {
       </div>
 
       {/* QR 그리드 (인쇄 영역) */}
+      {seatsLoading ? (
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "#888" }}>
+          좌석 정보를 불러오는 중...
+        </div>
+      ) : seats.length === 0 ? (
+        <div style={{
+          maxWidth: 600, margin: "0 auto",
+          textAlign: "center", padding: "60px 20px",
+          background: "#fff5f5", border: "1px solid #fcc",
+          borderRadius: 12, color: "#c33",
+        }}>
+          ⚠️ 좌석이 설정되지 않았어요<br/>
+          <span style={{ fontSize: 12, color: "#888" }}>
+            관리자 페이지 → ⚙️ 관리 → 📐 좌석 설정에서 행을 먼저 추가해주세요
+          </span>
+        </div>
+      ) : (
       <div style={{
         maxWidth: 800,
         margin: "0 auto",
@@ -207,6 +224,7 @@ export default function QRPrintPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* 인쇄용 스타일 */}
       <style>{`

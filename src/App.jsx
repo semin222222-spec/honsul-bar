@@ -421,8 +421,8 @@ export default function App() {
     // 이미 시도했음 표시 (무한 시도 방지)
     setAutoSeatTried(true);
 
-    // 좌석 형식 검증 (A-1 ~ B-20)
-    const valid = /^[AB]-\d{1,2}$/.test(seatFromUrl);
+    // 좌석 형식 검증 (A-1, B-20, 한글-3 등 어떤 형식이든 허용)
+    const valid = /^[A-Za-z가-힣]+-\d{1,3}$/.test(seatFromUrl);
     if (!valid) {
       // 잘못된 좌석 → URL에서 제거
       setSearchParams({});

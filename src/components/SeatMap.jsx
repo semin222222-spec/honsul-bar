@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Move, Wallet, Trash2 } from "lucide-react";
-
-// 좌석 정의 — 매장 좌석 구성과 동일하게
-const BAR_A = Array.from({ length: 20 }, (_, i) => `A-${i + 1}`);
-const BAR_B = Array.from({ length: 20 }, (_, i) => `B-${i + 1}`);
+import { useSeatRows } from "../hooks/useSeatRows";
+import { useStoreId } from "../lib/StoreContext";
 
 function formatTime(iso) {
   const d = new Date(iso);
@@ -428,6 +426,10 @@ export default function SeatMap({ sessions, orders, onClose, onSettle, onMove })
   const [pendingMove, setPendingMove] = useState(null); // {sessionId, fromSeat, toSeat}
   const [toast, setToast] = useState(null);
 
+  // 좌석 행 (DB)
+  const storeId = useStoreId();
+  const { rows: seatRows } = useSeatRows(storeId);
+
   // 좌석별 세션 맵
   const sessionMap = new Map();
   sessions.forEach(s => sessionMap.set(s.seat_label, s));
@@ -598,8 +600,14 @@ export default function SeatMap({ sessions, orders, onClose, onSettle, onMove })
         )}
       </AnimatePresence>
 
-      {renderRow(BAR_A, "A줄")}
-      {renderRow(BAR_B, "B줄")}
+      {seatRows.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+          좌석이 설정되지 않았어요
+        </div>
+      ) : seatRows.map(row => {
+        const seats = Array.from({ length: row.seat_count }, (_, i) => `${row.name}-${i + 1}`);
+        return <div key={row.id}>{renderRow(seats, `${row.name}줄`)}</div>;
+      })}
 
       {/* 디테일 팝업 */}
       <AnimatePresence>

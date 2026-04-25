@@ -3,16 +3,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Bell, Check, Clock, Coffee, MessageCircle, Moon, Wine, Shield,
   Loader2, WifiOff, RefreshCw, Armchair, AlertTriangle, X, ShoppingBag, Trash2,
-  Volume2, VolumeX,
+  Volume2, VolumeX, ChevronRight,
 } from "lucide-react";
 import { useSOSAdmin } from "../hooks/useSOSSignals";
 import { useSessionsAdmin } from "../hooks/useSessionsAdmin";
 import { useOrdersAdmin } from "../hooks/useOrdersAdmin";
 import { useMenus } from "../hooks/useMenus";
 import { useMenusAdmin } from "../hooks/useMenusAdmin";
-import { useStoreId } from "../lib/StoreContext";
+import { useSeatRows } from "../hooks/useSeatRows";
+import { useSeatRowsAdmin } from "../hooks/useSeatRowsAdmin";
+import { useStoreId, useStore } from "../lib/StoreContext";
 import SeatMap from "../components/SeatMap";
 import MenuAdminPanel from "../components/MenuAdminPanel";
+import SeatRowsAdminPanel from "../components/SeatRowsAdminPanel";
 import {
   enableSound, disableSound, isSoundEnabled,
   playOrderNotification, playSOSNotification,
@@ -557,7 +560,8 @@ function OrderCard({ order, onServed, onCancel }) {
 
 // ───────── 메인 어드민 페이지 ─────────
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState("sos"); // sos | seats | orders | menus
+  const [activeTab, setActiveTab] = useState("sos"); // sos | seats | orders | manage
+  const [managePanel, setManagePanel] = useState(null); // null | 'menus' | 'seatrows' | 'qr'
 
   const { signals, loading: sosLoading, acceptSignal, resolveSignal, refetch: refetchSOS } = useSOSAdmin();
   const { sessions, todayRevenue, loading: sessionsLoading, closeSession, settleSession, moveSession, refetch: refetchSessions } = useSessionsAdmin();
@@ -565,8 +569,13 @@ export default function AdminPage() {
 
   // 메뉴 관리
   const storeId = useStoreId();
+  const { storeSlug } = useStore();
   const { categories: menuCategories, menus: menuItems, loading: menusLoading, refetch: refetchMenus } = useMenus(storeId);
   const menuAdmin = useMenusAdmin(storeId, refetchMenus);
+
+  // 좌석 행 관리
+  const { rows: seatRows, loading: seatRowsLoading, refetch: refetchSeatRows } = useSeatRows(storeId);
+  const seatRowsAdmin = useSeatRowsAdmin(storeId, refetchSeatRows);
 
   const [prevSOSCount, setPrevSOSCount] = useState(0);
   const [prevOrdersCount, setPrevOrdersCount] = useState(0);
@@ -861,17 +870,17 @@ export default function AdminPage() {
             )}
           </button>
           <button
-            onClick={() => setActiveTab("menus")}
+            onClick={() => { setActiveTab("manage"); setManagePanel(null); }}
             style={{
               flex: 1, padding: "10px 6px", borderRadius: 9, border: "none",
-              background: activeTab === "menus" ? "rgba(212,165,55,0.15)" : "transparent",
-              color: activeTab === "menus" ? "#D4A537" : "rgba(255,255,255,0.5)",
+              background: activeTab === "manage" ? "rgba(212,165,55,0.15)" : "transparent",
+              color: activeTab === "manage" ? "#D4A537" : "rgba(255,255,255,0.5)",
               fontSize: 11, fontWeight: 600, cursor: "pointer",
               fontFamily: "inherit",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
             }}
           >
-            📋 메뉴
+            ⚙️ 관리
           </button>
         </div>
 
@@ -999,25 +1008,211 @@ export default function AdminPage() {
             </motion.div>
           )}
 
-          {activeTab === "menus" && (
+          {activeTab === "manage" && (
             <motion.div
-              key="menus"
+              key="manage"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.25 }}
             >
-              <MenuAdminPanel
-                categories={menuCategories}
-                menus={menuItems}
-                loading={menusLoading}
-                createMenu={menuAdmin.createMenu}
-                updateMenu={menuAdmin.updateMenu}
-                deleteMenu={menuAdmin.deleteMenu}
-                createCategory={menuAdmin.createCategory}
-                updateCategory={menuAdmin.updateCategory}
-                deleteCategory={menuAdmin.deleteCategory}
-              />
+              {/* 패널 미선택 → 카드 메뉴 */}
+              {!managePanel && (
+                <div>
+                  <div style={{
+                    fontSize: 16, color: "#F5E6C8",
+                    fontFamily: "'Noto Serif KR', serif",
+                    fontWeight: 500, marginBottom: 4, padding: "0 4px",
+                  }}>
+                    ⚙️ 매장 관리
+                  </div>
+                  <div style={{
+                    fontSize: 11, color: "rgba(255,255,255,0.4)",
+                    marginBottom: 16, padding: "0 4px",
+                  }}>
+                    설정하고 싶은 항목을 선택하세요
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {/* 메뉴 관리 카드 */}
+                    <motion.button
+                      onClick={() => setManagePanel("menus")}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        padding: 16,
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        borderRadius: 12,
+                        cursor: "pointer", fontFamily: "inherit",
+                        display: "flex", alignItems: "center", gap: 14,
+                        textAlign: "left",
+                      }}
+                    >
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 11,
+                        background: "rgba(212,165,55,0.1)",
+                        border: "1px solid rgba(212,165,55,0.2)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 20, flexShrink: 0,
+                      }}>
+                        📋
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: "#F5E6C8", fontWeight: 500, marginBottom: 3 }}>
+                          메뉴 관리
+                        </div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                          {menuItems.length}개 메뉴 · {menuCategories.length}개 카테고리
+                        </div>
+                      </div>
+                      <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
+                    </motion.button>
+
+                    {/* 좌석 설정 카드 */}
+                    <motion.button
+                      onClick={() => setManagePanel("seatrows")}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        padding: 16,
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        borderRadius: 12,
+                        cursor: "pointer", fontFamily: "inherit",
+                        display: "flex", alignItems: "center", gap: 14,
+                        textAlign: "left",
+                      }}
+                    >
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 11,
+                        background: "rgba(196,122,255,0.1)",
+                        border: "1px solid rgba(196,122,255,0.2)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 20, flexShrink: 0,
+                      }}>
+                        📐
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: "#F5E6C8", fontWeight: 500, marginBottom: 3 }}>
+                          좌석 설정
+                        </div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                          {seatRows.length}개 행 · 총 {seatRows.reduce((sum, r) => sum + r.seat_count, 0)}석
+                        </div>
+                      </div>
+                      <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
+                    </motion.button>
+
+                    {/* QR 출력 카드 */}
+                    <motion.a
+                      href={`/${storeSlug || 'honsul-main'}/qr`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        padding: 16,
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        borderRadius: 12,
+                        cursor: "pointer", fontFamily: "inherit",
+                        display: "flex", alignItems: "center", gap: 14,
+                        textAlign: "left",
+                        textDecoration: "none",
+                        color: "inherit",
+                      }}
+                    >
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 11,
+                        background: "rgba(106,176,106,0.1)",
+                        border: "1px solid rgba(106,176,106,0.2)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 20, flexShrink: 0,
+                      }}>
+                        🏷️
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: "#F5E6C8", fontWeight: 500, marginBottom: 3 }}>
+                          QR 출력
+                        </div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                          좌석 QR 인쇄용 페이지 (새 창)
+                        </div>
+                      </div>
+                      <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
+                    </motion.a>
+                  </div>
+
+                  <div style={{
+                    marginTop: 14, padding: 12,
+                    background: "rgba(212,165,55,0.04)",
+                    border: "1px solid rgba(212,165,55,0.15)",
+                    borderRadius: 10,
+                    fontSize: 11, color: "rgba(212,165,55,0.85)",
+                    lineHeight: 1.6,
+                  }}>
+                    💡 <strong>안내</strong><br/>
+                    매출 통계, 사장님 가입 등 더 많은 기능이 곧 추가될 예정이에요
+                  </div>
+                </div>
+              )}
+
+              {/* 메뉴 관리 패널 */}
+              {managePanel === "menus" && (
+                <div>
+                  <button
+                    onClick={() => setManagePanel(null)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "6px 10px", marginBottom: 12,
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 8,
+                      color: "rgba(255,255,255,0.6)",
+                      fontSize: 11, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    ← 관리 메뉴로
+                  </button>
+                  <MenuAdminPanel
+                    categories={menuCategories}
+                    menus={menuItems}
+                    loading={menusLoading}
+                    createMenu={menuAdmin.createMenu}
+                    updateMenu={menuAdmin.updateMenu}
+                    deleteMenu={menuAdmin.deleteMenu}
+                    createCategory={menuAdmin.createCategory}
+                    updateCategory={menuAdmin.updateCategory}
+                    deleteCategory={menuAdmin.deleteCategory}
+                  />
+                </div>
+              )}
+
+              {/* 좌석 설정 패널 */}
+              {managePanel === "seatrows" && (
+                <div>
+                  <button
+                    onClick={() => setManagePanel(null)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "6px 10px", marginBottom: 12,
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 8,
+                      color: "rgba(255,255,255,0.6)",
+                      fontSize: 11, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    ← 관리 메뉴로
+                  </button>
+                  <SeatRowsAdminPanel
+                    rows={seatRows}
+                    loading={seatRowsLoading}
+                    sessions={sessions}
+                    createRow={seatRowsAdmin.createRow}
+                    updateRow={seatRowsAdmin.updateRow}
+                    deleteRow={seatRowsAdmin.deleteRow}
+                  />
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

@@ -1,10 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useSeatOccupancy } from "../hooks/useSeatOccupancy";
-
-// A-1 ~ A-20, B-1 ~ B-20
-const BAR_A = Array.from({ length: 20 }, (_, i) => `A-${i + 1}`);
-const BAR_B = Array.from({ length: 20 }, (_, i) => `B-${i + 1}`);
+import { useSeatRows } from "../hooks/useSeatRows";
+import { useStoreId } from "../lib/StoreContext";
 
 function SeatGrid({ seats, selected, occupiedSeats, onSelect, baseDelay = 0 }) {
   return (
@@ -84,6 +82,8 @@ function SeatGrid({ seats, selected, occupiedSeats, onSelect, baseDelay = 0 }) {
 export default function SeatPicker({ onSelect }) {
   const [selected, setSelected] = useState(null);
   const { occupiedSeats } = useSeatOccupancy();
+  const storeId = useStoreId();
+  const { rows, loading: rowsLoading } = useSeatRows(storeId);
 
   const totalOccupied = occupiedSeats.size;
 
@@ -179,60 +179,55 @@ export default function SeatPicker({ onSelect }) {
           </motion.div>
         </div>
 
-        {/* A줄 */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            marginBottom: 10,
-          }}>
-            <span style={{
-              fontSize: 11, letterSpacing: "0.1em",
-              color: "rgba(212,165,55,0.5)",
-              fontFamily: "'Noto Serif KR', serif",
-            }}>
-              A줄 · 1 ~ 20번
-            </span>
-            {totalOccupied > 0 && (
-              <span style={{
-                fontSize: 10,
-                color: "rgba(255,255,255,0.35)",
-                display: "flex", alignItems: "center", gap: 4,
+        {/* 좌석 행 (DB에서 동적으로 생성) */}
+        {rowsLoading ? (
+          <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+            좌석 불러오는 중...
+          </div>
+        ) : rows.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+            좌석이 설정되지 않았어요
+          </div>
+        ) : rows.map((row, rowIdx) => {
+          const seats = Array.from({ length: row.seat_count }, (_, i) => `${row.name}-${i + 1}`);
+          const isFirst = rowIdx === 0;
+          return (
+            <div key={row.id} style={{ marginBottom: rowIdx === rows.length - 1 ? 24 : 16 }}>
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                marginBottom: 10,
               }}>
                 <span style={{
-                  width: 6, height: 6, borderRadius: "50%",
-                  background: "rgba(226,75,74,0.6)",
-                }} />
-                이용 중
-              </span>
-            )}
-          </div>
-          <SeatGrid
-            seats={BAR_A}
-            selected={selected}
-            occupiedSeats={occupiedSeats}
-            onSelect={setSelected}
-            baseDelay={0.8}
-          />
-        </div>
-
-        {/* B줄 */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{
-            fontSize: 11, letterSpacing: "0.1em",
-            color: "rgba(212,165,55,0.5)",
-            fontFamily: "'Noto Serif KR', serif",
-            marginBottom: 10,
-          }}>
-            B줄 · 1 ~ 20번
-          </div>
-          <SeatGrid
-            seats={BAR_B}
-            selected={selected}
-            occupiedSeats={occupiedSeats}
-            onSelect={setSelected}
-            baseDelay={1.0}
-          />
-        </div>
+                  fontSize: 11, letterSpacing: "0.1em",
+                  color: "rgba(212,165,55,0.5)",
+                  fontFamily: "'Noto Serif KR', serif",
+                }}>
+                  {row.name}줄 · 1 ~ {row.seat_count}번
+                </span>
+                {isFirst && totalOccupied > 0 && (
+                  <span style={{
+                    fontSize: 10,
+                    color: "rgba(255,255,255,0.35)",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}>
+                    <span style={{
+                      width: 6, height: 6, borderRadius: "50%",
+                      background: "rgba(226,75,74,0.6)",
+                    }} />
+                    이용 중
+                  </span>
+                )}
+              </div>
+              <SeatGrid
+                seats={seats}
+                selected={selected}
+                occupiedSeats={occupiedSeats}
+                onSelect={setSelected}
+                baseDelay={0.8 + rowIdx * 0.2}
+              />
+            </div>
+          );
+        })}
 
         {/* 입장 버튼 */}
         <motion.button
