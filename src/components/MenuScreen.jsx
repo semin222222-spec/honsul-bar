@@ -195,25 +195,25 @@ function DrinkDetail({ drink, lineColor, onClose, onOrder, ordering, justOrdered
   );
 }
 
-function RandomPicker() {
+function RandomPicker({ allDrinks = [] }) {
   const [picked, setPicked] = useState(null);
   const [spinning, setSpinning] = useState(false);
   const [spinKey, setSpinKey] = useState(0);
 
   const pickRandom = () => {
-    if (spinning) return;
+    if (spinning || allDrinks.length === 0) return;
     setSpinning(true);
     setPicked(null);
 
     let count = 0;
     const total = 12;
     const interval = setInterval(() => {
-      setPicked(ALL_DRINKS[Math.floor(Math.random() * ALL_DRINKS.length)]);
+      setPicked(allDrinks[Math.floor(Math.random() * allDrinks.length)]);
       setSpinKey(prev => prev + 1);
       count++;
       if (count >= total) {
         clearInterval(interval);
-        const final = ALL_DRINKS[Math.floor(Math.random() * ALL_DRINKS.length)];
+        const final = allDrinks[Math.floor(Math.random() * allDrinks.length)];
         setPicked(final);
         setSpinKey(prev => prev + 1);
         setSpinning(false);
@@ -409,11 +409,59 @@ function MyTabCard({ orders, totalAmount, seat }) {
   );
 }
 
-export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, mySeat }) {
+export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, mySeat, categories = [], menus = [], loading = false }) {
   const [selectedDrink, setSelectedDrink] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [ordering, setOrdering] = useState(false);
   const [justOrdered, setJustOrdered] = useState(false);
+
+  // DB 카테고리/메뉴를 화면용 구조로 변환 (기존 MENU_DATA 형식과 호환)
+  const menuSections = categories.map(cat => {
+    // 카테고리에 속한 메뉴만 필터
+    const items = menus
+      .filter(m => m.category_id === cat.id)
+      .map(m => ({
+        name: m.name,
+        icon: m.icon,
+        desc: m.description,
+        abv: m.abv,
+        taste: m.taste,
+        priceNum: m.price,
+        price: m.price.toLocaleString(),
+      }));
+
+    // 카테고리 색상 — DB 색상 우선, 없으면 fallback
+    const colorMap = {
+      "LIGHT LINE": { color: "#6AB06A", bg: "rgba(106,176,106,0.06)", border: "rgba(106,176,106,0.15)" },
+      "DEEP LINE": { color: "#D4A537", bg: "rgba(212,165,55,0.06)", border: "rgba(212,165,55,0.15)" },
+      "PREMIUM LINE": { color: "#C47AFF", bg: "rgba(196,122,255,0.06)", border: "rgba(196,122,255,0.15)" },
+    };
+    const fallback = colorMap[cat.name] || { color: "#D4A537", bg: "rgba(212,165,55,0.06)", border: "rgba(212,165,55,0.15)" };
+
+    return {
+      line: cat.name,
+      price: cat.default_price?.toLocaleString() || "",
+      priceNum: cat.default_price || 0,
+      desc: cat.description || "",
+      color: cat.color || fallback.color,
+      bg: fallback.bg,
+      border: fallback.border,
+      items,
+    };
+  });
+
+  // 모든 메뉴 평탄화 (랜덤 픽커용)
+  const allDrinks = menuSections.flatMap(section =>
+    section.items.map(item => ({
+      ...item,
+      line: section.line,
+      price: section.price,
+      priceNum: section.priceNum,
+      lineColor: section.color,
+      lineBg: section.bg,
+      lineBorder: section.border,
+    }))
+  );
 
   const handleOrder = async (drink) => {
     if (!createOrder) {
@@ -457,9 +505,17 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
       {/* My TAB 카드 */}
       <MyTabCard orders={orders} totalAmount={totalAmount} seat={mySeat} />
 
-      <RandomPicker />
+      <RandomPicker allDrinks={allDrinks} />
 
-      {MENU_DATA.map((section, si) => (
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+          메뉴를 불러오는 중...
+        </div>
+      ) : menuSections.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+          아직 등록된 메뉴가 없어요
+        </div>
+      ) : menuSections.map((section, si) => (
         <motion.div
           key={section.line}
           initial={{ opacity: 0, y: 20 }}
