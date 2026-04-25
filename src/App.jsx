@@ -101,8 +101,9 @@ function TabBar({ active, onChange }) {
           }}>
             {isActive && (
               <motion.div layoutId="tab-glow" style={{
-                position: "absolute", top: -1, left: "50%", transform: "translateX(-50%)",
+                position: "absolute", top: -1, left: "50%",
                 width: 20, height: 2, borderRadius: 1, background: "#D4A537",
+                marginLeft: -10,
               }} />
             )}
             <Icon size={18} strokeWidth={isActive ? 2.2 : 1.5} />
