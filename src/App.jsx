@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, MessageCircle, Trophy, Wine, Gamepad2,
-  HandMetal, Bell, Sparkles, MessageSquare, Smile, Moon,
+  HandMetal, Bell, Sparkles, Smile, Moon,
   ChevronRight, Check, Swords,
 } from "lucide-react";
-import TalkWallScreen from "./components/TalkWallScreen";
 import SOSModal from "./components/SOSModal";
 import SeatPicker from "./components/SeatPicker";
 import QuestionCardScreen from "./components/QuestionCard";
@@ -71,10 +70,9 @@ function PulseDot({ color = "#D4A537", size = 8 }) {
 
 function TabBar({ active, onChange }) {
   const tabs = [
-    { id: "hub", icon: Home, label: "허브" },
-    { id: "wall", icon: MessageSquare, label: "토크 월" },
-    { id: "question", icon: MessageCircle, label: "카드" },
+    { id: "hub", icon: Home, label: "홈" },
     { id: "menu", icon: Wine, label: "메뉴" },
+    { id: "question", icon: MessageCircle, label: "카드" },
     { id: "game", icon: Gamepad2, label: "게임" },
     { id: "quest", icon: Trophy, label: "퀘스트" },
   ];
@@ -174,15 +172,18 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myA
         </div>
       </GlassCard>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "clamp(8px, 2.5vw, 12px)", marginBottom: "clamp(10px, 3vw, 16px)" }}>
+      <div style={{ marginBottom: "clamp(10px, 3vw, 16px)" }}>
         {[
           { label: "대결 신청", sub: "더 나인 1:1", icon: <Swords size={20} />, tab: "game", delay: 0.3 },
-          { label: "토크 월", sub: "익명 피드", icon: <MessageSquare size={20} />, tab: "wall", delay: 0.35 },
         ].map(item => (
-          <GlassCard key={item.tab} delay={item.delay} onClick={() => onGoTo(item.tab)} style={{ cursor: "pointer", padding: "clamp(14px, 4vw, 18px) clamp(10px, 3vw, 14px)", minHeight: 44 }}>
-            <div style={{ color: "#D4A537", marginBottom: 10 }}>{item.icon}</div>
-            <div style={{ fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500, color: "#F5E6C8", marginBottom: 2 }}>{item.label}</div>
-            <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.35)" }}>{item.sub}</div>
+          <GlassCard key={item.tab} delay={item.delay} onClick={() => onGoTo(item.tab)} style={{ cursor: "pointer", padding: "clamp(14px, 4vw, 18px) clamp(14px, 4vw, 18px)", minHeight: 44 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ color: "#D4A537", flexShrink: 0 }}>{item.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "clamp(13px, 3.5vw, 15px)", fontWeight: 500, color: "#F5E6C8", marginBottom: 2 }}>{item.label}</div>
+                <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.35)" }}>{item.sub}</div>
+              </div>
+            </div>
           </GlassCard>
         ))}
       </div>
@@ -461,8 +462,31 @@ export default function App() {
           />
         ) : (
           <AnimatePresence mode="wait">
-            <motion.div key={tab} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
+            <motion.div
+              key={tab}
+              initial={{ opacity: 0, x: 30 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -30 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(e, info) => {
+                const swipeThreshold = 80; // 최소 스와이프 거리(px)
+                const tabOrder = ["hub", "menu", "question", "game", "quest"];
+                const currentIdx = tabOrder.indexOf(tab);
+                if (currentIdx === -1) return;
+
+                // 왼쪽으로 스와이프 → 다음 탭
+                if (info.offset.x < -swipeThreshold && currentIdx < tabOrder.length - 1) {
+                  setTab(tabOrder[currentIdx + 1]);
+                }
+                // 오른쪽으로 스와이프 → 이전 탭
+                else if (info.offset.x > swipeThreshold && currentIdx > 0) {
+                  setTab(tabOrder[currentIdx - 1]);
+                }
+              }}
+            >
               {tab === "hub" && (
                 <HubScreen
                   userCount={userCount}
@@ -476,7 +500,6 @@ export default function App() {
                 />
               )}
               {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
-              {tab === "wall" && <TalkWallScreen onQuestComplete={completeQuest} />}
               {tab === "question" && <QuestionCardScreen />}
               {tab === "menu" && <MenuScreen createOrder={createOrder} orders={orders} totalAmount={totalAmount} mySeat={mySeat} />}
               {tab === "game" && (
