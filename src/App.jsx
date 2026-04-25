@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, MessageCircle, Trophy, Wine, Gamepad2,
@@ -400,6 +401,34 @@ export default function App() {
   const handleSeatSelect = useCallback(async (seatLabel) => {
     await createSession(seatLabel);
   }, [createSession]);
+
+  // 🔗 URL ?seat=A-3 으로 들어오면 자동 입장
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [autoSeatTried, setAutoSeatTried] = useState(false);
+
+  useEffect(() => {
+    if (sessionLoading || session || autoSeatTried) return;
+
+    const seatFromUrl = searchParams.get("seat");
+    if (!seatFromUrl) return;
+
+    // 이미 시도했음 표시 (무한 시도 방지)
+    setAutoSeatTried(true);
+
+    // 좌석 형식 검증 (A-1 ~ B-20)
+    const valid = /^[AB]-\d{1,2}$/.test(seatFromUrl);
+    if (!valid) {
+      // 잘못된 좌석 → URL에서 제거
+      setSearchParams({});
+      return;
+    }
+
+    // 자동 입장 시도
+    handleSeatSelect(seatFromUrl).then(() => {
+      // 입장 후 URL에서 ?seat 제거 (재입장 방지)
+      setSearchParams({});
+    });
+  }, [sessionLoading, session, autoSeatTried, searchParams, setSearchParams, handleSeatSelect]);
 
   // 세션 로딩 중 (재접속 복구 체크)
   if (sessionLoading) {

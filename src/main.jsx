@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import App from "./App";
 import AdminPage from "./pages/AdminPage";
+import QRPrintPage from "./pages/QRPrintPage";
 import { StoreProvider } from "./lib/StoreContext";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -27,6 +28,14 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           element={
             <StoreProvider>
               <AdminPage />
+            </StoreProvider>
+          }
+        />
+        <Route
+          path="/:storeSlug/qr"
+          element={
+            <StoreProvider>
+              <QRPrintPage />
             </StoreProvider>
           }
         />
