@@ -8,7 +8,11 @@ import {
 import { useSOSAdmin } from "../hooks/useSOSSignals";
 import { useSessionsAdmin } from "../hooks/useSessionsAdmin";
 import { useOrdersAdmin } from "../hooks/useOrdersAdmin";
+import { useMenus } from "../hooks/useMenus";
+import { useMenusAdmin } from "../hooks/useMenusAdmin";
+import { useStoreId } from "../lib/StoreContext";
 import SeatMap from "../components/SeatMap";
+import MenuAdminPanel from "../components/MenuAdminPanel";
 import {
   enableSound, disableSound, isSoundEnabled,
   playOrderNotification, playSOSNotification,
@@ -553,11 +557,16 @@ function OrderCard({ order, onServed, onCancel }) {
 
 // ───────── 메인 어드민 페이지 ─────────
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState("sos"); // sos | seats | orders
+  const [activeTab, setActiveTab] = useState("sos"); // sos | seats | orders | menus
 
   const { signals, loading: sosLoading, acceptSignal, resolveSignal, refetch: refetchSOS } = useSOSAdmin();
   const { sessions, todayRevenue, loading: sessionsLoading, closeSession, settleSession, moveSession, refetch: refetchSessions } = useSessionsAdmin();
   const { orders, pendingCount: pendingOrdersCount, loading: ordersLoading, markServed, cancelOrder, refetch: refetchOrders } = useOrdersAdmin();
+
+  // 메뉴 관리
+  const storeId = useStoreId();
+  const { categories: menuCategories, menus: menuItems, loading: menusLoading, refetch: refetchMenus } = useMenus(storeId);
+  const menuAdmin = useMenusAdmin(storeId, refetchMenus);
 
   const [prevSOSCount, setPrevSOSCount] = useState(0);
   const [prevOrdersCount, setPrevOrdersCount] = useState(0);
@@ -851,6 +860,19 @@ export default function AdminPage() {
               }}>{sessions.length}</span>
             )}
           </button>
+          <button
+            onClick={() => setActiveTab("menus")}
+            style={{
+              flex: 1, padding: "10px 6px", borderRadius: 9, border: "none",
+              background: activeTab === "menus" ? "rgba(212,165,55,0.15)" : "transparent",
+              color: activeTab === "menus" ? "#D4A537" : "rgba(255,255,255,0.5)",
+              fontSize: 11, fontWeight: 600, cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+            }}
+          >
+            📋 메뉴
+          </button>
         </div>
 
         {/* 탭 내용 */}
@@ -974,6 +996,28 @@ export default function AdminPage() {
                   onMove={moveSession}
                 />
               )}
+            </motion.div>
+          )}
+
+          {activeTab === "menus" && (
+            <motion.div
+              key="menus"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.25 }}
+            >
+              <MenuAdminPanel
+                categories={menuCategories}
+                menus={menuItems}
+                loading={menusLoading}
+                createMenu={menuAdmin.createMenu}
+                updateMenu={menuAdmin.updateMenu}
+                deleteMenu={menuAdmin.deleteMenu}
+                createCategory={menuAdmin.createCategory}
+                updateCategory={menuAdmin.updateCategory}
+                deleteCategory={menuAdmin.deleteCategory}
+              />
             </motion.div>
           )}
         </AnimatePresence>
