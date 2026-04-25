@@ -339,7 +339,7 @@ export default function App() {
   });
 
   // 세션 훅
-  const { session, loading: sessionLoading, createSession, justSettled } = useSession({
+  const { session, loading: sessionLoading, createSession, justSettled, seatMoveNotice, dismissSeatMove } = useSession({
     myId,
     myNickname: null, // 나중에 presence에서 업데이트
     myAvatar: null,
@@ -524,6 +524,49 @@ export default function App() {
       </div>
       {!inMatch && <SOSFAB onClick={() => setSosOpen(true)} />}
       <SOSModal open={sosOpen} onClose={() => setSosOpen(false)} seatLabel={mySeat} />
+
+      {/* 좌석 이동 알림 토스트 (손님용) */}
+      <AnimatePresence>
+        {seatMoveNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: -30, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -30, scale: 0.9 }}
+            transition={{ type: "spring", damping: 22, stiffness: 280 }}
+            onClick={dismissSeatMove}
+            style={{
+              position: "fixed",
+              top: "max(20px, env(safe-area-inset-top))",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 1000,
+              background: "linear-gradient(135deg, rgba(100,180,220,0.95), rgba(60,120,180,0.92))",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(170,200,255,0.4)",
+              borderRadius: 14,
+              padding: "12px 18px",
+              minWidth: 280,
+              maxWidth: "90%",
+              boxShadow: "0 10px 40px rgba(60,120,180,0.4)",
+              cursor: "pointer",
+              fontFamily: "'Pretendard', -apple-system, sans-serif",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ fontSize: 28 }}>🔄</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, color: "#fff", fontWeight: 600, marginBottom: 3 }}>
+                  자리가 변경되었어요
+                </div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)" }}>
+                  📍 <strong>{seatMoveNotice.from}</strong> → <strong>{seatMoveNotice.to}</strong>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {!inMatch && <TabBar active={tab} onChange={setTab} />}
 
       <MatchInviteModal

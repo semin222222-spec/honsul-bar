@@ -123,6 +123,44 @@ export function useSessionsAdmin() {
     return true;
   }, []);
 
+  // 자리 이동 (세션의 seat_label 변경 + 관련 주문도)
+  const moveSession = useCallback(async (sessionId, newSeatLabel) => {
+    // 1) 새 좌석이 이미 점유됐는지 확인
+    const { data: existing } = await supabase
+      .from("sessions")
+      .select("id")
+      .eq("seat_label", newSeatLabel)
+      .eq("status", "open")
+      .maybeSingle();
+
+    if (existing) {
+      console.error("새 좌석이 이미 점유됨");
+      return { ok: false, reason: "occupied" };
+    }
+
+    // 2) 세션 좌석 변경
+    const { error: sessErr } = await supabase
+      .from("sessions")
+      .update({
+        seat_label: newSeatLabel,
+        last_active_at: new Date().toISOString(),
+      })
+      .eq("id", sessionId);
+
+    if (sessErr) {
+      console.error("자리 이동 실패:", sessErr);
+      return { ok: false, reason: "error" };
+    }
+
+    // 3) 해당 세션의 모든 주문도 좌석 갱신
+    await supabase
+      .from("orders")
+      .update({ seat_label: newSeatLabel })
+      .eq("session_id", sessionId);
+
+    return { ok: true };
+  }, []);
+
   return {
     sessions,
     todayRevenue,
@@ -130,6 +168,7 @@ export function useSessionsAdmin() {
     error,
     closeSession,
     settleSession,
+    moveSession,
     refetch: fetchSessions,
   };
 }

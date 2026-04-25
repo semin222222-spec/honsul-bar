@@ -16,7 +16,9 @@ export function useSession({ myId, myNickname, myAvatar }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [justSettled, setJustSettled] = useState(null); // 최근 정산된 세션 정보 (ThankYou 화면용)
+  const [seatMoveNotice, setSeatMoveNotice] = useState(null); // 좌석 이동 알림 ({from, to})
   const activeChannelRef = useRef(null);
+  const lastSeatRef = useRef(null);
 
   // ───── 활동 시간 업데이트 (3분마다) ─────
   const touchSession = useCallback(async (sessionId) => {
@@ -49,6 +51,7 @@ export function useSession({ myId, myNickname, myAvatar }) {
         if (!error && data) {
           // 재접속 성공! 활동 시간만 갱신
           await touchSession(data.id);
+          lastSeatRef.current = data.seat_label;
           setSession(data);
           setLoading(false);
           return;
@@ -71,6 +74,7 @@ export function useSession({ myId, myNickname, myAvatar }) {
       if (byCustomer) {
         localStorage.setItem("honsul_session_id", byCustomer.id);
         await touchSession(byCustomer.id);
+        lastSeatRef.current = byCustomer.seat_label;
         setSession(byCustomer);
       }
 
@@ -102,6 +106,15 @@ export function useSession({ myId, myNickname, myAvatar }) {
             setJustSettled(updated);
             setSession(null);
           } else {
+            // 좌석이 변경됐는지 확인
+            const prevSeat = lastSeatRef.current;
+            if (prevSeat && prevSeat !== updated.seat_label) {
+              // 자리 이동 감지!
+              setSeatMoveNotice({ from: prevSeat, to: updated.seat_label });
+              // 4초 뒤 자동 사라짐
+              setTimeout(() => setSeatMoveNotice(null), 4000);
+            }
+            lastSeatRef.current = updated.seat_label;
             setSession(updated);
           }
         }
@@ -148,6 +161,7 @@ export function useSession({ myId, myNickname, myAvatar }) {
       }
 
       localStorage.setItem("honsul_session_id", data.id);
+      lastSeatRef.current = data.seat_label;
       setSession(data);
       return data;
     },
@@ -160,5 +174,7 @@ export function useSession({ myId, myNickname, myAvatar }) {
     createSession,
     justSettled,
     dismissThankYou: () => setJustSettled(null),
+    seatMoveNotice,
+    dismissSeatMove: () => setSeatMoveNotice(null),
   };
 }

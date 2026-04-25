@@ -8,6 +8,7 @@ import {
 import { useSOSAdmin } from "../hooks/useSOSSignals";
 import { useSessionsAdmin } from "../hooks/useSessionsAdmin";
 import { useOrdersAdmin } from "../hooks/useOrdersAdmin";
+import SeatMap from "../components/SeatMap";
 import {
   enableSound, disableSound, isSoundEnabled,
   playOrderNotification, playSOSNotification,
@@ -555,7 +556,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("sos"); // sos | seats | orders
 
   const { signals, loading: sosLoading, acceptSignal, resolveSignal, refetch: refetchSOS } = useSOSAdmin();
-  const { sessions, todayRevenue, loading: sessionsLoading, closeSession, settleSession, refetch: refetchSessions } = useSessionsAdmin();
+  const { sessions, todayRevenue, loading: sessionsLoading, closeSession, settleSession, moveSession, refetch: refetchSessions } = useSessionsAdmin();
   const { orders, pendingCount: pendingOrdersCount, loading: ordersLoading, markServed, cancelOrder, refetch: refetchOrders } = useOrdersAdmin();
 
   const [prevSOSCount, setPrevSOSCount] = useState(0);
@@ -964,42 +965,14 @@ export default function AdminPage() {
                     <Loader2 size={32} />
                   </motion.div>
                 </div>
-              ) : sessions.length === 0 ? (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  style={{ textAlign: "center", padding: "60px 20px" }}>
-                  <div style={{ fontSize: 44, marginBottom: 16 }}>🪑</div>
-                  <div style={{
-                    fontSize: 17, fontWeight: 300, color: "rgba(255,255,255,0.35)",
-                    fontFamily: "'Noto Serif KR', serif", marginBottom: 6,
-                  }}>
-                    지금 활성 좌석이 없어요
-                  </div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.2)" }}>
-                    손님이 입장하면 이곳에 표시됩니다
-                  </div>
-                </motion.div>
               ) : (
-                <>
-                  <div style={{
-                    fontSize: 11, color: "rgba(255,255,255,0.35)",
-                    marginBottom: 10, padding: "0 4px",
-                    display: "flex", justifyContent: "space-between",
-                  }}>
-                    <span>현재 {sessions.length}명의 손님</span>
-                    <span style={{ color: "rgba(226,150,75,0.7)" }}>⚠ 30분+ 비활성</span>
-                  </div>
-                  <AnimatePresence>
-                    {sessions.map((session) => (
-                      <SessionCard
-                        key={session.id}
-                        session={session}
-                        orders={orders}
-                        onClose={closeSession}
-                        onSettle={settleSession}
-                      />
-                    ))}
-                  </AnimatePresence>
-                </>
+                <SeatMap
+                  sessions={sessions}
+                  orders={orders}
+                  onClose={closeSession}
+                  onSettle={settleSession}
+                  onMove={moveSession}
+                />
               )}
             </motion.div>
           )}
