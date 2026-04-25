@@ -21,7 +21,7 @@ import { useMatchmaking } from "./hooks/useMatchmaking";
 import { useSession } from "./hooks/useSession";
 import { useOrders } from "./hooks/useOrders";
 import { useMenus } from "./hooks/useMenus";
-import { useStoreId } from "./lib/StoreContext";
+import { useStoreId, useStore } from "./lib/StoreContext";
 
 const QUESTS = [
   { id: "q1", title: "바에 안착하기", desc: "자리에 앉아 첫 주문을 해보세요", icon: "🪑", xp: 10 },
@@ -118,7 +118,7 @@ function TabBar({ active, onChange }) {
   );
 }
 
-function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myAvatar, onReroll }) {
+function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myAvatar, onReroll, store }) {
   const greetings = ["오늘 밤도 수고했어요.", "이 한 잔의 여유, 당신 것입니다.", "혼자여도 외롭지 않은 밤."];
   const [gi, setGi] = useState(0);
   useEffect(() => {
@@ -132,8 +132,31 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myA
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: "clamp(12px, 3vw, 20px)" }}>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}
         style={{ textAlign: "center", marginBottom: "clamp(16px, 5vw, 28px)" }}>
-        <div style={{ fontSize: "clamp(9px, 2.5vw, 11px)", letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(212,165,55,0.6)", marginBottom: 8, fontFamily: "'Noto Serif KR', serif" }}>오늘, 혼술</div>
-        <div style={{ fontSize: "clamp(10px, 2.5vw, 12px)", letterSpacing: "0.12em", color: "rgba(212,165,55,0.4)", marginTop: 4, fontFamily: "'Noto Serif KR', serif" }}>혼술바 소셜 가이드</div>
+        {/* 매장 이름 (DB에서 동적으로) */}
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.6 }}
+          style={{
+            fontSize: "clamp(20px, 5.5vw, 26px)",
+            color: "#D4A537",
+            fontFamily: "'Noto Serif KR', serif",
+            fontWeight: 500,
+            letterSpacing: "0.02em",
+            marginBottom: 10,
+          }}
+        >
+          {store?.name || "오늘, 혼술"}
+        </motion.div>
+        <div style={{
+          fontSize: "clamp(10px, 2.5vw, 12px)",
+          letterSpacing: "0.12em",
+          color: "rgba(212,165,55,0.4)",
+          marginBottom: 18,
+          fontFamily: "'Noto Serif KR', serif"
+        }}>
+          혼술바 소셜 가이드
+        </div>
         <div style={{ fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", lineHeight: 1.3 }}>
           <AnimatePresence mode="wait">
             <motion.span key={gi} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.5 }} style={{ display: "block" }}>{greetings[gi]}</motion.span>
@@ -373,8 +396,9 @@ export default function App() {
   // 주문 훅
   const { orders, totalAmount, createOrder } = useOrders(session?.id, mySeat);
 
-  // 매장 ID + 메뉴 데이터
+  // 매장 ID + 매장 정보 + 메뉴 데이터
   const storeId = useStoreId();
+  const { store } = useStore();
   const { categories: menuCategories, menus: menuItems, loading: menusLoading } = useMenus(storeId);
 
   const presence = usePresence(mySeat, inMatchState, {
@@ -533,6 +557,7 @@ export default function App() {
                   myNickname={myNickname}
                   myAvatar={myAvatar}
                   onReroll={rerollNickname}
+                  store={store}
                 />
               )}
               {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
