@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Swords, Users, Moon, HandMetal, Smile, Clock, X } from "lucide-react";
+import { useLocale } from "../lib/LocaleContext";
 
 const STATUS_MAP = {
   open: { label: "대화 환영", color: "#D4A537", icon: <Smile size={12} /> },
@@ -40,6 +41,7 @@ export default function LoungeScreen({
   onCancelOutgoing,
 }) {
   const [filter, setFilter] = useState("all"); // all | open | nearby
+  const { locale, t } = useLocale();
 
   const otherUsers = useMemo(() => users.filter((u) => u.id !== myId), [users, myId]);
 
@@ -80,7 +82,7 @@ export default function LoungeScreen({
           marginBottom: 16,
         }}
       >
-        라운지 · 더 나인 신청
+        {locale === "ja" ? "ラウンジ · ザ・ナイン申請" : "라운지 · 더 나인 신청"}
       </div>
 
       {/* 내 상태 경고 */}
@@ -100,11 +102,23 @@ export default function LoungeScreen({
               lineHeight: 1.6,
             }}
           >
-            🌙 지금 <strong>혼자이고 싶음</strong> 상태라 상대에게 신청할 수 없어요.
-            <br />
-            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
-              시그널 탭에서 상태를 바꿔주세요.
-            </span>
+            {locale === "ja" ? (
+              <>
+                🌙 今 <strong>ひとりでいたい</strong> 状態のため、相手に申請できません。
+                <br />
+                <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
+                  ステータスタブで状態を変更してください。
+                </span>
+              </>
+            ) : (
+              <>
+                🌙 지금 <strong>혼자이고 싶음</strong> 상태라 상대에게 신청할 수 없어요.
+                <br />
+                <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 11 }}>
+                  시그널 탭에서 상태를 바꿔주세요.
+                </span>
+              </>
+            )}
           </div>
         </GlassCard>
       )}
@@ -141,7 +155,7 @@ export default function LoungeScreen({
             >
               {otherUsers.length}
             </span>
-            명의 손님이 함께하고 있어요
+            {locale === "ja" ? "名のお客様がいらっしゃいます" : "명의 손님이 함께하고 있어요"}
           </span>
         </div>
       </GlassCard>
@@ -155,8 +169,8 @@ export default function LoungeScreen({
         }}
       >
         {[
-          { id: "all", label: "전체" },
-          { id: "open", label: "대화 환영" },
+          { id: "all", label: locale === "ja" ? "全員" : "전체" },
+          { id: "open", label: locale === "ja" ? "話しかけOK" : "대화 환영" },
         ].map((f) => {
           const active = filter === f.id;
           return (
@@ -191,11 +205,11 @@ export default function LoungeScreen({
           <div style={{ fontSize: 32, marginBottom: 10 }}>🌙</div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", lineHeight: 1.7 }}>
             {filter === "open"
-              ? "지금 대화 환영 상태인 손님이 없어요"
-              : "아직 다른 손님이 없어요"}
+              ? (locale === "ja" ? "今、話しかけOKのお客様がいません" : "지금 대화 환영 상태인 손님이 없어요")
+              : (locale === "ja" ? "まだ他のお客様はいません" : "아직 다른 손님이 없어요")}
             <br />
             <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>
-              조금 기다려보세요
+              {locale === "ja" ? "少しお待ちください" : "조금 기다려보세요"}
             </span>
           </div>
         </GlassCard>

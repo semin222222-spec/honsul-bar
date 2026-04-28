@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Dices } from "lucide-react";
+import { useLocale } from "../lib/LocaleContext";
 
 /**
  * MyProfileCard
@@ -9,6 +10,7 @@ import { Dices } from "lucide-react";
  */
 export default function MyProfileCard({
   nickname,
+  nicknameJa,    // NEW: 일본어 닉네임
   avatar,
   seat,
   onReroll,
@@ -16,6 +18,10 @@ export default function MyProfileCard({
   compact = false, // true면 더 작은 버전
 }) {
   const [rolling, setRolling] = useState(false);
+  const { locale } = useLocale();
+
+  // 언어에 따라 닉네임 선택
+  const displayNickname = locale === "ja" && nicknameJa ? nicknameJa : nickname;
 
   const handleReroll = (e) => {
     e.stopPropagation();
@@ -72,7 +78,7 @@ export default function MyProfileCard({
               whiteSpace: "nowrap",
             }}
           >
-            {nickname}
+            {displayNickname}
           </motion.div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>
             📍 {seat}
@@ -173,7 +179,7 @@ export default function MyProfileCard({
               fontFamily: "'Noto Serif KR', serif",
             }}
           >
-            오늘 밤의 나
+            {locale === "ja" ? "今夜のあなた" : "오늘 밤의 나"}
           </div>
           <motion.div
             key={nickname}
@@ -191,7 +197,7 @@ export default function MyProfileCard({
               whiteSpace: "nowrap",
             }}
           >
-            {nickname}
+            {displayNickname}
           </motion.div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
             📍 {seat}

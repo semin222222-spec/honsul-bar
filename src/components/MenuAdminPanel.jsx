@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Edit2, Trash2, X, ChevronUp, ChevronDown } from "lucide-react";
+import { autoTranslateMenu, translateText } from "../lib/translateService";
 
 // 사용 가능한 이모지 목록 (메뉴 아이콘용)
 const ICON_OPTIONS = [
@@ -383,10 +384,56 @@ export default function MenuAdminPanel({
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [toast, setToast] = useState(null);
+  const [batchTranslating, setBatchTranslating] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
+  };
+
+  // 🌐 기존 메뉴 일괄 번역 (name_ja가 비어있는 메뉴/카테고리만)
+  const handleBatchTranslate = async () => {
+    const menusToTranslate = menus.filter(m => !m.name_ja);
+    const categoriesToTranslate = categories.filter(c => !c.name_ja);
+    const total = menusToTranslate.length + categoriesToTranslate.length;
+
+    if (total === 0) {
+      alert("이미 모든 메뉴가 번역되어 있어요!");
+      return;
+    }
+
+    if (!confirm(`${total}개 항목을 일본어로 번역할까요?\n(약 ${total * 0.5}초 소요)`)) {
+      return;
+    }
+
+    setBatchTranslating(true);
+    setBatchProgress({ current: 0, total });
+    let count = 0;
+
+    // 카테고리 먼저
+    for (const cat of categoriesToTranslate) {
+      const name_ja = await translateText(cat.name);
+      if (name_ja) {
+        await updateCategory(cat.id, { name_ja });
+      }
+      count++;
+      setBatchProgress({ current: count, total });
+    }
+
+    // 메뉴
+    for (const menu of menusToTranslate) {
+      const result = await autoTranslateMenu(menu);
+      await updateMenu(menu.id, {
+        name_ja: result.name_ja,
+        description_ja: result.description_ja,
+      });
+      count++;
+      setBatchProgress({ current: count, total });
+    }
+
+    setBatchTranslating(false);
+    showToast(`✓ ${total}개 항목 일본어 번역 완료!`);
   };
 
   // 카테고리별 메뉴 그룹핑
@@ -420,19 +467,38 @@ export default function MenuAdminPanel({
             {menus.length}개 메뉴 · {categories.length}개 카테고리
           </div>
         </div>
-        <button
-          onClick={() => setShowNewMenu(true)}
-          style={{
-            padding: "8px 14px",
-            background: "linear-gradient(135deg, #D4A537, #B8860B)",
-            border: "none", borderRadius: 10,
-            color: "#0D0B08", fontSize: 11, fontWeight: 700,
-            cursor: "pointer", fontFamily: "inherit",
-            display: "flex", alignItems: "center", gap: 4,
-          }}
-        >
-          <Plus size={12} /> 메뉴 추가
-        </button>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={handleBatchTranslate}
+            disabled={batchTranslating}
+            style={{
+              padding: "8px 12px",
+              background: "rgba(196,122,255,0.12)",
+              border: "1px solid rgba(196,122,255,0.3)",
+              borderRadius: 10,
+              color: "#C47AFF", fontSize: 10, fontWeight: 600,
+              cursor: batchTranslating ? "default" : "pointer",
+              fontFamily: "inherit",
+              opacity: batchTranslating ? 0.5 : 1,
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            🌐 {batchTranslating ? `${batchProgress.current}/${batchProgress.total}` : "일괄 번역"}
+          </button>
+          <button
+            onClick={() => setShowNewMenu(true)}
+            style={{
+              padding: "8px 14px",
+              background: "linear-gradient(135deg, #D4A537, #B8860B)",
+              border: "none", borderRadius: 10,
+              color: "#0D0B08", fontSize: 11, fontWeight: 700,
+              cursor: "pointer", fontFamily: "inherit",
+              display: "flex", alignItems: "center", gap: 4,
+            }}
+          >
+            <Plus size={12} /> 메뉴 추가
+          </button>
+        </div>
       </div>
 
       {/* 카테고리별 메뉴 */}
@@ -536,11 +602,20 @@ export default function MenuAdminPanel({
             categories={categories}
             onClose={() => { setEditingMenu(null); setShowNewMenu(false); }}
             onSave={async (data) => {
+              // 일본어 자동 번역 (이름 + 설명)
+              showToast("🌐 일본어 번역 중...");
+              const translations = await autoTranslateMenu(data);
+              const dataWithJa = {
+                ...data,
+                name_ja: translations.name_ja,
+                description_ja: translations.description_ja,
+              };
+
               const result = editingMenu
-                ? await updateMenu(editingMenu.id, data)
-                : await createMenu(data);
+                ? await updateMenu(editingMenu.id, dataWithJa)
+                : await createMenu(dataWithJa);
               if (result.ok) {
-                showToast(editingMenu ? "✓ 메뉴 수정됨" : "✓ 메뉴 추가됨");
+                showToast(editingMenu ? "✓ 메뉴 수정됨 (일본어 자동 번역)" : "✓ 메뉴 추가됨 (일본어 자동 번역)");
                 setEditingMenu(null); setShowNewMenu(false);
               } else {
                 alert("저장 실패: " + (result.reason || "알 수 없는 오류"));
@@ -561,11 +636,16 @@ export default function MenuAdminPanel({
             category={editingCategory}
             onClose={() => { setEditingCategory(null); setShowNewCategory(false); }}
             onSave={async (data) => {
+              // 일본어 자동 번역 (카테고리 이름)
+              showToast("🌐 일본어 번역 중...");
+              const name_ja = data.name ? await translateText(data.name) : "";
+              const dataWithJa = { ...data, name_ja };
+
               const result = editingCategory
-                ? await updateCategory(editingCategory.id, data)
-                : await createCategory(data);
+                ? await updateCategory(editingCategory.id, dataWithJa)
+                : await createCategory(dataWithJa);
               if (result.ok) {
-                showToast(editingCategory ? "✓ 카테고리 수정됨" : "✓ 카테고리 추가됨");
+                showToast(editingCategory ? "✓ 카테고리 수정됨 (일본어 자동 번역)" : "✓ 카테고리 추가됨 (일본어 자동 번역)");
                 setEditingCategory(null); setShowNewCategory(false);
               }
             }}

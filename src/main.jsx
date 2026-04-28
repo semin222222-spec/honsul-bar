@@ -5,41 +5,44 @@ import App from "./App";
 import AdminPage from "./pages/AdminPage";
 import QRPrintPage from "./pages/QRPrintPage";
 import { StoreProvider } from "./lib/StoreContext";
+import { LocaleProvider } from "./lib/LocaleContext";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        {/* 루트 접속 → 기본 매장(honsul-main)으로 자동 이동 */}
-        <Route path="/" element={<Navigate to="/honsul-main" replace />} />
-        <Route path="/admin" element={<Navigate to="/honsul-main/admin" replace />} />
+    <LocaleProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* 루트 접속 → 기본 매장(honsul-main)으로 자동 이동 */}
+          <Route path="/" element={<Navigate to="/honsul-main" replace />} />
+          <Route path="/admin" element={<Navigate to="/honsul-main/admin" replace />} />
 
-        {/* 매장별 라우트 — :storeSlug 가 URL에서 매장 식별 */}
-        <Route
-          path="/:storeSlug"
-          element={
-            <StoreProvider>
-              <App />
-            </StoreProvider>
-          }
-        />
-        <Route
-          path="/:storeSlug/admin"
-          element={
-            <StoreProvider>
-              <AdminPage />
-            </StoreProvider>
-          }
-        />
-        <Route
-          path="/:storeSlug/qr"
-          element={
-            <StoreProvider>
-              <QRPrintPage />
-            </StoreProvider>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+          {/* 매장별 라우트 — :storeSlug 가 URL에서 매장 식별 */}
+          <Route
+            path="/:storeSlug"
+            element={
+              <StoreProvider>
+                <App />
+              </StoreProvider>
+            }
+          />
+          <Route
+            path="/:storeSlug/admin"
+            element={
+              <StoreProvider>
+                <AdminPage />
+              </StoreProvider>
+            }
+          />
+          <Route
+            path="/:storeSlug/qr"
+            element={
+              <StoreProvider>
+                <QRPrintPage />
+              </StoreProvider>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </LocaleProvider>
   </React.StrictMode>
 );

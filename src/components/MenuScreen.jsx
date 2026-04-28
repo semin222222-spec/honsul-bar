@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, Droplets, Shuffle, ShoppingBag, Check } from "lucide-react";
 import { enableSound, playOrderSuccess } from "../lib/sounds";
+import { useLocale, pickLocaleField } from "../lib/LocaleContext";
 
 const MENU_DATA = [
   {
@@ -65,6 +66,7 @@ const ALL_DRINKS = MENU_DATA.flatMap(section =>
 );
 
 function DrinkDetail({ drink, lineColor, onClose, onOrder, ordering, justOrdered }) {
+  const { locale } = useLocale();
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -172,14 +174,14 @@ function DrinkDetail({ drink, lineColor, onClose, onOrder, ordering, justOrdered
           {justOrdered ? (
             <>
               <Check size={16} />
-              주문 완료!
+              {locale === "ja" ? "ご注文完了!" : "주문 완료!"}
             </>
           ) : ordering ? (
-            "주문 중..."
+            locale === "ja" ? "注文中..." : "주문 중..."
           ) : (
             <>
               <ShoppingBag size={16} />
-              주문하기
+              {locale === "ja" ? "注文する" : "주문하기"}
             </>
           )}
         </motion.button>
@@ -188,7 +190,7 @@ function DrinkDetail({ drink, lineColor, onClose, onOrder, ordering, justOrdered
           fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 10,
           lineHeight: 1.5,
         }}>
-          주문 시 사장님께 바로 알림이 전달됩니다
+          {locale === "ja" ? "ご注文時、オーナーにすぐにお知らせします" : "주문 시 사장님께 바로 알림이 전달됩니다"}
         </div>
       </motion.div>
     </motion.div>
@@ -199,6 +201,7 @@ function RandomPicker({ allDrinks = [] }) {
   const [picked, setPicked] = useState(null);
   const [spinning, setSpinning] = useState(false);
   const [spinKey, setSpinKey] = useState(0);
+  const { locale } = useLocale();
 
   const pickRandom = () => {
     if (spinning || allDrinks.length === 0) return;
@@ -235,7 +238,7 @@ function RandomPicker({ allDrinks = [] }) {
         fontSize: "clamp(11px, 2.8vw, 12px)", color: "rgba(212,165,55,0.6)",
         fontWeight: 500, marginBottom: 12, letterSpacing: "0.08em",
       }}>
-        🎰 뭘 마실지 모르겠다면?
+        {locale === "ja" ? "🎰 何を飲むか迷ったら?" : "🎰 뭘 마실지 모르겠다면?"}
       </div>
 
       <AnimatePresence mode="wait">
@@ -285,7 +288,7 @@ function RandomPicker({ allDrinks = [] }) {
               marginBottom: 14,
             }}
           >
-            버튼을 눌러 오늘의 한 잔을 뽑아보세요!
+            {locale === "ja" ? "ボタンを押して今夜の一杯を引いてみてください!" : "버튼을 눌러 오늘의 한 잔을 뽑아보세요!"}
           </motion.div>
         )}
       </AnimatePresence>
@@ -316,7 +319,11 @@ function RandomPicker({ allDrinks = [] }) {
         >
           <Shuffle size={16} />
         </motion.div>
-        {spinning ? "뽑는 중..." : (picked ? "다시 뽑기" : "오늘의 추천 술 뽑기")}
+        {spinning
+          ? (locale === "ja" ? "選んでいます..." : "뽑는 중...")
+          : (picked
+              ? (locale === "ja" ? "もう一度引く" : "다시 뽑기")
+              : (locale === "ja" ? "今夜のおすすめを引く" : "오늘의 추천 술 뽑기"))}
       </motion.button>
     </div>
   );
@@ -414,6 +421,7 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
   const [selectedColor, setSelectedColor] = useState(null);
   const [ordering, setOrdering] = useState(false);
   const [justOrdered, setJustOrdered] = useState(false);
+  const { locale, t } = useLocale();
 
   // DB 카테고리/메뉴를 화면용 구조로 변환 (기존 MENU_DATA 형식과 호환)
   const menuSections = categories.map(cat => {
@@ -421,9 +429,9 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
     const items = menus
       .filter(m => m.category_id === cat.id)
       .map(m => ({
-        name: m.name,
+        name: pickLocaleField(m, "name", locale),
         icon: m.icon,
-        desc: m.description,
+        desc: pickLocaleField(m, "description", locale),
         abv: m.abv,
         taste: m.taste,
         priceNum: m.price,
@@ -439,7 +447,7 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
     const fallback = colorMap[cat.name] || { color: "#D4A537", bg: "rgba(212,165,55,0.06)", border: "rgba(212,165,55,0.15)" };
 
     return {
-      line: cat.name,
+      line: pickLocaleField(cat, "name", locale),
       price: cat.default_price?.toLocaleString() || "",
       priceNum: cat.default_price || 0,
       desc: cat.description || "",
@@ -470,9 +478,15 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
     }
     // 유저 상호작용 순간 사운드 활성화 (브라우저 정책)
     enableSound();
+    // 사장님은 항상 한국어로 봐야 함 - 원본 메뉴 데이터에서 ko 이름 찾음
+    const originalMenu = menus.find(m =>
+      m.name === drink.name || m.name_ja === drink.name
+    );
+    const koreanName = originalMenu?.name || drink.name;
+
     setOrdering(true);
     const result = await createOrder({
-      menuName: drink.name,
+      menuName: koreanName, // 항상 한국어로 저장
       menuIcon: drink.icon,
       price: drink.priceNum,
     });
@@ -499,7 +513,7 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
         fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8",
         fontFamily: "'Noto Serif KR', serif", marginBottom: "clamp(16px, 5vw, 24px)",
       }}>
-        오늘 밤, 무엇을 마실까요?
+        {locale === "ja" ? "今夜、何を飲みますか?" : "오늘 밤, 무엇을 마실까요?"}
       </div>
 
       {/* My TAB 카드 */}
@@ -509,11 +523,11 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
 
       {loading ? (
         <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-          메뉴를 불러오는 중...
+          {t("common.loading")}
         </div>
       ) : menuSections.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-          아직 등록된 메뉴가 없어요
+          {locale === "ja" ? "メニューがまだ登録されていません" : "아직 등록된 메뉴가 없어요"}
         </div>
       ) : menuSections.map((section, si) => (
         <motion.div

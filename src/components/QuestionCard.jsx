@@ -1,119 +1,120 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, Sparkles, MessageCircle, Eye, Flame } from "lucide-react";
+import { useLocale } from "../lib/LocaleContext";
 
 const QUESTIONS = [
   // ── 순한맛: 아이스브레이킹 / 가치관 (34개) ──
-  { q: "오늘 내 옆 자리에 앉은 사람의 첫인상을 키워드 하나로?", level: "mild" },
-  { q: "MBTI가 뭐예요? 그리고 절대 안 맞는 MBTI는?", level: "mild" },
-  { q: "술 취했을 때 나오는 나의 가장 귀여운 버릇은?", level: "mild" },
-  { q: "요즘 가장 많이 듣는 노래가 당신의 상태를 설명한다면?", level: "mild" },
-  { q: "지금 폰 배경화면이 뭔지 보여줄 수 있어요?", level: "mild" },
-  { q: "인스타 피드 vs 인스타 스토리, 더 신경 쓰는 쪽은?", level: "mild" },
-  { q: "요즘 가장 빠져있는 넷플릭스/유튜브 콘텐츠는?", level: "mild" },
-  { q: "소개팅 앱 써본 적 있어요? 솔직하게!", level: "mild" },
-  { q: "나를 동물로 표현하면? 그리고 그 이유는?", level: "mild" },
-  { q: "지금 카톡 프로필 사진이 뭔지 설명해 주세요", level: "mild" },
-  { q: "내 인생 최고의 flexing 순간은?", level: "mild" },
-  { q: "올해 가장 잘한 소비 vs 가장 후회하는 소비?", level: "mild" },
-  { q: "아무 데나 여행 갈 수 있다면 지금 당장 어디로?", level: "mild" },
-  { q: "내가 가장 자신 있는 요리 한 가지는?", level: "mild" },
-  { q: "지금 가장 사고 싶은 물건은 뭐예요?", level: "mild" },
-  { q: "혼술 vs 혼밥 vs 혼영, 가장 좋아하는 '혼' 활동은?", level: "mild" },
-  { q: "술자리에서 절대 못 참는 것 하나만 고른다면?", level: "mild" },
-  { q: "나의 소울푸드는? 그리고 그 이유가 궁금해요", level: "mild" },
-  { q: "직업 물어봐도 돼요? 아님 힌트 하나만?", level: "mild" },
-  { q: "주량이 어떻게 돼요? 솔직하게 말해봐요", level: "mild" },
-  { q: "텍스트로 성격이 보인다고 하잖아요. 나는 ㅋ파 vs ㅎㅎ파?", level: "mild" },
-  { q: "내 최애 이모지는? 왜 그걸 제일 많이 써요?", level: "mild" },
-  { q: "가장 최근에 울었던 이유는?", level: "mild" },
-  { q: "나만 아는 숨은 맛집 하나만 공유해 줄 수 있어요?", level: "mild" },
-  { q: "새벽 감성 폭발할 때 주로 뭐 해요?", level: "mild" },
-  { q: "지금 쓰는 향수가 있어요? 어떤 향이에요?", level: "mild" },
-  { q: "내 갤러리 최근 사진 3번째가 뭔지 보여줄 수 있어요?", level: "mild" },
-  { q: "운동 루틴이 있어요? 아님 갓생은 포기한 상태?", level: "mild" },
-  { q: "올해 안에 꼭 해보고 싶은 것 한 가지는?", level: "mild" },
-  { q: "아침형 인간 vs 저녁형 인간, 어디에 가까워요?", level: "mild" },
-  { q: "이 바에서 제일 마음에 드는 부분은?", level: "mild" },
-  { q: "내 플레이리스트 공개 가능? 취향이 궁금해요", level: "mild" },
-  { q: "최근에 가장 웃겼던 밈이나 영상은?", level: "mild" },
-  { q: "카페에서 항상 시키는 음료가 있어요?", level: "mild" },
+  { q: "오늘 내 옆 자리에 앉은 사람의 첫인상을 키워드 하나로?", qJa: "今日、隣の席に座った人の第一印象をキーワード一つで?", level: "mild" },
+  { q: "MBTI가 뭐예요? 그리고 절대 안 맞는 MBTI는?", qJa: "MBTIは何ですか? そして絶対に合わないMBTIは?", level: "mild" },
+  { q: "술 취했을 때 나오는 나의 가장 귀여운 버릇은?", qJa: "酔った時に出る一番かわいい癖は?", level: "mild" },
+  { q: "요즘 가장 많이 듣는 노래가 당신의 상태를 설명한다면?", qJa: "最近よく聴く曲があなたの今の状態を表すとしたら?", level: "mild" },
+  { q: "지금 폰 배경화면이 뭔지 보여줄 수 있어요?", qJa: "今のスマホの壁紙を見せてもらえますか?", level: "mild" },
+  { q: "인스타 피드 vs 인스타 스토리, 더 신경 쓰는 쪽은?", qJa: "インスタフィード vs ストーリー、より気にする方は?", level: "mild" },
+  { q: "요즘 가장 빠져있는 넷플릭스/유튜브 콘텐츠는?", qJa: "最近ハマっているNetflix/YouTubeコンテンツは?", level: "mild" },
+  { q: "소개팅 앱 써본 적 있어요? 솔직하게!", qJa: "マッチングアプリ使ったことありますか? 正直に!", level: "mild" },
+  { q: "나를 동물로 표현하면? 그리고 그 이유는?", qJa: "自分を動物で表すなら? その理由は?", level: "mild" },
+  { q: "지금 카톡 프로필 사진이 뭔지 설명해 주세요", qJa: "今のメッセンジャーのプロフィール写真を説明してください", level: "mild" },
+  { q: "내 인생 최고의 flexing 순간은?", qJa: "人生最高のflexingの瞬間は?", level: "mild" },
+  { q: "올해 가장 잘한 소비 vs 가장 후회하는 소비?", qJa: "今年一番よかった買い物 vs 一番後悔した買い物?", level: "mild" },
+  { q: "아무 데나 여행 갈 수 있다면 지금 당장 어디로?", qJa: "今すぐどこへでも旅行できるなら、どこに?", level: "mild" },
+  { q: "내가 가장 자신 있는 요리 한 가지는?", qJa: "一番得意な料理は何ですか?", level: "mild" },
+  { q: "지금 가장 사고 싶은 물건은 뭐예요?", qJa: "今一番欲しいものは何ですか?", level: "mild" },
+  { q: "혼술 vs 혼밥 vs 혼영, 가장 좋아하는 '혼' 활동은?", qJa: "ひとり酒 vs ひとり飯 vs ひとり映画、一番好きな「ひとり」活動は?", level: "mild" },
+  { q: "술자리에서 절대 못 참는 것 하나만 고른다면?", qJa: "飲み会で絶対に我慢できないことを一つ選ぶなら?", level: "mild" },
+  { q: "나의 소울푸드는? 그리고 그 이유가 궁금해요", qJa: "あなたのソウルフードは? その理由も気になります", level: "mild" },
+  { q: "직업 물어봐도 돼요? 아님 힌트 하나만?", qJa: "お仕事を聞いてもいいですか? それともヒントだけでも?", level: "mild" },
+  { q: "주량이 어떻게 돼요? 솔직하게 말해봐요", qJa: "お酒の量はどれくらい? 正直に教えてください", level: "mild" },
+  { q: "텍스트로 성격이 보인다고 하잖아요. 나는 ㅋ파 vs ㅎㅎ파?", qJa: "文字で性格が出るって言いますよね。あなたは「w」派 vs 「笑」派?", level: "mild" },
+  { q: "내 최애 이모지는? 왜 그걸 제일 많이 써요?", qJa: "一番好きな絵文字は? なぜそれをよく使うんですか?", level: "mild" },
+  { q: "가장 최근에 울었던 이유는?", qJa: "最近泣いた理由は?", level: "mild" },
+  { q: "나만 아는 숨은 맛집 하나만 공유해 줄 수 있어요?", qJa: "あなただけが知っている隠れた名店を一つだけ教えてもらえますか?", level: "mild" },
+  { q: "새벽 감성 폭발할 때 주로 뭐 해요?", qJa: "深夜にエモくなった時、何をしますか?", level: "mild" },
+  { q: "지금 쓰는 향수가 있어요? 어떤 향이에요?", qJa: "今使っている香水は? どんな香りですか?", level: "mild" },
+  { q: "내 갤러리 최근 사진 3번째가 뭔지 보여줄 수 있어요?", qJa: "ギャラリーの最近の写真3枚目を見せてもらえますか?", level: "mild" },
+  { q: "운동 루틴이 있어요? 아님 갓생은 포기한 상태?", qJa: "運動の習慣ありますか? それとも諦めてる状態?", level: "mild" },
+  { q: "올해 안에 꼭 해보고 싶은 것 한 가지는?", qJa: "今年中に絶対やりたいこと一つは?", level: "mild" },
+  { q: "아침형 인간 vs 저녁형 인간, 어디에 가까워요?", qJa: "朝型 vs 夜型、どちらに近いですか?", level: "mild" },
+  { q: "이 바에서 제일 마음에 드는 부분은?", qJa: "このバーで一番気に入っているところは?", level: "mild" },
+  { q: "내 플레이리스트 공개 가능? 취향이 궁금해요", qJa: "プレイリスト公開できますか? 好みが気になります", level: "mild" },
+  { q: "최근에 가장 웃겼던 밈이나 영상은?", qJa: "最近一番笑ったミームや動画は?", level: "mild" },
+  { q: "카페에서 항상 시키는 음료가 있어요?", qJa: "カフェでいつも頼む飲み物ありますか?", level: "mild" },
 
   // ── 중간맛: 연애 / 플러팅 (36개) ──
-  { q: "남녀 사이에 친구가 가능하다 vs 불가능하다?", level: "medium" },
-  { q: "첫눈에 반하는 편인가요, 오래 지켜보는 편인가요?", level: "medium" },
-  { q: "환승 이별 vs 잠수 이별, 더 최악인 것은?", level: "medium" },
-  { q: "옆 사람이 내 잔에 손을 부딪히면 플러팅이다 vs 아니다?", level: "medium" },
-  { q: "애인이 내 친구의 깻잎을 떼어줘도 된다 vs 안 된다?", level: "medium" },
-  { q: "밀당 잘하는 사람 vs 직진하는 사람, 더 끌리는 쪽은?", level: "medium" },
-  { q: "만약 오늘 밤 한 사람과 대화한다면, 기준은 외모 vs 대화 코드?", level: "medium" },
-  { q: "전 애인 연락이 오면 어떻게 해요? 읽씹? 답장?", level: "medium" },
-  { q: "이상형의 조건 딱 3가지만 말해봐요", level: "medium" },
-  { q: "연애할 때 주도하는 편이에요, 끌려가는 편이에요?", level: "medium" },
-  { q: "연락 빈도, 하루에 몇 번이 적당하다고 생각해요?", level: "medium" },
-  { q: "본인은 질투를 많이 하는 편인가요?", level: "medium" },
-  { q: "사귀기 전 썸 기간, 얼마가 적당하다고 생각해요?", level: "medium" },
-  { q: "상대방의 과거 연애 횟수가 중요해요?", level: "medium" },
-  { q: "데이트 비용 더치페이 vs 번갈아 내기 vs 남자가 더?", level: "medium" },
-  { q: "나이 차이 몇 살까지 괜찮아요?", level: "medium" },
-  { q: "재회, 해본 적 있어요? 혹시 하고 싶은 사람 있어요?", level: "medium" },
-  { q: "좋아하는 사람 앞에서 나도 모르게 하는 행동은?", level: "medium" },
-  { q: "고백은 직접 vs 전화 vs 카톡?", level: "medium" },
-  { q: "마지막으로 누군가에게 설렜던 게 언제예요?", level: "medium" },
-  { q: "연인이 이성 친구와 단둘이 술 마시는 거 OK?", level: "medium" },
-  { q: "첫 데이트로 가장 좋은 장소는 어디라고 생각해요?", level: "medium" },
-  { q: "플러팅의 신호를 잘 캐치하는 편이에요?", level: "medium" },
-  { q: "가장 특이했던 데이트 경험은?", level: "medium" },
-  { q: "내가 제일 매력적으로 보이는 순간은 언제라고 생각해요?", level: "medium" },
-  { q: "연애할 때 가장 중요한 건 외모/성격/경제력/유머?", level: "medium" },
-  { q: "지금 솔로인 이유를 본인이 분석한다면?", level: "medium" },
-  { q: "장거리 연애 할 수 있어요?", level: "medium" },
-  { q: "비 오는 날 연인과 하고 싶은 것 하나만?", level: "medium" },
-  { q: "누가 먼저 고백해야 한다고 생각해요?", level: "medium" },
-  { q: "매력적인 목소리 vs 매력적인 눈빛, 더 끌리는 건?", level: "medium" },
-  { q: "연인과 커플템 하는 거 좋아하는 편이에요?", level: "medium" },
-  { q: "가장 설렜던 고백 혹은 고백 받았던 경험은?", level: "medium" },
-  { q: "누군가를 좋아하게 되는 데 얼마나 걸려요?", level: "medium" },
-  { q: "옆 사람이 나한테 호감이 있다면, 눈치챌 수 있어요?", level: "medium" },
-  { q: "내가 반할 수밖에 없는 한마디가 있다면?", level: "medium" },
+  { q: "남녀 사이에 친구가 가능하다 vs 불가능하다?", qJa: "男女の友情はあり vs なし?", level: "medium" },
+  { q: "첫눈에 반하는 편인가요, 오래 지켜보는 편인가요?", qJa: "一目惚れタイプ? それともじっくり見るタイプ?", level: "medium" },
+  { q: "환승 이별 vs 잠수 이별, 더 최악인 것은?", qJa: "乗り換え別れ vs 音信不通別れ、より最悪なのは?", level: "medium" },
+  { q: "옆 사람이 내 잔에 손을 부딪히면 플러팅이다 vs 아니다?", qJa: "隣の人が私のグラスに手を当てたらアプローチ vs 違う?", level: "medium" },
+  { q: "애인이 내 친구의 깻잎을 떼어줘도 된다 vs 안 된다?", qJa: "恋人が私の友達の取り分け世話をしても OK vs NG?", level: "medium" },
+  { q: "밀당 잘하는 사람 vs 직진하는 사람, 더 끌리는 쪽은?", qJa: "駆け引きが上手い人 vs 真っ直ぐな人、惹かれるのは?", level: "medium" },
+  { q: "만약 오늘 밤 한 사람과 대화한다면, 기준은 외모 vs 대화 코드?", qJa: "今夜一人とだけ話すなら、基準は外見 vs 話の合う度?", level: "medium" },
+  { q: "전 애인 연락이 오면 어떻게 해요? 읽씹? 답장?", qJa: "元恋人から連絡が来たらどうする? 既読スルー? 返信?", level: "medium" },
+  { q: "이상형의 조건 딱 3가지만 말해봐요", qJa: "理想のタイプの条件を3つだけ言ってみて", level: "medium" },
+  { q: "연애할 때 주도하는 편이에요, 끌려가는 편이에요?", qJa: "恋愛では主導する派? リードされる派?", level: "medium" },
+  { q: "연락 빈도, 하루에 몇 번이 적당하다고 생각해요?", qJa: "連絡の頻度、1日何回がちょうどいいと思う?", level: "medium" },
+  { q: "본인은 질투를 많이 하는 편인가요?", qJa: "あなたは嫉妬深い方ですか?", level: "medium" },
+  { q: "사귀기 전 썸 기간, 얼마가 적당하다고 생각해요?", qJa: "付き合う前のあいまい期間、どれくらいが理想?", level: "medium" },
+  { q: "상대방의 과거 연애 횟수가 중요해요?", qJa: "相手の過去の恋愛経験の数は気になりますか?", level: "medium" },
+  { q: "데이트 비용 더치페이 vs 번갈아 내기 vs 남자가 더?", qJa: "デート代は割り勘 vs 交互 vs 男性が多め?", level: "medium" },
+  { q: "나이 차이 몇 살까지 괜찮아요?", qJa: "年の差は何歳まで OK?", level: "medium" },
+  { q: "재회, 해본 적 있어요? 혹시 하고 싶은 사람 있어요?", qJa: "復縁、したことありますか? もしくはしたい人いますか?", level: "medium" },
+  { q: "좋아하는 사람 앞에서 나도 모르게 하는 행동은?", qJa: "好きな人の前で無意識にしてしまう行動は?", level: "medium" },
+  { q: "고백은 직접 vs 전화 vs 카톡?", qJa: "告白は直接 vs 電話 vs メッセージ?", level: "medium" },
+  { q: "마지막으로 누군가에게 설렜던 게 언제예요?", qJa: "最後に誰かにときめいたのはいつ?", level: "medium" },
+  { q: "연인이 이성 친구와 단둘이 술 마시는 거 OK?", qJa: "恋人が異性の友達と二人で飲むのはOK?", level: "medium" },
+  { q: "첫 데이트로 가장 좋은 장소는 어디라고 생각해요?", qJa: "初デートに一番いい場所はどこだと思う?", level: "medium" },
+  { q: "플러팅의 신호를 잘 캐치하는 편이에요?", qJa: "アプローチのサインを察知するのは得意?", level: "medium" },
+  { q: "가장 특이했던 데이트 경험은?", qJa: "一番ユニークだったデートの経験は?", level: "medium" },
+  { q: "내가 제일 매력적으로 보이는 순간은 언제라고 생각해요?", qJa: "自分が一番魅力的に見える瞬間はいつだと思う?", level: "medium" },
+  { q: "연애할 때 가장 중요한 건 외모/성격/경제력/유머?", qJa: "恋愛で一番大事なのは 外見/性格/経済力/ユーモア?", level: "medium" },
+  { q: "지금 솔로인 이유를 본인이 분석한다면?", qJa: "今シングルの理由を自分で分析すると?", level: "medium" },
+  { q: "장거리 연애 할 수 있어요?", qJa: "遠距離恋愛できますか?", level: "medium" },
+  { q: "비 오는 날 연인과 하고 싶은 것 하나만?", qJa: "雨の日に恋人としたいこと一つは?", level: "medium" },
+  { q: "누가 먼저 고백해야 한다고 생각해요?", qJa: "誰が先に告白すべきだと思う?", level: "medium" },
+  { q: "매력적인 목소리 vs 매력적인 눈빛, 더 끌리는 건?", qJa: "魅力的な声 vs 魅力的な目線、惹かれるのは?", level: "medium" },
+  { q: "연인과 커플템 하는 거 좋아하는 편이에요?", qJa: "恋人とカップルアイテム持つの好き?", level: "medium" },
+  { q: "가장 설렜던 고백 혹은 고백 받았던 경험은?", qJa: "一番ときめいた告白、または告白された経験は?", level: "medium" },
+  { q: "누군가를 좋아하게 되는 데 얼마나 걸려요?", qJa: "誰かを好きになるのにどれくらいかかる?", level: "medium" },
+  { q: "옆 사람이 나한테 호감이 있다면, 눈치챌 수 있어요?", qJa: "隣の人が私に好意を持っていたら、気づけますか?", level: "medium" },
+  { q: "내가 반할 수밖에 없는 한마디가 있다면?", qJa: "自分が惚れてしまう一言があるとしたら?", level: "medium" },
 
   // ── 매운맛: 도발적 / 19금 (30개) ──
-  { q: "속궁합이 안 맞으면 이별 사유가 된다 vs 안 된다?", level: "hot" },
-  { q: "낮져밤이인가요, 낮이밤져인가요?", level: "hot" },
-  { q: "원나잇에 대한 본인의 솔직한 견해는?", level: "hot" },
-  { q: "내가 생각하는 나의 가장 섹시한 신체 부위는?", level: "hot" },
-  { q: "연인 관계에서 주도하는 편이에요, 맞추는 편이에요?", level: "hot" },
-  { q: "술 마시면 스킨십이 늘어나는 편이에요?", level: "hot" },
-  { q: "사귀기 전에 스킨십 먼저 vs 고백 먼저?", level: "hot" },
-  { q: "가장 야했던 꿈 얘기해 줄 수 있어요?", level: "hot" },
-  { q: "매력적인 몸매 vs 매력적인 얼굴, 하나만 고른다면?", level: "hot" },
-  { q: "오늘 밤 이 사람이다 싶으면 먼저 대시하는 편?", level: "hot" },
-  { q: "썸남/썸녀의 잠옷이 뭐였으면 좋겠어요?", level: "hot" },
-  { q: "첫 키스, 분위기파 vs 돌발파?", level: "hot" },
-  { q: "상대방에게서 가장 섹시함을 느끼는 순간은?", level: "hot" },
-  { q: "연애 초반 vs 연애 후반, 스킨십이 더 좋은 시기는?", level: "hot" },
-  { q: "19금 콘텐츠를 연인과 같이 보는 거에 대해 어떻게 생각해요?", level: "hot" },
-  { q: "이성에게서 향수 냄새 vs 바디워시 냄새, 더 끌리는 건?", level: "hot" },
-  { q: "나의 잠자리 TMI 하나만 공개한다면?", level: "hot" },
-  { q: "새벽 2시에 전 애인에게서 연락 오면 어떻게 할 거예요?", level: "hot" },
-  { q: "연인 사이에서 못 참는 것 하나만?", level: "hot" },
-  { q: "가장 특이한 곳에서 키스해 본 경험은?", level: "hot" },
-  { q: "관계에서 가장 중요한 건 감정 vs 기술?", level: "hot" },
-  { q: "나의 은밀한 매력 포인트는 뭐라고 생각해요?", level: "hot" },
-  { q: "술 마시고 가장 대담해졌던 순간은 언제예요?", level: "hot" },
-  { q: "이상형과 밤새 대화 vs 이상형과 10초 눈맞춤?", level: "hot" },
-  { q: "가장 가슴 뛰었던 스킨십 경험은?", level: "hot" },
-  { q: "만약 지금 옆 사람과 둘만 엘리베이터에 갇히면?", level: "hot" },
-  { q: "상대방의 어떤 행동에 가장 심쿵해요?", level: "hot" },
-  { q: "모닝 키스 가능 vs 불가능?", level: "hot" },
-  { q: "연인에게 절대 양보 못 하는 스킨십 주도권이 있어요?", level: "hot" },
-  { q: "지금 옆 사람에게 한 마디 플러팅을 한다면?", level: "hot" },
+  { q: "속궁합이 안 맞으면 이별 사유가 된다 vs 안 된다?", qJa: "体の相性が合わないと別れる理由になる vs ならない?", level: "hot" },
+  { q: "낮져밤이인가요, 낮이밤져인가요?", qJa: "昼は控えめ夜は積極的? それとも逆?", level: "hot" },
+  { q: "원나잇에 대한 본인의 솔직한 견해는?", qJa: "ワンナイトについての本音の意見は?", level: "hot" },
+  { q: "내가 생각하는 나의 가장 섹시한 신체 부위는?", qJa: "自分が一番セクシーだと思う体の部位は?", level: "hot" },
+  { q: "연인 관계에서 주도하는 편이에요, 맞추는 편이에요?", qJa: "恋人関係では主導する派? 合わせる派?", level: "hot" },
+  { q: "술 마시면 스킨십이 늘어나는 편이에요?", qJa: "お酒を飲むとスキンシップが増える方ですか?", level: "hot" },
+  { q: "사귀기 전에 스킨십 먼저 vs 고백 먼저?", qJa: "付き合う前にスキンシップが先 vs 告白が先?", level: "hot" },
+  { q: "가장 야했던 꿈 얘기해 줄 수 있어요?", qJa: "一番きわどかった夢の話、してもらえますか?", level: "hot" },
+  { q: "매력적인 몸매 vs 매력적인 얼굴, 하나만 고른다면?", qJa: "魅力的なスタイル vs 魅力的な顔、一つ選ぶなら?", level: "hot" },
+  { q: "오늘 밤 이 사람이다 싶으면 먼저 대시하는 편?", qJa: "今夜この人だ! と思ったら自分からアプローチする?", level: "hot" },
+  { q: "썸남/썸녀의 잠옷이 뭐였으면 좋겠어요?", qJa: "気になる人のパジャマ、何だったらいい?", level: "hot" },
+  { q: "첫 키스, 분위기파 vs 돌발파?", qJa: "ファーストキス、雰囲気重視派 vs 突発派?", level: "hot" },
+  { q: "상대방에게서 가장 섹시함을 느끼는 순간은?", qJa: "相手に一番セクシーさを感じる瞬間は?", level: "hot" },
+  { q: "연애 초반 vs 연애 후반, 스킨십이 더 좋은 시기는?", qJa: "恋愛序盤 vs 後半、スキンシップが良い時期は?", level: "hot" },
+  { q: "19금 콘텐츠를 연인과 같이 보는 거에 대해 어떻게 생각해요?", qJa: "アダルトコンテンツを恋人と一緒に見るのは?", level: "hot" },
+  { q: "이성에게서 향수 냄새 vs 바디워시 냄새, 더 끌리는 건?", qJa: "異性の香水の香り vs ボディソープの香り、惹かれるのは?", level: "hot" },
+  { q: "나의 잠자리 TMI 하나만 공개한다면?", qJa: "夜の TMI を一つだけ公開するなら?", level: "hot" },
+  { q: "새벽 2시에 전 애인에게서 연락 오면 어떻게 할 거예요?", qJa: "深夜2時に元恋人から連絡が来たらどうする?", level: "hot" },
+  { q: "연인 사이에서 못 참는 것 하나만?", qJa: "恋人関係で我慢できないこと一つだけ?", level: "hot" },
+  { q: "가장 특이한 곳에서 키스해 본 경험은?", qJa: "一番変わった場所でキスした経験は?", level: "hot" },
+  { q: "관계에서 가장 중요한 건 감정 vs 기술?", qJa: "関係で一番大事なのは感情 vs テクニック?", level: "hot" },
+  { q: "나의 은밀한 매력 포인트는 뭐라고 생각해요?", qJa: "自分の隠れた魅力ポイントは何だと思う?", level: "hot" },
+  { q: "술 마시고 가장 대담해졌던 순간은 언제예요?", qJa: "お酒を飲んで一番大胆になった瞬間は?", level: "hot" },
+  { q: "이상형과 밤새 대화 vs 이상형과 10초 눈맞춤?", qJa: "理想の人と一晩中話す vs 10秒見つめ合う?", level: "hot" },
+  { q: "가장 가슴 뛰었던 스킨십 경험은?", qJa: "一番ドキドキしたスキンシップの経験は?", level: "hot" },
+  { q: "만약 지금 옆 사람과 둘만 엘리베이터에 갇히면?", qJa: "今、隣の人と二人だけでエレベーターに閉じ込められたら?", level: "hot" },
+  { q: "상대방의 어떤 행동에 가장 심쿵해요?", qJa: "相手のどんな行動に一番キュンとする?", level: "hot" },
+  { q: "모닝 키스 가능 vs 불가능?", qJa: "モーニングキス OK vs NG?", level: "hot" },
+  { q: "연인에게 절대 양보 못 하는 스킨십 주도권이 있어요?", qJa: "恋人に絶対譲れないスキンシップの主導権はある?", level: "hot" },
+  { q: "지금 옆 사람에게 한 마디 플러팅을 한다면?", qJa: "今、隣の人に一言アプローチするとしたら?", level: "hot" },
 ];
 
 const LEVEL_INFO = {
-  mild: { label: "순한맛", emoji: "🍀", color: "#6AB06A", bg: "rgba(106,176,106,0.1)", border: "rgba(106,176,106,0.2)" },
-  medium: { label: "중간맛", emoji: "🔥", color: "#D4A537", bg: "rgba(212,165,55,0.1)", border: "rgba(212,165,55,0.2)" },
-  hot: { label: "매운맛", emoji: "🌶️", color: "#E24B4A", bg: "rgba(226,75,74,0.1)", border: "rgba(226,75,74,0.2)" },
+  mild: { label: "순한맛", labelJa: "甘口", emoji: "🍀", color: "#6AB06A", bg: "rgba(106,176,106,0.1)", border: "rgba(106,176,106,0.2)" },
+  medium: { label: "중간맛", labelJa: "中辛", emoji: "🔥", color: "#D4A537", bg: "rgba(212,165,55,0.1)", border: "rgba(212,165,55,0.2)" },
+  hot: { label: "매운맛", labelJa: "辛口", emoji: "🌶️", color: "#E24B4A", bg: "rgba(226,75,74,0.1)", border: "rgba(226,75,74,0.2)" },
 };
 
 function getQuestionIndex(timestamp) {
@@ -140,6 +141,7 @@ export default function QuestionCardScreen() {
   const [secondsLeft, setSecondsLeft] = useState(() => getTimeLeft());
   const [flipKey, setFlipKey] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const { locale } = useLocale();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -160,6 +162,11 @@ export default function QuestionCardScreen() {
   const level = LEVEL_INFO[current.level];
   const progress = 1 - secondsLeft / 600;
 
+  // 현재 언어에 맞는 질문 텍스트
+  const currentQuestion = locale === "ja" ? current.qJa : current.q;
+  // 현재 언어에 맞는 레벨 라벨
+  const levelLabel = locale === "ja" ? level.labelJa : level.label;
+
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>
@@ -173,7 +180,9 @@ export default function QuestionCardScreen() {
           fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8",
           fontFamily: "'Noto Serif KR', serif",
         }}>
-          지금 이 질문, 같이 얘기해 볼까요?
+          {locale === "ja"
+            ? "今、この質問について話してみませんか?"
+            : "지금 이 질문, 같이 얘기해 볼까요?"}
         </div>
       </div>
 
@@ -233,7 +242,7 @@ export default function QuestionCardScreen() {
                 fontSize: "clamp(10px, 2.5vw, 11px)",
                 fontWeight: 600, color: level.color,
               }}>
-                {level.label}
+                {levelLabel}
               </span>
             </div>
 
@@ -245,7 +254,7 @@ export default function QuestionCardScreen() {
               color: "rgba(255,255,255,0.3)",
             }}>
               <Sparkles size={10} />
-              모두 같은 질문
+              {locale === "ja" ? "みんな同じ質問" : "모두 같은 질문"}
             </div>
 
             {/* 질문 내용 또는 스포일러 */}
@@ -275,13 +284,16 @@ export default function QuestionCardScreen() {
                     fontSize: "clamp(15px, 4vw, 17px)",
                     fontWeight: 500, color: level.color,
                   }}>
-                    탭해서 질문 확인하기
+                    {locale === "ja"
+                      ? "タップして質問を見る"
+                      : "탭해서 질문 확인하기"}
                   </div>
                   <div style={{
                     fontSize: "clamp(11px, 2.8vw, 12px)",
                     color: "rgba(255,255,255,0.3)",
                   }}>
-                    {level.emoji} {level.label} 수위의 질문이에요
+                    {level.emoji} {levelLabel}
+                    {locale === "ja" ? " レベルの質問です" : " 수위의 질문이에요"}
                   </div>
                 </motion.div>
               ) : (
@@ -313,7 +325,7 @@ export default function QuestionCardScreen() {
                     fontFamily: "'Noto Serif KR', serif",
                     padding: "0 clamp(4px, 2vw, 12px)",
                   }}>
-                    "{current.q}"
+                    "{currentQuestion}"
                   </div>
                 </motion.div>
               )}
@@ -345,7 +357,7 @@ export default function QuestionCardScreen() {
             fontSize: "clamp(10px, 2.5vw, 11px)",
             color: "rgba(255,255,255,0.3)",
           }}>
-            후 다음 질문
+            {locale === "ja" ? "後 次の質問" : "후 다음 질문"}
           </span>
         </div>
       </div>
@@ -363,7 +375,7 @@ export default function QuestionCardScreen() {
           <Flame size={14} style={{ color: "#D4A537", marginTop: 2, flexShrink: 0 }} />
           <div>
             <div style={{ fontSize: "clamp(11px, 2.8vw, 12px)", color: "#D4A537", fontWeight: 500, marginBottom: 6 }}>
-              수위 안내
+              {locale === "ja" ? "レベル案内" : "수위 안내"}
             </div>
             <div style={{
               display: "flex", flexWrap: "wrap", gap: 8,
@@ -375,7 +387,7 @@ export default function QuestionCardScreen() {
                   background: info.bg, border: "1px solid " + info.border,
                   borderRadius: 6, padding: "3px 8px", color: info.color,
                 }}>
-                  {info.emoji} {info.label}
+                  {info.emoji} {locale === "ja" ? info.labelJa : info.label}
                 </span>
               ))}
             </div>
@@ -383,7 +395,9 @@ export default function QuestionCardScreen() {
               fontSize: "clamp(10px, 2.5vw, 11px)",
               color: "rgba(255,255,255,0.3)", marginTop: 8, lineHeight: 1.6,
             }}>
-              모든 사람이 같은 질문을 보고 있어요. 옆 사람에게 보여주며 대화를 시작해 보세요!
+              {locale === "ja"
+                ? "皆さんが同じ質問を見ています。隣の方に見せて会話を始めてみてください!"
+                : "모든 사람이 같은 질문을 보고 있어요. 옆 사람에게 보여주며 대화를 시작해 보세요!"}
             </div>
           </div>
         </div>

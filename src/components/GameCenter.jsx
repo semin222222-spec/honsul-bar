@@ -4,11 +4,13 @@ import { ChevronLeft } from "lucide-react";
 import StackingGame from "./StackingGame";
 import LoungeScreen from "./LoungeScreen";
 import MyProfileCard from "./MyProfileCard";
+import { useLocale } from "../lib/LocaleContext";
 
 export default function GameCenter({
   users,
   myId,
   myNickname,
+  myNicknameJa,
   myAvatar,
   mySeat,
   myStatus,
@@ -18,6 +20,7 @@ export default function GameCenter({
   onCancelOutgoing,
 }) {
   const [view, setView] = useState("menu");
+  const { locale, t } = useLocale();
 
   if (view === "menu") {
     return (
@@ -41,12 +44,13 @@ export default function GameCenter({
             marginBottom: 16,
           }}
         >
-          무엇을 즐기시겠어요?
+          {locale === "ja" ? "何を楽しみますか?" : "무엇을 즐기시겠어요?"}
         </div>
 
         {/* ✨ 내 프로필 (게임 탭에도 노출) */}
         <MyProfileCard
           nickname={myNickname}
+          nicknameJa={myNicknameJa}
           avatar={myAvatar}
           seat={mySeat}
           onReroll={onReroll}
@@ -95,7 +99,7 @@ export default function GameCenter({
                     marginBottom: 4,
                   }}
                 >
-                  위스키 잔 쌓기
+                  {locale === "ja" ? "ウイスキーグラス積み" : "위스키 잔 쌓기"}
                 </div>
                 <div
                   style={{
@@ -104,9 +108,19 @@ export default function GameCenter({
                     lineHeight: 1.5,
                   }}
                 >
-                  혼자 즐기는 타이밍 게임.
-                  <br />
-                  잔을 높이 쌓아 명예의 전당에 도전!
+                  {locale === "ja" ? (
+                    <>
+                      ひとりで楽しむタイミングゲーム。
+                      <br />
+                      グラスを高く積んで栄誉の殿堂に挑戦!
+                    </>
+                  ) : (
+                    <>
+                      혼자 즐기는 타이밍 게임.
+                      <br />
+                      잔을 높이 쌓아 명예의 전당에 도전!
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -187,7 +201,7 @@ export default function GameCenter({
                     marginBottom: 4,
                   }}
                 >
-                  더 나인 · 대결 신청
+                  {locale === "ja" ? "ザ・ナイン · 対戦申請" : "더 나인 · 대결 신청"}
                 </div>
                 <div
                   style={{
@@ -196,12 +210,25 @@ export default function GameCenter({
                     lineHeight: 1.5,
                   }}
                 >
-                  9라운드 심리전 대결.
-                  <br />
-                  <span style={{ color: "rgba(212,165,55,0.7)" }}>
-                    1은 9를 잡는다
-                  </span>{" "}
-                  — 다른 손님에게 신청해보세요
+                  {locale === "ja" ? (
+                    <>
+                      9ラウンドの心理戦対決。
+                      <br />
+                      <span style={{ color: "rgba(212,165,55,0.7)" }}>
+                        1は9を倒す
+                      </span>{" "}
+                      — 他のお客様に申請してみてください
+                    </>
+                  ) : (
+                    <>
+                      9라운드 심리전 대결.
+                      <br />
+                      <span style={{ color: "rgba(212,165,55,0.7)" }}>
+                        1은 9를 잡는다
+                      </span>{" "}
+                      — 다른 손님에게 신청해보세요
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -224,9 +251,11 @@ export default function GameCenter({
             textAlign: "center",
           }}
         >
-          🏆 모든 게임 기록은{" "}
-          <strong style={{ color: "rgba(212,165,55,0.7)" }}>명예의 전당</strong>에
-          저장됩니다
+          🏆 {locale === "ja" ? (
+            <>すべてのゲーム記録は <strong style={{ color: "rgba(212,165,55,0.7)" }}>栄誉の殿堂</strong>に保存されます</>
+          ) : (
+            <>모든 게임 기록은 <strong style={{ color: "rgba(212,165,55,0.7)" }}>명예의 전당</strong>에 저장됩니다</>
+          )}
         </motion.div>
       </div>
     );
@@ -253,7 +282,7 @@ export default function GameCenter({
               WebkitTapHighlightColor: "transparent",
             }}
           >
-            <ChevronLeft size={12} /> 게임 선택
+            <ChevronLeft size={12} /> {locale === "ja" ? "ゲーム選択" : "게임 선택"}
           </button>
         </div>
         <StackingGame />
@@ -282,7 +311,7 @@ export default function GameCenter({
               WebkitTapHighlightColor: "transparent",
             }}
           >
-            <ChevronLeft size={12} /> 게임 선택
+            <ChevronLeft size={12} /> {locale === "ja" ? "ゲーム選択" : "게임 선택"}
           </button>
         </div>
         <LoungeScreen

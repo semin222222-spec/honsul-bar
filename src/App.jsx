@@ -22,21 +22,23 @@ import { useSession } from "./hooks/useSession";
 import { useOrders } from "./hooks/useOrders";
 import { useMenus } from "./hooks/useMenus";
 import { useStoreId, useStore } from "./lib/StoreContext";
+import { useLocale, pickLocaleField } from "./lib/LocaleContext";
+import LanguageToggle from "./components/LanguageToggle";
 
 const QUESTS = [
-  { id: "q1", title: "바에 안착하기", desc: "자리에 앉아 첫 주문을 해보세요", icon: "🪑", xp: 10 },
-  { id: "q2", title: "사장님과 인사하기", desc: "바텐더에게 가볍게 인사를 건네보세요", icon: "👋", xp: 15 },
-  { id: "q3", title: "옆 사람 술 구경하기", desc: "옆 손님이 마시는 술이 뭔지 살짝 확인!", icon: "👀", xp: 10 },
-  { id: "q4", title: "오늘의 발견", desc: "메뉴 5개 이상 둘러보세요", icon: "🍸", xp: 15 },
-  { id: "q5", title: "오늘의 카드", desc: "카드 탭에서 질문 카드를 뽑아보세요", icon: "🃏", xp: 15 },
-  { id: "q6", title: "대화 환영 시그널 켜기", desc: "상태를 대화 환영으로 바꿔보세요", icon: "💬", xp: 15 },
-  { id: "q7", title: "단골 인증", desc: "모든 퀘스트를 클리어하세요!", icon: "🏆", xp: 30 },
+  { id: "q1", title: "바에 안착하기", titleJa: "席に着く", desc: "자리에 앉아 첫 주문을 해보세요", descJa: "お席に座って最初のご注文を", icon: "🪑", xp: 10 },
+  { id: "q2", title: "사장님과 인사하기", titleJa: "オーナーに挨拶", desc: "바텐더에게 가볍게 인사를 건네보세요", descJa: "バーテンダーに気軽にご挨拶を", icon: "👋", xp: 15 },
+  { id: "q3", title: "옆 사람 술 구경하기", titleJa: "隣の人のお酒を見る", desc: "옆 손님이 마시는 술이 뭔지 살짝 확인!", descJa: "隣のお客様が飲んでいるお酒をチラッと確認!", icon: "👀", xp: 10 },
+  { id: "q4", title: "오늘의 발견", titleJa: "今日の発見", desc: "메뉴 5개 이상 둘러보세요", descJa: "メニューを5つ以上見てみましょう", icon: "🍸", xp: 15 },
+  { id: "q5", title: "오늘의 카드", titleJa: "今日のカード", desc: "카드 탭에서 질문 카드를 뽑아보세요", descJa: "カードタブで質問カードを引いてみましょう", icon: "🃏", xp: 15 },
+  { id: "q6", title: "대화 환영 시그널 켜기", titleJa: "話しかけOKシグナル", desc: "상태를 대화 환영으로 바꿔보세요", descJa: "ステータスを「話しかけOK」に変更", icon: "💬", xp: 15 },
+  { id: "q7", title: "단골 인증", titleJa: "常連認証", desc: "모든 퀘스트를 클리어하세요!", descJa: "すべてのクエストをクリア!", icon: "🏆", xp: 30 },
 ];
 
 const STATUS_MAP = {
-  open: { label: "대화 환영", color: "#D4A537", icon: <Smile size={14} /> },
-  hello: { label: "인사만", color: "#8B7355", icon: <HandMetal size={14} /> },
-  alone: { label: "혼자이고 싶음", color: "#4A4035", icon: <Moon size={14} /> },
+  open: { label: "대화 환영", labelJa: "話しかけOK", color: "#D4A537", icon: <Smile size={14} /> },
+  hello: { label: "인사만", labelJa: "挨拶のみ", color: "#8B7355", icon: <HandMetal size={14} /> },
+  alone: { label: "혼자이고 싶음", labelJa: "ひとりで", color: "#4A4035", icon: <Moon size={14} /> },
 };
 
 function GlassCard({ children, style, onClick, animate = true, delay = 0 }) {
@@ -72,12 +74,13 @@ function PulseDot({ color = "#D4A537", size = 8 }) {
 // ───── 내 프로필 카드는 components/MyProfileCard.jsx 에서 import하여 사용 ─────
 
 function TabBar({ active, onChange }) {
+  const { t } = useLocale();
   const tabs = [
-    { id: "hub", icon: Home, label: "홈" },
-    { id: "menu", icon: Wine, label: "메뉴" },
-    { id: "question", icon: MessageCircle, label: "카드" },
-    { id: "game", icon: Gamepad2, label: "게임" },
-    { id: "quest", icon: Trophy, label: "퀘스트" },
+    { id: "hub", icon: Home, label: t("tabs.hub") },
+    { id: "menu", icon: Wine, label: t("tabs.menu") },
+    { id: "question", icon: MessageCircle, label: t("tabs.question") },
+    { id: "game", icon: Gamepad2, label: t("tabs.game") },
+    { id: "quest", icon: Trophy, label: t("tabs.quest") },
   ];
   return (
     <div style={{
@@ -118,18 +121,31 @@ function TabBar({ active, onChange }) {
   );
 }
 
-function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myAvatar, onReroll, store }) {
-  const greetings = ["오늘 밤도 수고했어요.", "이 한 잔의 여유, 당신 것입니다.", "혼자여도 외롭지 않은 밤."];
+function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myNicknameJa, myAvatar, onReroll, store }) {
+  const { locale, t } = useLocale();
+  const greetings = t("home.greetings"); // 배열 반환
   const [gi, setGi] = useState(0);
   useEffect(() => {
-    const iv = setInterval(() => setGi(p => (p + 1) % greetings.length), 5000);
+    const iv = setInterval(() => setGi(p => (p + 1) % (Array.isArray(greetings) ? greetings.length : 1)), 5000);
     return () => clearInterval(iv);
-  }, []);
+  }, [greetings]);
   const statusCounts = { open: 0, hello: 0, alone: 0 };
   users.forEach(u => { if (statusCounts[u.status] !== undefined) statusCounts[u.status]++; });
 
+  // 매장 이름 (한국어/일본어)
+  const storeName = pickLocaleField(store, "name", locale) || "오늘, 혼술";
+
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: "clamp(12px, 3vw, 20px)" }}>
+      {/* 언어 토글 (우측 상단) */}
+      <div style={{
+        display: "flex",
+        justifyContent: "flex-end",
+        marginBottom: 8,
+      }}>
+        <LanguageToggle variant="compact" />
+      </div>
+
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}
         style={{ textAlign: "center", marginBottom: "clamp(16px, 5vw, 28px)" }}>
         {/* 매장 이름 (DB에서 동적으로) */}
@@ -146,7 +162,7 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myA
             marginBottom: 10,
           }}
         >
-          {store?.name || "오늘, 혼술"}
+          {storeName}
         </motion.div>
         <div style={{
           fontSize: "clamp(10px, 2.5vw, 12px)",
@@ -155,11 +171,13 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myA
           marginBottom: 18,
           fontFamily: "'Noto Serif KR', serif"
         }}>
-          혼술바 소셜 가이드
+          {t("home.subtitle")}
         </div>
         <div style={{ fontSize: "clamp(22px, 6vw, 28px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", lineHeight: 1.3 }}>
           <AnimatePresence mode="wait">
-            <motion.span key={gi} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.5 }} style={{ display: "block" }}>{greetings[gi]}</motion.span>
+            <motion.span key={gi} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.5 }} style={{ display: "block" }}>
+              {Array.isArray(greetings) ? greetings[gi] : ""}
+            </motion.span>
           </AnimatePresence>
         </div>
       </motion.div>
@@ -167,6 +185,7 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myA
       {/* ✨ 내 프로필 카드 (맨 위로!) */}
       <MyProfileCard
         nickname={myNickname}
+        nicknameJa={myNicknameJa}
         avatar={myAvatar}
         seat={mySeat}
         onReroll={onReroll}
@@ -175,11 +194,11 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myA
 
       <GlassCard delay={0.1} style={{ textAlign: "center", padding: "clamp(14px, 4vw, 20px)", marginBottom: "clamp(10px, 3vw, 16px)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 6 }}>
-          <PulseDot /><span style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)" }}>지금 이 바에</span>
+          <PulseDot /><span style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)" }}>{t("home.atBar")}</span>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}>
           <motion.span key={userCount} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ fontSize: "clamp(36px, 10vw, 48px)", fontWeight: 200, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>{userCount}</motion.span>
-          <span style={{ fontSize: "clamp(12px, 3.5vw, 15px)", color: "rgba(255,255,255,0.4)" }}>명이 함께하고 있어요</span>
+          <span style={{ fontSize: "clamp(12px, 3.5vw, 15px)", color: "rgba(255,255,255,0.4)" }}>{t("home.peopleHere")}</span>
         </div>
         <div style={{ marginTop: 12, display: "flex", justifyContent: "center", gap: "clamp(10px, 3vw, 16px)", fontSize: 12 }}>
           {Object.entries(STATUS_MAP).map(([k, v]) => (<span key={k} style={{ display: "flex", alignItems: "center", gap: 4, color: v.color }}>{v.icon} <span>{statusCounts[k]}</span></span>))}
@@ -189,19 +208,21 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myA
       <GlassCard delay={0.2} style={{ marginBottom: "clamp(10px, 3vw, 16px)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>나의 시그널</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>{locale === "ja" ? "ステータス" : "나의 시그널"}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: STATUS_MAP[myStatus].color, boxShadow: "0 0 8px " + STATUS_MAP[myStatus].color + "60" }} />
-              <span style={{ color: "#F5E6C8", fontSize: "clamp(13px, 3.5vw, 15px)", fontWeight: 500 }}>{STATUS_MAP[myStatus].label}</span>
+              <span style={{ color: "#F5E6C8", fontSize: "clamp(13px, 3.5vw, 15px)", fontWeight: 500 }}>
+                {locale === "ja" ? STATUS_MAP[myStatus].labelJa : STATUS_MAP[myStatus].label}
+              </span>
             </div>
           </div>
-          <button onClick={() => onGoTo("status")} style={{ background: "rgba(212,165,55,0.12)", border: "1px solid rgba(212,165,55,0.2)", borderRadius: 10, padding: "8px 14px", color: "#D4A537", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, minHeight: 44, WebkitTapHighlightColor: "transparent" }}>변경 <ChevronRight size={14} /></button>
+          <button onClick={() => onGoTo("status")} style={{ background: "rgba(212,165,55,0.12)", border: "1px solid rgba(212,165,55,0.2)", borderRadius: 10, padding: "8px 14px", color: "#D4A537", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, minHeight: 44, WebkitTapHighlightColor: "transparent" }}>{locale === "ja" ? "変更" : "변경"} <ChevronRight size={14} /></button>
         </div>
       </GlassCard>
 
       <div style={{ marginBottom: "clamp(10px, 3vw, 16px)" }}>
         {[
-          { label: "대결 신청", sub: "더 나인 1:1", icon: <Swords size={20} />, tab: "game", delay: 0.3 },
+          { label: locale === "ja" ? "対戦申請" : "대결 신청", sub: locale === "ja" ? "ザ・ナイン 1:1" : "더 나인 1:1", icon: <Swords size={20} />, tab: "game", delay: 0.3 },
         ].map(item => (
           <GlassCard key={item.tab} delay={item.delay} onClick={() => onGoTo(item.tab)} style={{ cursor: "pointer", padding: "clamp(14px, 4vw, 18px) clamp(14px, 4vw, 18px)", minHeight: 44 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -219,8 +240,12 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myA
         <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
           <Sparkles size={16} style={{ color: "#D4A537", marginTop: 2, flexShrink: 0 }} />
           <div>
-            <div style={{ fontSize: 12, color: "#D4A537", fontWeight: 500, marginBottom: 4 }}>오늘의 팁</div>
-            <div style={{ fontSize: "clamp(12px, 3vw, 13px)", color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>바텐더에게 "추천 한 잔"이라고 말해보세요. 대화의 시작이 됩니다.</div>
+            <div style={{ fontSize: 12, color: "#D4A537", fontWeight: 500, marginBottom: 4 }}>{locale === "ja" ? "今日のヒント" : "오늘의 팁"}</div>
+            <div style={{ fontSize: "clamp(12px, 3vw, 13px)", color: "rgba(255,255,255,0.55)", lineHeight: 1.6 }}>
+              {locale === "ja"
+                ? <>バーテンダーに「おまかせ一杯」と言ってみてください。会話のきっかけになります。</>
+                : <>바텐더에게 "추천 한 잔"이라고 말해보세요. 대화의 시작이 됩니다.</>}
+            </div>
           </div>
         </div>
       </GlassCard>
@@ -230,10 +255,18 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myA
 
 function StatusScreen({ myStatus, setMyStatus, users, myId }) {
   const otherUsers = users.filter(u => u.id !== myId);
+  const { locale } = useLocale();
+  const statusDescs = {
+    open: locale === "ja" ? "誰でもお気軽にお声がけください" : "누구든 편하게 말 걸어주세요",
+    hello: locale === "ja" ? "軽い挨拶程度ならOK" : "가벼운 인사 정도는 OK",
+    alone: locale === "ja" ? "静かに過ごしたいです" : "조용히 시간을 보내고 싶어요",
+  };
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>SOCIAL SIGNAL</div>
-      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", marginBottom: 24 }}>나의 시그널 설정</div>
+      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", marginBottom: 24 }}>
+        {locale === "ja" ? "ステータス設定" : "나의 시그널 설정"}
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
         {Object.entries(STATUS_MAP).map(([key, val], i) => {
           const active = myStatus === key;
@@ -243,8 +276,12 @@ function StatusScreen({ myStatus, setMyStatus, users, myId }) {
                 <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 2.5vw, 12px)" }}>
                   <motion.div animate={active ? { scale: [1, 1.2, 1] } : {}} transition={{ duration: 0.4 }} style={{ width: "clamp(32px, 8vw, 36px)", height: "clamp(32px, 8vw, 36px)", borderRadius: 12, background: val.color + (active ? "25" : "10"), display: "flex", alignItems: "center", justifyContent: "center", color: val.color }}>{val.icon}</motion.div>
                   <div>
-                    <div style={{ fontSize: "clamp(13px, 3.5vw, 15px)", fontWeight: 500, color: active ? val.color : "#F5E6C8" }}>{val.label}</div>
-                    <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{key === "open" ? "누구든 편하게 말 걸어주세요" : key === "hello" ? "가벼운 인사 정도는 OK" : "조용히 시간을 보내고 싶어요"}</div>
+                    <div style={{ fontSize: "clamp(13px, 3.5vw, 15px)", fontWeight: 500, color: active ? val.color : "#F5E6C8" }}>
+                      {locale === "ja" ? val.labelJa : val.label}
+                    </div>
+                    <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+                      {statusDescs[key]}
+                    </div>
                   </div>
                 </div>
                 {active && (<motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 400 }}><Check size={18} style={{ color: val.color }} /></motion.div>)}
@@ -254,11 +291,17 @@ function StatusScreen({ myStatus, setMyStatus, users, myId }) {
         })}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <span style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)" }}>지금 바에 있는 사람들</span>
-        <span style={{ fontSize: 10, color: "rgba(212,165,55,0.4)", background: "rgba(212,165,55,0.08)", padding: "2px 8px", borderRadius: 8 }}>{otherUsers.length}명</span>
+        <span style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)" }}>
+          {locale === "ja" ? "今このバーにいる人たち" : "지금 바에 있는 사람들"}
+        </span>
+        <span style={{ fontSize: 10, color: "rgba(212,165,55,0.4)", background: "rgba(212,165,55,0.08)", padding: "2px 8px", borderRadius: 8 }}>
+          {otherUsers.length}{locale === "ja" ? "名" : "명"}
+        </span>
       </div>
       {otherUsers.length === 0 ? (
-        <GlassCard delay={0.3} style={{ textAlign: "center", padding: "30px 16px" }}><div style={{ fontSize: 28, marginBottom: 8 }}>🌙</div><div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>아직 다른 손님이 없어요</div></GlassCard>
+        <GlassCard delay={0.3} style={{ textAlign: "center", padding: "30px 16px" }}><div style={{ fontSize: 28, marginBottom: 8 }}>🌙</div><div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
+          {locale === "ja" ? "まだ他のお客様はいません" : "아직 다른 손님이 없어요"}
+        </div></GlassCard>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {otherUsers.map((u, i) => {
@@ -285,6 +328,7 @@ function StatusScreen({ myStatus, setMyStatus, users, myId }) {
 }
 
 function QuestScreen({ completed, onComplete }) {
+  const { locale } = useLocale();
   const totalXp = QUESTS.reduce((s, q) => s + q.xp, 0);
   const earnedXp = QUESTS.filter(q => completed.has(q.id)).reduce((s, q) => s + q.xp, 0);
   const pct = Math.round((earnedXp / totalXp) * 100);
@@ -294,7 +338,9 @@ function QuestScreen({ completed, onComplete }) {
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>NEWBIE QUEST</div>
-      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", marginBottom: 20 }}>아이스브레이킹 퀘스트</div>
+      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", marginBottom: 20 }}>
+        {locale === "ja" ? "アイスブレイキングクエスト" : "아이스브레이킹 퀘스트"}
+      </div>
       <GlassCard delay={0.1} style={{ marginBottom: 20, textAlign: "center", padding: "clamp(14px, 4vw, 20px)" }}>
         <div style={{ position: "relative", width: "clamp(80px, 22vw, 100px)", height: "clamp(80px, 22vw, 100px)", margin: "0 auto 14px" }}>
           <svg width="100%" height="100%" viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)" }}>
@@ -306,7 +352,9 @@ function QuestScreen({ completed, onComplete }) {
           </div>
         </div>
         <div style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)" }}>{earnedXp} / {totalXp} XP</div>
-        {pct === 100 && (<motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, delay: 0.3 }} style={{ marginTop: 10, fontSize: 14, color: "#D4A537", fontWeight: 500 }}>🎉 단골 인증 완료!</motion.div>)}
+        {pct === 100 && (<motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, delay: 0.3 }} style={{ marginTop: 10, fontSize: 14, color: "#D4A537", fontWeight: 500 }}>
+          {locale === "ja" ? "🎉 常連認証完了!" : "🎉 단골 인증 완료!"}
+        </motion.div>)}
       </GlassCard>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {QUESTS.map((q, i) => {
@@ -319,8 +367,12 @@ function QuestScreen({ completed, onComplete }) {
                   {done ? <Check size={18} style={{ color: "#D4A537" }} /> : q.icon}
                 </motion.div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500, color: done ? "rgba(212,165,55,0.7)" : "#F5E6C8", textDecoration: done ? "line-through" : "none" }}>{q.title}</div>
-                  <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{q.desc}</div>
+                  <div style={{ fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500, color: done ? "rgba(212,165,55,0.7)" : "#F5E6C8", textDecoration: done ? "line-through" : "none" }}>
+                    {locale === "ja" ? q.titleJa : q.title}
+                  </div>
+                  <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
+                    {locale === "ja" ? q.descJa : q.desc}
+                  </div>
                 </div>
                 <span style={{ fontSize: 11, color: done ? "#D4A537" : "rgba(255,255,255,0.2)", fontWeight: 600, flexShrink: 0 }}>+{q.xp}</span>
               </div>
@@ -404,9 +456,10 @@ export default function App() {
   const presence = usePresence(mySeat, inMatchState, {
     myId,
     initialNickname: session?.nickname,
+    initialNicknameJa: session?.nickname_ja,
     initialAvatar: session?.avatar,
   });
-  const { users, userCount, myNickname, myAvatar, myStatus, setMyStatus, rerollNickname } = presence;
+  const { users, userCount, myNickname, myNicknameJa, myAvatar, myStatus, setMyStatus, rerollNickname } = presence;
 
   const [completedQuests, setCompletedQuests] = useState(new Set(["q1"]));
   const [sosOpen, setSosOpen] = useState(false);
@@ -555,6 +608,7 @@ export default function App() {
                   users={users}
                   mySeat={mySeat}
                   myNickname={myNickname}
+                  myNicknameJa={myNicknameJa}
                   myAvatar={myAvatar}
                   onReroll={rerollNickname}
                   store={store}
@@ -568,6 +622,7 @@ export default function App() {
                   users={users}
                   myId={myId}
                   myNickname={myNickname}
+                  myNicknameJa={myNicknameJa}
                   myAvatar={myAvatar}
                   mySeat={mySeat}
                   myStatus={myStatus}

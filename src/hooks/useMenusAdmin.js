@@ -20,9 +20,11 @@ export function useMenusAdmin(storeId, refetch) {
       store_id: storeId,
       category_id: data.category_id,
       name: data.name,
+      name_ja: data.name_ja || null,
       icon: data.icon,
       price: data.price,
       description: data.description,
+      description_ja: data.description_ja || null,
       abv: data.abv,
       taste: data.taste,
       display_order: data.display_order || 999,
@@ -41,9 +43,11 @@ export function useMenusAdmin(storeId, refetch) {
   const updateMenu = useCallback(async (menuId, data) => {
     const updates = {};
     if (data.name !== undefined) updates.name = data.name;
+    if (data.name_ja !== undefined) updates.name_ja = data.name_ja || null;
     if (data.icon !== undefined) updates.icon = data.icon;
     if (data.price !== undefined) updates.price = data.price;
     if (data.description !== undefined) updates.description = data.description;
+    if (data.description_ja !== undefined) updates.description_ja = data.description_ja || null;
     if (data.abv !== undefined) updates.abv = data.abv;
     if (data.taste !== undefined) updates.taste = data.taste;
     if (data.category_id !== undefined) updates.category_id = data.category_id;
@@ -98,6 +102,7 @@ export function useMenusAdmin(storeId, refetch) {
     const { error } = await supabase.from("menu_categories").insert({
       store_id: storeId,
       name: data.name,
+      name_ja: data.name_ja || null,
       default_price: data.default_price,
       color: data.color,
       display_order: data.display_order ?? nextOrder,
@@ -115,6 +120,7 @@ export function useMenusAdmin(storeId, refetch) {
   const updateCategory = useCallback(async (categoryId, data) => {
     const updates = {};
     if (data.name !== undefined) updates.name = data.name;
+    if (data.name_ja !== undefined) updates.name_ja = data.name_ja || null;
     if (data.default_price !== undefined) updates.default_price = data.default_price;
     if (data.color !== undefined) updates.color = data.color;
     if (data.display_order !== undefined) updates.display_order = data.display_order;

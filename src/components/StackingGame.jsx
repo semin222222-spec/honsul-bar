@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Play, RotateCcw, Trophy, Send } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import RankingList from "./RankingList";
+import { useLocale } from "../lib/LocaleContext";
 
 const GLASS_W = 48;
 const GLASS_H = 32;
@@ -68,6 +69,7 @@ export default function StackingGame() {
   const directionRef = useRef(1);
   const speedRef = useRef(1.2);
   const movingXRef = useRef(0);
+  const { locale } = useLocale();
 
   const centerX = (GAME_W - GLASS_W) / 2;
   const minX = 0;
@@ -162,6 +164,21 @@ export default function StackingGame() {
   const maxVisible = 8;
   const stackBottom = GAME_H - 8;
 
+  // 게임 오버 시 점수에 따른 메시지
+  const getGameOverMessage = () => {
+    if (locale === "ja") {
+      if (score >= 15) return "レジェンド! バーテンダー級の実力!";
+      if (score >= 10) return "すごい! プロ級!";
+      if (score >= 5) return "悪くないですね!";
+      return "もう一度挑戦してみてください!";
+    } else {
+      if (score >= 15) return "레전드! 바텐더급 실력!";
+      if (score >= 10) return "대단해요! 프로 수준!";
+      if (score >= 5) return "나쁘지 않아요!";
+      return "다시 도전해 보세요!";
+    }
+  };
+
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
       <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>
@@ -171,7 +188,7 @@ export default function StackingGame() {
         fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8",
         fontFamily: "'Noto Serif KR', serif", marginBottom: "clamp(12px, 4vw, 20px)",
       }}>
-        위스키 잔 쌓기
+        {locale === "ja" ? "ウイスキーグラス積み" : "위스키 잔 쌓기"}
       </div>
 
       <AnimatePresence>
@@ -190,10 +207,24 @@ export default function StackingGame() {
           }}>
             <div style={{ fontSize: 56, marginBottom: 16 }}>🥃</div>
             <div style={{ fontSize: 16, color: "#F5E6C8", marginBottom: 8, fontWeight: 500 }}>
-              위스키 잔을 최대한 높이 쌓아보세요!
+              {locale === "ja"
+                ? "ウイスキーグラスをできるだけ高く積み上げてください!"
+                : "위스키 잔을 최대한 높이 쌓아보세요!"}
             </div>
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", lineHeight: 1.7, marginBottom: 24 }}>
-              타이밍에 맞춰 화면을 탭하세요.<br />잔이 정확히 쌓이면 성공!<br />높이 올라갈수록 속도가 빨라져요.
+              {locale === "ja" ? (
+                <>
+                  タイミングよく画面をタップしてください。<br />
+                  グラスが正確に積まれれば成功!<br />
+                  高くなるほど速くなります。
+                </>
+              ) : (
+                <>
+                  타이밍에 맞춰 화면을 탭하세요.<br />
+                  잔이 정확히 쌓이면 성공!<br />
+                  높이 올라갈수록 속도가 빨라져요.
+                </>
+              )}
             </div>
             <motion.button whileTap={{ scale: 0.95 }} onClick={startGame}
               style={{
@@ -204,7 +235,7 @@ export default function StackingGame() {
                 cursor: "pointer", fontFamily: "inherit", minHeight: 48,
                 WebkitTapHighlightColor: "transparent",
               }}>
-              <Play size={18} /> 게임 시작
+              <Play size={18} /> {locale === "ja" ? "ゲーム開始" : "게임 시작"}
             </motion.button>
           </div>
           <RankingList />
@@ -216,7 +247,9 @@ export default function StackingGame() {
           <div style={{ textAlign: "center", marginBottom: 10 }}>
             <motion.div key={score} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
               style={{ fontSize: 36, fontWeight: 200, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>
-              {score}<span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)", marginLeft: 4 }}>층</span>
+              {score}<span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)", marginLeft: 4 }}>
+                {locale === "ja" ? "階" : "층"}
+              </span>
             </motion.div>
           </div>
 
@@ -299,7 +332,7 @@ export default function StackingGame() {
           </div>
 
           <div style={{ textAlign: "center", marginTop: 10, fontSize: 10, color: "rgba(255,255,255,0.2)" }}>
-            속도: {"●".repeat(Math.min(Math.round(speedRef.current), 8))}{"○".repeat(Math.max(0, 8 - Math.round(speedRef.current)))}
+            {locale === "ja" ? "速度" : "속도"}: {"●".repeat(Math.min(Math.round(speedRef.current), 8))}{"○".repeat(Math.max(0, 8 - Math.round(speedRef.current)))}
           </div>
         </div>
       )}
@@ -318,16 +351,18 @@ export default function StackingGame() {
               fontSize: 42, fontWeight: 200, color: "#D4A537",
               fontFamily: "'Noto Serif KR', serif", marginBottom: 4,
             }}>
-              {score}<span style={{ fontSize: 16, color: "rgba(255,255,255,0.3)", marginLeft: 4 }}>층</span>
+              {score}<span style={{ fontSize: 16, color: "rgba(255,255,255,0.3)", marginLeft: 4 }}>
+                {locale === "ja" ? "階" : "층"}
+              </span>
             </div>
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", marginBottom: 20 }}>
-              {score >= 15 ? "레전드! 바텐더급 실력!" : score >= 10 ? "대단해요! 프로 수준!" : score >= 5 ? "나쁘지 않아요!" : "다시 도전해 보세요!"}
+              {getGameOverMessage()}
             </div>
 
             {!saved ? (
               <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
                 <input value={nickname} onChange={e => setNickname(e.target.value)}
-                  placeholder="닉네임 입력" maxLength={10}
+                  placeholder={locale === "ja" ? "ニックネーム入力" : "닉네임 입력"} maxLength={10}
                   style={{
                     flex: 1, padding: "12px 14px", borderRadius: 10,
                     background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
@@ -347,7 +382,7 @@ export default function StackingGame() {
                     fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4,
                     WebkitTapHighlightColor: "transparent", minHeight: 44,
                   }}>
-                  <Send size={14} /> 등록
+                  <Send size={14} /> {locale === "ja" ? "登録" : "등록"}
                 </motion.button>
               </div>
             ) : (
@@ -356,7 +391,9 @@ export default function StackingGame() {
                   padding: "12px", borderRadius: 10,
                   background: "rgba(106,176,106,0.08)", border: "1px solid rgba(106,176,106,0.15)",
                   color: "#6AB06A", fontSize: 13, fontWeight: 500, marginBottom: 16,
-                }}>기록이 등록되었어요!</motion.div>
+                }}>
+                {locale === "ja" ? "記録が登録されました!" : "기록이 등록되었어요!"}
+              </motion.div>
             )}
 
             <motion.button whileTap={{ scale: 0.95 }} onClick={startGame}
@@ -368,7 +405,7 @@ export default function StackingGame() {
                 cursor: "pointer", fontFamily: "inherit",
                 WebkitTapHighlightColor: "transparent", minHeight: 44,
               }}>
-              <RotateCcw size={16} /> 다시 도전
+              <RotateCcw size={16} /> {locale === "ja" ? "再挑戦" : "다시 도전"}
             </motion.button>
           </div>
           <RankingList />

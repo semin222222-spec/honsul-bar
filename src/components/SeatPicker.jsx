@@ -2,7 +2,9 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useSeatOccupancy } from "../hooks/useSeatOccupancy";
 import { useSeatRows } from "../hooks/useSeatRows";
-import { useStoreId } from "../lib/StoreContext";
+import { useStoreId, useStore } from "../lib/StoreContext";
+import { useLocale, pickLocaleField } from "../lib/LocaleContext";
+import LanguageToggle from "./LanguageToggle";
 
 function SeatGrid({ seats, selected, occupiedSeats, onSelect, baseDelay = 0 }) {
   return (
@@ -83,9 +85,13 @@ export default function SeatPicker({ onSelect }) {
   const [selected, setSelected] = useState(null);
   const { occupiedSeats } = useSeatOccupancy();
   const storeId = useStoreId();
+  const { store } = useStore();
+  const { locale, t } = useLocale();
   const { rows, loading: rowsLoading } = useSeatRows(storeId);
 
   const totalOccupied = occupiedSeats.size;
+  // 매장 이름 — 한국어/일본어 전환
+  const storeName = pickLocaleField(store, "name", locale) || "오늘, 혼술";
 
   return (
     <div style={{
@@ -102,6 +108,16 @@ export default function SeatPicker({ onSelect }) {
       >
         {/* 헤더 영역 */}
         <div style={{ textAlign: "center", marginBottom: "clamp(24px, 6vw, 36px)" }}>
+          {/* 언어 선택 (입장 화면 상단) */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            style={{ marginBottom: 16 }}
+          >
+            <LanguageToggle variant="full" />
+          </motion.div>
+
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -116,16 +132,16 @@ export default function SeatPicker({ onSelect }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
             style={{
-              fontSize: "clamp(32px, 10vw, 44px)",
+              fontSize: "clamp(28px, 8vw, 38px)",
               fontWeight: 700,
               fontFamily: "'Noto Serif KR', serif",
               color: "#F5E6C8",
-              lineHeight: 1.1,
+              lineHeight: 1.2,
               letterSpacing: "-0.02em",
               marginBottom: "clamp(6px, 2vw, 10px)",
             }}
           >
-            오늘, 혼술
+            {storeName}
           </motion.div>
 
           <motion.div
@@ -140,7 +156,7 @@ export default function SeatPicker({ onSelect }) {
               marginBottom: "clamp(18px, 5vw, 28px)",
             }}
           >
-            혼술바 소셜 가이드
+            {t("home.subtitle")}
           </motion.div>
 
           <motion.div
@@ -167,14 +183,14 @@ export default function SeatPicker({ onSelect }) {
               lineHeight: 1.4,
               marginBottom: "clamp(6px, 2vw, 8px)",
             }}>
-              어디에 앉으셨나요?
+              {t("seatPicker.title")}
             </div>
             <div style={{
               fontSize: "clamp(10px, 2.8vw, 12px)",
               color: "rgba(255,255,255,0.3)",
               lineHeight: 1.5,
             }}>
-              자리를 선택하면 사장님이 정확히 도움을 드릴 수 있어요
+              {t("seatPicker.subtitle")}
             </div>
           </motion.div>
         </div>
@@ -182,11 +198,11 @@ export default function SeatPicker({ onSelect }) {
         {/* 좌석 행 (DB에서 동적으로 생성) */}
         {rowsLoading ? (
           <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-            좌석 불러오는 중...
+            {t("common.loading")}
           </div>
         ) : rows.length === 0 ? (
           <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-            좌석이 설정되지 않았어요
+            {locale === "ja" ? "席が設定されていません" : "좌석이 설정되지 않았어요"}
           </div>
         ) : rows.map((row, rowIdx) => {
           const seats = Array.from({ length: row.seat_count }, (_, i) => `${row.name}-${i + 1}`);
@@ -202,7 +218,9 @@ export default function SeatPicker({ onSelect }) {
                   color: "rgba(212,165,55,0.5)",
                   fontFamily: "'Noto Serif KR', serif",
                 }}>
-                  {row.name}줄 · 1 ~ {row.seat_count}번
+                  {locale === "ja"
+                    ? `${row.name}列 · 1 ~ ${row.seat_count}番`
+                    : `${row.name}줄 · 1 ~ ${row.seat_count}번`}
                 </span>
                 {isFirst && totalOccupied > 0 && (
                   <span style={{
@@ -214,7 +232,7 @@ export default function SeatPicker({ onSelect }) {
                       width: 6, height: 6, borderRadius: "50%",
                       background: "rgba(226,75,74,0.6)",
                     }} />
-                    이용 중
+                    {t("seatPicker.occupied")}
                   </span>
                 )}
               </div>
@@ -249,7 +267,9 @@ export default function SeatPicker({ onSelect }) {
             minHeight: 50,
           }}
         >
-          {selected ? `${selected} 자리로 입장하기` : "자리를 선택해주세요"}
+          {selected
+            ? (locale === "ja" ? `${selected} 席に入店する` : `${selected} 자리로 입장하기`)
+            : t("seatPicker.selectingSeat")}
         </motion.button>
 
         {/* 접속자 있으면 표시 */}
