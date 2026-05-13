@@ -8,7 +8,6 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
   const hasOptions = options && options.length > 0;
   const [selectedOption, setSelectedOption] = useState(hasOptions ? options[0] : null);
 
-  // 표시 가격 (옵션 있으면 선택된 옵션 가격, 없으면 메뉴 가격)
   const displayPrice = selectedOption ? selectedOption.price : drink.priceNum;
 
   return (
@@ -113,7 +112,7 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
             </div>
           )}
 
-          {/* 🆕 옵션 선택 (잔/바틀 등) */}
+          {/* 옵션 선택 */}
           {hasOptions && (
             <div style={{ marginBottom: 14 }}>
               <div style={{
@@ -141,7 +140,6 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
                         textAlign: "left",
                       }}
                     >
-                      {/* 라디오 */}
                       <div style={{
                         width: 18, height: 18, borderRadius: "50%",
                         border: "2px solid " + (isSelected ? lineColor : "rgba(255,255,255,0.2)"),
@@ -177,7 +175,6 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
             </div>
           )}
 
-          {/* 가격 표시 */}
           <div style={{
             padding: "14px 16px",
             background: "rgba(0,0,0,0.3)",
@@ -196,7 +193,6 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
             </span>
           </div>
 
-          {/* 주문 버튼 */}
           <motion.button
             whileTap={!ordering && !justOrdered ? { scale: 0.96 } : {}}
             onClick={() => { 
@@ -470,10 +466,7 @@ export default function MenuScreen({
   const [justOrdered, setJustOrdered] = useState(false);
   const [activeCategoryId, setActiveCategoryId] = useState(null);
   const sectionRefs = useRef({});
-  const tabsContainerRef = useRef(null);
-  const tabRefs = useRef({});
 
-  // DB 카테고리/메뉴를 화면용 구조로 변환
   const menuSections = categories.map(cat => {
     const items = menus
       .filter(m => m.category_id === cat.id)
@@ -518,7 +511,6 @@ export default function MenuScreen({
     };
   });
 
-  // 모든 메뉴 평탄화 (랜덤 픽커용)
   const allDrinks = menuSections.flatMap(section =>
     section.items.map(item => ({
       ...item,
@@ -529,20 +521,17 @@ export default function MenuScreen({
     }))
   );
 
-  // 첫 카테고리 활성화
   useEffect(() => {
     if (menuSections.length > 0 && !activeCategoryId) {
       setActiveCategoryId(menuSections[0].id);
     }
   }, [menuSections.length]);
 
-  // 스크롤 시 자동 카테고리 하이라이트 (IntersectionObserver)
   useEffect(() => {
     if (menuSections.length === 0) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        // 화면에 보이는 섹션 중 가장 위에 있는 것
         const visible = entries
           .filter(e => e.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
@@ -553,7 +542,6 @@ export default function MenuScreen({
         }
       },
       {
-        // 상단에서 200px 아래에 들어오면 활성화
         rootMargin: "-200px 0px -50% 0px",
         threshold: 0,
       }
@@ -566,28 +554,11 @@ export default function MenuScreen({
     return () => observer.disconnect();
   }, [menuSections.length]);
 
-  // 활성 탭이 변하면 탭 컨테이너 스크롤 (가운데로)
-  useEffect(() => {
-    if (!activeCategoryId || !tabRefs.current[activeCategoryId] || !tabsContainerRef.current) return;
-    
-    const tabEl = tabRefs.current[activeCategoryId];
-    const containerEl = tabsContainerRef.current;
-    
-    const tabLeft = tabEl.offsetLeft;
-    const tabWidth = tabEl.offsetWidth;
-    const containerWidth = containerEl.offsetWidth;
-    
-    // 탭을 가운데로
-    const targetScroll = tabLeft - (containerWidth / 2) + (tabWidth / 2);
-    containerEl.scrollTo({ left: targetScroll, behavior: "smooth" });
-  }, [activeCategoryId]);
-
-  // 카테고리 탭 클릭 → 해당 섹션으로 스크롤
   const handleTabClick = (catId) => {
     setActiveCategoryId(catId);
     const el = sectionRefs.current[catId];
     if (el) {
-      const top = el.getBoundingClientRect().top + window.pageYOffset - 80; // sticky 탭 높이 고려
+      const top = el.getBoundingClientRect().top + window.pageYOffset - 110; // 2줄 sticky 탭 높이 고려
       window.scrollTo({ top, behavior: "smooth" });
     }
   };
@@ -643,7 +614,7 @@ export default function MenuScreen({
         <RandomPicker allDrinks={allDrinks} />
       </div>
 
-      {/* 🆕 카테고리 탭 (sticky) */}
+      {/* 🆕 카테고리 탭 (sticky, 2줄 자동 줄바꿈) */}
       {menuSections.length > 0 && (
         <div style={{
           position: "sticky",
@@ -652,29 +623,19 @@ export default function MenuScreen({
           background: "rgba(13,11,8,0.95)",
           backdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(212,165,55,0.15)",
-          padding: "12px 0",
+          padding: "12px clamp(16px, 4vw, 24px)",
           marginBottom: 16,
         }}>
-          <div
-            ref={tabsContainerRef}
-            style={{
-              display: "flex",
-              gap: 6,
-              overflowX: "auto",
-              padding: "0 clamp(16px, 4vw, 24px)",
-              WebkitOverflowScrolling: "touch",
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-            }}
-            className="hide-scrollbar"
-          >
-            <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+          <div style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+          }}>
             {menuSections.map(section => {
               const isActive = activeCategoryId === section.id;
               return (
                 <button
                   key={section.id}
-                  ref={el => tabRefs.current[section.id] = el}
                   onClick={() => handleTabClick(section.id)}
                   style={{
                     padding: "7px 14px",
@@ -689,7 +650,6 @@ export default function MenuScreen({
                     borderRadius: 100,
                     transition: "all 0.2s",
                     fontFamily: "inherit",
-                    flexShrink: 0,
                   }}
                 >
                   {section.line}
@@ -852,7 +812,6 @@ export default function MenuScreen({
   );
 }
 
-// 헥스 → rgba
 function hexToRgba(hex, alpha = 1) {
   if (!hex || hex[0] !== "#") return `rgba(212,165,55,${alpha})`;
   const r = parseInt(hex.slice(1, 3), 16);
