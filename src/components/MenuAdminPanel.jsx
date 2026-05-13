@@ -48,33 +48,18 @@ function CategoryModal({ category, onClose, onSave, onDelete }) {
 
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>카테고리 이름</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="예: WHISKY"
-            style={inputStyle}
-          />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: WHISKY" style={inputStyle} />
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
           <div>
             <label style={labelStyle}>기본 가격 (원)</label>
-            <input
-              type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="0 = 표시 안함"
-              style={inputStyle}
-            />
+            <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0 = 표시 안함" style={inputStyle} />
           </div>
           <div>
             <label style={labelStyle}>강조 색상</label>
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              style={{ ...inputStyle, height: 38, padding: 4, cursor: "pointer" }}
-            />
+            <input type="color" value={color} onChange={(e) => setColor(e.target.value)}
+              style={{ ...inputStyle, height: 38, padding: 4, cursor: "pointer" }} />
           </div>
         </div>
 
@@ -82,8 +67,7 @@ function CategoryModal({ category, onClose, onSave, onDelete }) {
           padding: 12,
           background: hexToRgba(color, 0.06),
           border: `1px solid ${hexToRgba(color, 0.2)}`,
-          borderRadius: 9,
-          marginBottom: 12,
+          borderRadius: 9, marginBottom: 12,
         }}>
           <div style={{ fontSize: 11, color, fontWeight: 600, marginBottom: 4 }}>
             ● {name || "(이름 없음)"}
@@ -95,19 +79,12 @@ function CategoryModal({ category, onClose, onSave, onDelete }) {
 
         <div style={{ display: "flex", gap: 8 }}>
           {category && onDelete && (
-            <button
-              onClick={() => {
-                if (confirm(`"${category.name}" 카테고리를 삭제하시겠어요?\n속한 메뉴는 카테고리 없음 상태가 됩니다.`)) {
-                  onDelete();
-                }
-              }}
-              style={{ ...btnStyle, ...deleteBtnStyle }}
-            >🗑️</button>
+            <button onClick={() => {
+              if (confirm(`"${category.name}" 카테고리를 삭제하시겠어요?\n속한 메뉴는 카테고리 없음 상태가 됩니다.`)) onDelete();
+            }} style={{ ...btnStyle, ...deleteBtnStyle }}>🗑️</button>
           )}
           <button onClick={onClose} style={{ ...btnStyle, ...cancelBtnStyle, flex: 1 }}>취소</button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
+          <button onClick={handleSave} disabled={saving}
             style={{ ...btnStyle, ...saveBtnStyle, flex: 1.5, opacity: saving ? 0.5 : 1 }}
           >{saving ? "..." : "저장"}</button>
         </div>
@@ -233,11 +210,11 @@ function AddOptionForm({ onAdd }) {
   );
 }
 
-// ────── 메뉴 모달 (그룹 추가됨!) ──────
+// ────── 메뉴 모달 ──────
 function MenuModal({ 
   menu, categories, storeId, 
   options,
-  existingGroups, // 🆕 이 카테고리에 이미 있는 그룹들
+  existingGroups,
   onClose, onSave, onDelete,
   onCreateOption, onUpdateOption, onDeleteOption,
 }) {
@@ -245,7 +222,7 @@ function MenuModal({
   const [icon, setIcon] = useState(menu?.icon || "🍸");
   const [price, setPrice] = useState(menu?.price || "");
   const [categoryId, setCategoryId] = useState(menu?.category_id || categories[0]?.id || "");
-  const [groupName, setGroupName] = useState(menu?.group_name || ""); // 🆕
+  const [groupName, setGroupName] = useState(menu?.group_name || "");
   const [abv, setAbv] = useState(menu?.abv || "");
   const [taste, setTaste] = useState(menu?.taste || "");
   const [description, setDescription] = useState(menu?.description || "");
@@ -258,12 +235,11 @@ function MenuModal({
 
   const hasOptions = options && options.length > 0;
 
-  // 카테고리 바꾸면 해당 카테고리의 그룹 목록 다시 가져오기
   const currentCategoryGroups = (existingGroups[categoryId] || []).filter(g => g && g.trim());
 
   const handleCategoryChange = (newCatId) => {
     setCategoryId(newCatId);
-    setGroupName(""); // 카테고리 바뀌면 그룹 초기화
+    setGroupName("");
     if (!menu) {
       const cat = categories.find(c => c.id === newCatId);
       if (cat?.default_price) setPrice(cat.default_price);
@@ -299,7 +275,6 @@ function MenuModal({
       return alert("가격을 입력해주세요 (옵션을 추가하면 가격은 옵션에서 관리됩니다)");
     }
     setSaving(true);
-    // 일본어 그룹명 자동 번역
     let group_name_ja = null;
     if (groupName.trim()) {
       group_name_ja = await translateText(groupName.trim());
@@ -309,8 +284,8 @@ function MenuModal({
       icon,
       price: parseInt(price) || 0,
       category_id: categoryId || null,
-      group_name: groupName.trim() || null,         // 🆕
-      group_name_ja: group_name_ja,                  // 🆕
+      group_name: groupName.trim() || null,
+      group_name_ja: group_name_ja,
       abv: abv.trim(),
       taste: taste.trim(),
       description: description.trim(),
@@ -336,7 +311,6 @@ function MenuModal({
           {menu ? menu.name : "손님이 주문할 새 메뉴를 등록합니다"}
         </div>
 
-        {/* 이미지 업로드 */}
         <div style={{ marginBottom: 16 }}>
           <label style={labelStyle}>
             메뉴 사진 <span style={{ color: "rgba(255,255,255,0.3)" }}>(선택)</span>
@@ -370,7 +344,6 @@ function MenuModal({
           )}
         </div>
 
-        {/* 아이콘 */}
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>아이콘</label>
           <div style={{
@@ -407,19 +380,13 @@ function MenuModal({
           </select>
         </div>
 
-        {/* 🆕 그룹 필드 */}
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>
             그룹 <span style={{ color: "rgba(255,255,255,0.3)" }}>(선택 · 같은 카테고리 안에서 묶기)</span>
           </label>
-          <input
-            value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
+          <input value={groupName} onChange={(e) => setGroupName(e.target.value)}
             placeholder="예: 싱글몰트 (스페이사이드), 블렌디드 등"
-            style={inputStyle}
-            list="existing-groups"
-          />
-          {/* 기존 그룹 자동완성 */}
+            style={inputStyle} list="existing-groups" />
           {currentCategoryGroups.length > 0 && (
             <>
               <datalist id="existing-groups">
@@ -430,28 +397,20 @@ function MenuModal({
                   기존 그룹:
                 </span>
                 {currentCategoryGroups.map(g => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setGroupName(g)}
-                    style={{
-                      padding: "3px 8px",
-                      background: groupName === g ? "rgba(212,165,55,0.2)" : "rgba(255,255,255,0.04)",
-                      border: "1px solid " + (groupName === g ? "rgba(212,165,55,0.4)" : "rgba(255,255,255,0.06)"),
-                      borderRadius: 100,
-                      color: groupName === g ? "#D4A537" : "rgba(255,255,255,0.5)",
-                      fontSize: 10, cursor: "pointer", fontFamily: "inherit",
-                    }}
-                  >
-                    {g}
-                  </button>
+                  <button key={g} type="button" onClick={() => setGroupName(g)} style={{
+                    padding: "3px 8px",
+                    background: groupName === g ? "rgba(212,165,55,0.2)" : "rgba(255,255,255,0.04)",
+                    border: "1px solid " + (groupName === g ? "rgba(212,165,55,0.4)" : "rgba(255,255,255,0.06)"),
+                    borderRadius: 100,
+                    color: groupName === g ? "#D4A537" : "rgba(255,255,255,0.5)",
+                    fontSize: 10, cursor: "pointer", fontFamily: "inherit",
+                  }}>{g}</button>
                 ))}
               </div>
             </>
           )}
         </div>
 
-        {/* 옵션 섹션 */}
         {menu && (
           <div style={{ marginBottom: 12 }}>
             <label style={{ ...labelStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -606,7 +565,6 @@ export default function MenuAdminPanel({
     (a, b) => (a.display_order || 0) - (b.display_order || 0)
   );
 
-  // 🆕 카테고리별 기존 그룹 목록
   const existingGroups = {};
   sortedCategories.forEach(cat => {
     const groups = [...new Set(
@@ -649,6 +607,41 @@ export default function MenuAdminPanel({
     }
   };
 
+  // 🆕 메뉴 위/아래로 이동 (같은 그룹 안에서)
+  const moveMenuUp = async (menu, sameGroupMenus) => {
+    if (reorderingId) return;
+    const currentIdx = sameGroupMenus.findIndex(m => m.id === menu.id);
+    if (currentIdx <= 0) return;
+    const above = sameGroupMenus[currentIdx - 1];
+    setReorderingId(menu.id);
+    try {
+      await updateMenu(menu.id, { display_order: above.display_order });
+      await updateMenu(above.id, { display_order: menu.display_order });
+      showToast(`✓ "${menu.name}" 위로`);
+    } catch (err) {
+      showToast("순서 변경 실패");
+    } finally {
+      setReorderingId(null);
+    }
+  };
+
+  const moveMenuDown = async (menu, sameGroupMenus) => {
+    if (reorderingId) return;
+    const currentIdx = sameGroupMenus.findIndex(m => m.id === menu.id);
+    if (currentIdx < 0 || currentIdx >= sameGroupMenus.length - 1) return;
+    const below = sameGroupMenus[currentIdx + 1];
+    setReorderingId(menu.id);
+    try {
+      await updateMenu(menu.id, { display_order: below.display_order });
+      await updateMenu(below.id, { display_order: menu.display_order });
+      showToast(`✓ "${menu.name}" 아래로`);
+    } catch (err) {
+      showToast("순서 변경 실패");
+    } finally {
+      setReorderingId(null);
+    }
+  };
+
   const handleBatchTranslate = async () => {
     const menusToTranslate = menus.filter(m => !m.name_ja);
     const categoriesToTranslate = categories.filter(c => !c.name_ja);
@@ -684,7 +677,6 @@ export default function MenuAdminPanel({
     showToast(`✓ ${total}개 항목 일본어 번역 완료!`);
   };
 
-  // 카테고리별 메뉴 그룹화 (display_order 정렬 + 그룹화)
   const menusByCategory = new Map();
   sortedCategories.forEach(cat => {
     const items = menus
@@ -749,7 +741,7 @@ export default function MenuAdminPanel({
         const isReorderingAny = !!reorderingId;
         const catItems = menusByCategory.get(cat.id) || [];
 
-        // 🆕 같은 카테고리 안에서 그룹별로 묶기
+        // 그룹별로 묶기
         const groupedItems = [];
         const seenGroups = new Set();
         catItems.forEach(item => {
@@ -811,10 +803,9 @@ export default function MenuAdminPanel({
               </div>
             </div>
 
-            {/* 🆕 그룹별로 메뉴 표시 */}
+            {/* 그룹별로 메뉴 표시 */}
             {groupedItems.length > 0 ? groupedItems.map((group, gi) => (
               <div key={gi} style={{ marginBottom: 10 }}>
-                {/* 그룹 헤더 (그룹명 있을 때만) */}
                 {group.groupName && (
                   <div style={{
                     padding: "5px 10px",
@@ -833,14 +824,24 @@ export default function MenuAdminPanel({
                   </div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {group.items.map(menu => (
-                    <MenuCard
-                      key={menu.id}
-                      menu={menu}
-                      options={optionsByMenu.get(menu.id) || []}
-                      onEdit={() => setEditingMenu(menu)}
-                    />
-                  ))}
+                  {group.items.map((menu, mi) => {
+                    const isMenuFirst = mi === 0;
+                    const isMenuLast = mi === group.items.length - 1;
+                    return (
+                      <MenuCard
+                        key={menu.id}
+                        menu={menu}
+                        options={optionsByMenu.get(menu.id) || []}
+                        isFirst={isMenuFirst}
+                        isLast={isMenuLast}
+                        isReorderingAny={isReorderingAny}
+                        isReordering={reorderingId === menu.id}
+                        onEdit={() => setEditingMenu(menu)}
+                        onMoveUp={() => moveMenuUp(menu, group.items)}
+                        onMoveDown={() => moveMenuDown(menu, group.items)}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             )) : (
@@ -869,6 +870,7 @@ export default function MenuAdminPanel({
             {orphanMenus.map(menu => (
               <MenuCard key={menu.id} menu={menu}
                 options={optionsByMenu.get(menu.id) || []}
+                isFirst={true} isLast={true}
                 onEdit={() => setEditingMenu(menu)} />
             ))}
           </div>
@@ -983,8 +985,8 @@ export default function MenuAdminPanel({
   );
 }
 
-// ────── 메뉴 카드 ──────
-function MenuCard({ menu, options = [], onEdit }) {
+// ────── 메뉴 카드 (위/아래 이동 화살표 추가) ──────
+function MenuCard({ menu, options = [], isFirst, isLast, isReorderingAny, isReordering, onEdit, onMoveUp, onMoveDown }) {
   const hasOptions = options.length > 0;
   
   return (
@@ -994,20 +996,21 @@ function MenuCard({ menu, options = [], onEdit }) {
       background: "rgba(255,255,255,0.02)",
       border: "1px solid rgba(255,255,255,0.04)",
       borderRadius: 10,
-      opacity: menu.is_active ? 1 : 0.5,
-      cursor: "pointer",
-    }} onClick={onEdit} whileHover={{ background: "rgba(255,255,255,0.04)" }}>
-      <div style={{
+      opacity: menu.is_active ? (isReordering ? 0.5 : 1) : 0.5,
+      transition: "opacity 0.2s",
+    }} whileHover={{ background: "rgba(255,255,255,0.04)" }}>
+      <div onClick={onEdit} style={{
         width: 38, height: 38, borderRadius: 9,
         background: "rgba(212,165,55,0.08)",
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 18, flexShrink: 0, overflow: "hidden",
+        cursor: "pointer",
       }}>
         {menu.image_url ? (
           <img src={menu.image_url} alt={menu.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (menu.icon || "🍸")}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div onClick={onEdit} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
         <div style={{ fontSize: 12, color: "#F5E6C8", fontWeight: 500, marginBottom: 2 }}>
           {menu.name}
           {!menu.is_active && (
@@ -1036,7 +1039,36 @@ function MenuCard({ menu, options = [], onEdit }) {
           </div>
         ) : (`${menu.price.toLocaleString()}원`)}
       </div>
-      <Edit2 size={12} style={{ color: "rgba(255,255,255,0.3)", marginLeft: 4 }} />
+      
+      {/* 🆕 위/아래 화살표 버튼 */}
+      {onMoveUp && onMoveDown && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
+            disabled={isFirst || isReorderingAny}
+            style={{
+              ...miniIconBtnStyle,
+              opacity: isFirst ? 0.2 : 1,
+              cursor: isFirst || isReorderingAny ? "default" : "pointer",
+            }}
+            title="위로"
+          >
+            <ChevronUp size={12} />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
+            disabled={isLast || isReorderingAny}
+            style={{
+              ...miniIconBtnStyle,
+              opacity: isLast ? 0.2 : 1,
+              cursor: isLast || isReorderingAny ? "default" : "pointer",
+            }}
+            title="아래로"
+          >
+            <ChevronDown size={12} />
+          </button>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -1101,6 +1133,14 @@ const iconBtnStyle = {
   border: "none", borderRadius: 7,
   color: "rgba(255,255,255,0.5)",
   cursor: "pointer", fontSize: 12,
+  display: "flex", alignItems: "center", justifyContent: "center",
+};
+// 🆕 작은 화살표 버튼 (메뉴 카드용)
+const miniIconBtnStyle = {
+  width: 22, height: 18,
+  background: "rgba(255,255,255,0.04)",
+  border: "none", borderRadius: 5,
+  color: "rgba(255,255,255,0.5)",
   display: "flex", alignItems: "center", justifyContent: "center",
 };
 const imagePreviewStyle = {
