@@ -1,8 +1,25 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Edit2, Trash2, X, ChevronUp, ChevronDown, Upload, Camera } from "lucide-react";
+import { Plus, Edit2, Trash2, X, ChevronUp, ChevronDown, Upload, Camera, GripVertical } from "lucide-react";
 import { autoTranslateMenu, translateText } from "../lib/translateService";
 import { uploadMenuImage, deleteMenuImage } from "../lib/imageUpload";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const ICON_OPTIONS = [
   "🥃", "🍸", "🍷", "🍹", "🫧", "🍾",
@@ -538,6 +555,101 @@ function MenuModal({
   );
 }
 
+// ────── 🆕 드래그 가능한 메뉴 카드 ──────
+function SortableMenuCard({ menu, options, onEdit }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: menu.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : (menu.is_active ? 1 : 0.5),
+    zIndex: isDragging ? 999 : 1,
+  };
+
+  const hasOptions = options.length > 0;
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "10px 12px",
+        background: isDragging ? "rgba(212,165,55,0.1)" : "rgba(255,255,255,0.02)",
+        border: "1px solid " + (isDragging ? "rgba(212,165,55,0.4)" : "rgba(255,255,255,0.04)"),
+        borderRadius: 10,
+        boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.4)" : "none",
+        transition: "background 0.2s, border 0.2s, box-shadow 0.2s",
+      }}>
+        {/* 🆕 드래그 핸들 */}
+        <div
+          {...attributes}
+          {...listeners}
+          style={{
+            padding: "4px 2px",
+            cursor: isDragging ? "grabbing" : "grab",
+            color: "rgba(255,255,255,0.3)",
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            touchAction: "none",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <GripVertical size={16} />
+        </div>
+
+        <div onClick={onEdit} style={{
+          width: 38, height: 38, borderRadius: 9,
+          background: "rgba(212,165,55,0.08)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 18, flexShrink: 0, overflow: "hidden",
+          cursor: "pointer",
+        }}>
+          {menu.image_url ? (
+            <img src={menu.image_url} alt={menu.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (menu.icon || "🍸")}
+        </div>
+        <div onClick={onEdit} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
+          <div style={{ fontSize: 12, color: "#F5E6C8", fontWeight: 500, marginBottom: 2 }}>
+            {menu.name}
+            {!menu.is_active && (
+              <span style={{
+                display: "inline-block", padding: "1px 6px",
+                background: "rgba(226,75,74,0.15)", color: "rgba(255,180,180,0.85)",
+                borderRadius: 4, fontSize: 9, fontWeight: 600, marginLeft: 6,
+              }}>품절</span>
+            )}
+            {hasOptions && (
+              <span style={{
+                display: "inline-block", padding: "1px 6px",
+                background: "rgba(212,165,55,0.15)", color: "#D4A537",
+                borderRadius: 4, fontSize: 9, fontWeight: 600, marginLeft: 6,
+              }}>{options.length}개 옵션</span>
+            )}
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+            {[menu.abv, menu.taste].filter(Boolean).join(" · ")}
+          </div>
+        </div>
+        <div style={{ fontSize: 13, color: "#D4A537", fontFamily: "'Noto Serif KR', serif", textAlign: "right" }}>
+          {hasOptions ? (
+            <div style={{ fontSize: 11 }}>
+              {Math.min(...options.map(o => o.price)).toLocaleString()}원~
+            </div>
+          ) : (`${menu.price.toLocaleString()}원`)}
+        </div>
+        <Edit2 size={12} style={{ color: "rgba(255,255,255,0.3)", marginLeft: 4, cursor: "pointer" }} onClick={onEdit} />
+      </div>
+    </div>
+  );
+}
+
 // ────── 메인 패널 ──────
 export default function MenuAdminPanel({
   storeId,
@@ -554,7 +666,21 @@ export default function MenuAdminPanel({
   const [toast, setToast] = useState(null);
   const [batchTranslating, setBatchTranslating] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
-  const [reorderingId, setReorderingId] = useState(null);
+  const [reorderingCategoryId, setReorderingCategoryId] = useState(null);
+  const [isDraggingMenu, setIsDraggingMenu] = useState(false);
+
+  // 🆕 드래그 센서 (마우스 + 터치 + 키보드)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 5 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const showToast = (msg) => {
     setToast(msg);
@@ -576,10 +702,10 @@ export default function MenuAdminPanel({
   });
 
   const moveCategoryUp = async (index) => {
-    if (index <= 0 || reorderingId) return;
+    if (index <= 0 || reorderingCategoryId) return;
     const current = sortedCategories[index];
     const above = sortedCategories[index - 1];
-    setReorderingId(current.id);
+    setReorderingCategoryId(current.id);
     try {
       await updateCategory(current.id, { display_order: above.display_order });
       await updateCategory(above.id, { display_order: current.display_order });
@@ -587,15 +713,15 @@ export default function MenuAdminPanel({
     } catch (err) {
       showToast("순서 변경 실패");
     } finally {
-      setReorderingId(null);
+      setReorderingCategoryId(null);
     }
   };
 
   const moveCategoryDown = async (index) => {
-    if (index >= sortedCategories.length - 1 || reorderingId) return;
+    if (index >= sortedCategories.length - 1 || reorderingCategoryId) return;
     const current = sortedCategories[index];
     const below = sortedCategories[index + 1];
-    setReorderingId(current.id);
+    setReorderingCategoryId(current.id);
     try {
       await updateCategory(current.id, { display_order: below.display_order });
       await updateCategory(below.id, { display_order: current.display_order });
@@ -603,42 +729,73 @@ export default function MenuAdminPanel({
     } catch (err) {
       showToast("순서 변경 실패");
     } finally {
-      setReorderingId(null);
+      setReorderingCategoryId(null);
     }
   };
 
-  // 🆕 메뉴 위/아래로 이동 (같은 그룹 안에서)
-  const moveMenuUp = async (menu, sameGroupMenus) => {
-    if (reorderingId) return;
-    const currentIdx = sameGroupMenus.findIndex(m => m.id === menu.id);
-    if (currentIdx <= 0) return;
-    const above = sameGroupMenus[currentIdx - 1];
-    setReorderingId(menu.id);
-    try {
-      await updateMenu(menu.id, { display_order: above.display_order });
-      await updateMenu(above.id, { display_order: menu.display_order });
-      showToast(`✓ "${menu.name}" 위로`);
-    } catch (err) {
-      showToast("순서 변경 실패");
-    } finally {
-      setReorderingId(null);
-    }
-  };
+  // 🆕 카테고리 안에서 드래그앤드롭 (그룹 사이도 이동 가능)
+  const handleDragEnd = async (event, categoryId) => {
+    setIsDraggingMenu(false);
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) return;
 
-  const moveMenuDown = async (menu, sameGroupMenus) => {
-    if (reorderingId) return;
-    const currentIdx = sameGroupMenus.findIndex(m => m.id === menu.id);
-    if (currentIdx < 0 || currentIdx >= sameGroupMenus.length - 1) return;
-    const below = sameGroupMenus[currentIdx + 1];
-    setReorderingId(menu.id);
+    const catItems = menus
+      .filter(m => m.category_id === categoryId)
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+
+    const oldIndex = catItems.findIndex(m => m.id === active.id);
+    const newIndex = catItems.findIndex(m => m.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // 배열 재배치
+    const newOrder = arrayMove(catItems, oldIndex, newIndex);
+
+    // 새 위치의 그룹명 가져오기 (이동한 메뉴 앞뒤 메뉴 기준)
+    const movedMenu = newOrder[newIndex];
+    const prevMenu = newIndex > 0 ? newOrder[newIndex - 1] : null;
+    const nextMenu = newIndex < newOrder.length - 1 ? newOrder[newIndex + 1] : null;
+    
+    // 그룹 결정: 앞 메뉴의 그룹과 같게 (그룹 사이 이동 자동 처리)
+    let newGroupName = movedMenu.group_name;
+    let newGroupNameJa = movedMenu.group_name_ja;
+    if (prevMenu && prevMenu.group_name) {
+      newGroupName = prevMenu.group_name;
+      newGroupNameJa = prevMenu.group_name_ja;
+    } else if (nextMenu && nextMenu.group_name && !prevMenu) {
+      newGroupName = nextMenu.group_name;
+      newGroupNameJa = nextMenu.group_name_ja;
+    }
+
+    showToast("순서 변경 중...");
+
     try {
-      await updateMenu(menu.id, { display_order: below.display_order });
-      await updateMenu(below.id, { display_order: menu.display_order });
-      showToast(`✓ "${menu.name}" 아래로`);
+      // 모든 메뉴에 새 display_order 부여 (1, 2, 3, 4...)
+      const updates = newOrder.map((menu, idx) => {
+        const updates = { display_order: idx + 1 };
+        // 이동된 메뉴의 그룹이 바뀌어야 한다면
+        if (menu.id === movedMenu.id && menu.group_name !== newGroupName) {
+          updates.group_name = newGroupName;
+          updates.group_name_ja = newGroupNameJa;
+        }
+        return { id: menu.id, updates };
+      });
+
+      // 병렬 업데이트
+      await Promise.all(
+        updates.map(({ id, updates }) => updateMenu(id, updates))
+      );
+
+      const groupChanged = movedMenu.group_name !== newGroupName;
+      if (groupChanged) {
+        showToast(`✓ "${movedMenu.name}" → ${newGroupName || '그룹 없음'}로 이동`);
+      } else {
+        showToast(`✓ 순서 변경됨`);
+      }
     } catch (err) {
+      console.error("순서 변경 실패:", err);
       showToast("순서 변경 실패");
-    } finally {
-      setReorderingId(null);
     }
   };
 
@@ -734,11 +891,25 @@ export default function MenuAdminPanel({
         </div>
       </div>
 
+      {/* 🆕 드래그 안내 */}
+      <div style={{
+        padding: "8px 12px",
+        background: "rgba(212,165,55,0.05)",
+        border: "1px solid rgba(212,165,55,0.15)",
+        borderRadius: 8,
+        marginBottom: 16,
+        fontSize: 10,
+        color: "rgba(212,165,55,0.8)",
+        textAlign: "center",
+      }}>
+        💡 메뉴 옆 <GripVertical size={10} style={{ display: "inline", verticalAlign: "middle" }} /> 핸들을 길게 누른 후 원하는 위치로 끌어 순서를 바꿀 수 있어요
+      </div>
+
       {sortedCategories.map((cat, index) => {
         const isFirst = index === 0;
         const isLast = index === sortedCategories.length - 1;
-        const isReordering = reorderingId === cat.id;
-        const isReorderingAny = !!reorderingId;
+        const isReordering = reorderingCategoryId === cat.id;
+        const isReorderingAny = !!reorderingCategoryId;
         const catItems = menusByCategory.get(cat.id) || [];
 
         // 그룹별로 묶기
@@ -803,48 +974,53 @@ export default function MenuAdminPanel({
               </div>
             </div>
 
-            {/* 그룹별로 메뉴 표시 */}
-            {groupedItems.length > 0 ? groupedItems.map((group, gi) => (
-              <div key={gi} style={{ marginBottom: 10 }}>
-                {group.groupName && (
-                  <div style={{
-                    padding: "5px 10px",
-                    background: hexToRgba(cat.color || "#D4A537", 0.05),
-                    borderLeft: `2px solid ${cat.color || "#D4A537"}`,
-                    borderRadius: "0 6px 6px 0",
-                    marginBottom: 4,
-                    fontSize: 10,
-                    color: cat.color || "#D4A537",
-                    fontWeight: 600,
-                  }}>
-                    {group.groupName}
-                    <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 400, marginLeft: 4 }}>
-                      · {group.items.length}
-                    </span>
-                  </div>
-                )}
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {group.items.map((menu, mi) => {
-                    const isMenuFirst = mi === 0;
-                    const isMenuLast = mi === group.items.length - 1;
-                    return (
-                      <MenuCard
-                        key={menu.id}
-                        menu={menu}
-                        options={optionsByMenu.get(menu.id) || []}
-                        isFirst={isMenuFirst}
-                        isLast={isMenuLast}
-                        isReorderingAny={isReorderingAny}
-                        isReordering={reorderingId === menu.id}
-                        onEdit={() => setEditingMenu(menu)}
-                        onMoveUp={() => moveMenuUp(menu, group.items)}
-                        onMoveDown={() => moveMenuDown(menu, group.items)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            )) : (
+            {/* 🆕 카테고리 안에서 드래그앤드롭 (그룹 헤더 같이 표시) */}
+            {catItems.length > 0 ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={() => setIsDraggingMenu(true)}
+                onDragEnd={(event) => handleDragEnd(event, cat.id)}
+                onDragCancel={() => setIsDraggingMenu(false)}
+              >
+                <SortableContext
+                  items={catItems.map(m => m.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {groupedItems.map((group, gi) => (
+                    <div key={gi} style={{ marginBottom: 10 }}>
+                      {group.groupName && (
+                        <div style={{
+                          padding: "5px 10px",
+                          background: hexToRgba(cat.color || "#D4A537", 0.05),
+                          borderLeft: `2px solid ${cat.color || "#D4A537"}`,
+                          borderRadius: "0 6px 6px 0",
+                          marginBottom: 4,
+                          fontSize: 10,
+                          color: cat.color || "#D4A537",
+                          fontWeight: 600,
+                        }}>
+                          {group.groupName}
+                          <span style={{ color: "rgba(255,255,255,0.3)", fontWeight: 400, marginLeft: 4 }}>
+                            · {group.items.length}
+                          </span>
+                        </div>
+                      )}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {group.items.map(menu => (
+                          <SortableMenuCard
+                            key={menu.id}
+                            menu={menu}
+                            options={optionsByMenu.get(menu.id) || []}
+                            onEdit={() => setEditingMenu(menu)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </SortableContext>
+              </DndContext>
+            ) : (
               <div style={{
                 padding: 14, textAlign: "center",
                 fontSize: 11, color: "rgba(255,255,255,0.3)",
@@ -868,10 +1044,23 @@ export default function MenuAdminPanel({
           }}>● 카테고리 없음</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {orphanMenus.map(menu => (
-              <MenuCard key={menu.id} menu={menu}
-                options={optionsByMenu.get(menu.id) || []}
-                isFirst={true} isLast={true}
-                onEdit={() => setEditingMenu(menu)} />
+              <div key={menu.id} style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 12px",
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.04)",
+                borderRadius: 10,
+                cursor: "pointer",
+              }} onClick={() => setEditingMenu(menu)}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: 9,
+                  background: "rgba(212,165,55,0.08)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 18, flexShrink: 0,
+                }}>{menu.icon || "🍸"}</div>
+                <div style={{ flex: 1, fontSize: 12, color: "#F5E6C8" }}>{menu.name}</div>
+                <Edit2 size={12} style={{ color: "rgba(255,255,255,0.3)" }} />
+              </div>
             ))}
           </div>
         </div>
@@ -985,94 +1174,6 @@ export default function MenuAdminPanel({
   );
 }
 
-// ────── 메뉴 카드 (위/아래 이동 화살표 추가) ──────
-function MenuCard({ menu, options = [], isFirst, isLast, isReorderingAny, isReordering, onEdit, onMoveUp, onMoveDown }) {
-  const hasOptions = options.length > 0;
-  
-  return (
-    <motion.div layout style={{
-      display: "flex", alignItems: "center", gap: 10,
-      padding: "10px 12px",
-      background: "rgba(255,255,255,0.02)",
-      border: "1px solid rgba(255,255,255,0.04)",
-      borderRadius: 10,
-      opacity: menu.is_active ? (isReordering ? 0.5 : 1) : 0.5,
-      transition: "opacity 0.2s",
-    }} whileHover={{ background: "rgba(255,255,255,0.04)" }}>
-      <div onClick={onEdit} style={{
-        width: 38, height: 38, borderRadius: 9,
-        background: "rgba(212,165,55,0.08)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 18, flexShrink: 0, overflow: "hidden",
-        cursor: "pointer",
-      }}>
-        {menu.image_url ? (
-          <img src={menu.image_url} alt={menu.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (menu.icon || "🍸")}
-      </div>
-      <div onClick={onEdit} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
-        <div style={{ fontSize: 12, color: "#F5E6C8", fontWeight: 500, marginBottom: 2 }}>
-          {menu.name}
-          {!menu.is_active && (
-            <span style={{
-              display: "inline-block", padding: "1px 6px",
-              background: "rgba(226,75,74,0.15)", color: "rgba(255,180,180,0.85)",
-              borderRadius: 4, fontSize: 9, fontWeight: 600, marginLeft: 6,
-            }}>품절</span>
-          )}
-          {hasOptions && (
-            <span style={{
-              display: "inline-block", padding: "1px 6px",
-              background: "rgba(212,165,55,0.15)", color: "#D4A537",
-              borderRadius: 4, fontSize: 9, fontWeight: 600, marginLeft: 6,
-            }}>{options.length}개 옵션</span>
-          )}
-        </div>
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
-          {[menu.abv, menu.taste].filter(Boolean).join(" · ")}
-        </div>
-      </div>
-      <div style={{ fontSize: 13, color: "#D4A537", fontFamily: "'Noto Serif KR', serif", textAlign: "right" }}>
-        {hasOptions ? (
-          <div style={{ fontSize: 11 }}>
-            {Math.min(...options.map(o => o.price)).toLocaleString()}원~
-          </div>
-        ) : (`${menu.price.toLocaleString()}원`)}
-      </div>
-      
-      {/* 🆕 위/아래 화살표 버튼 */}
-      {onMoveUp && onMoveDown && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
-          <button
-            onClick={(e) => { e.stopPropagation(); onMoveUp(); }}
-            disabled={isFirst || isReorderingAny}
-            style={{
-              ...miniIconBtnStyle,
-              opacity: isFirst ? 0.2 : 1,
-              cursor: isFirst || isReorderingAny ? "default" : "pointer",
-            }}
-            title="위로"
-          >
-            <ChevronUp size={12} />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onMoveDown(); }}
-            disabled={isLast || isReorderingAny}
-            style={{
-              ...miniIconBtnStyle,
-              opacity: isLast ? 0.2 : 1,
-              cursor: isLast || isReorderingAny ? "default" : "pointer",
-            }}
-            title="아래로"
-          >
-            <ChevronDown size={12} />
-          </button>
-        </div>
-      )}
-    </motion.div>
-  );
-}
-
 // ────── 스타일 ──────
 const modalOverlayStyle = {
   position: "fixed", inset: 0, zIndex: 200,
@@ -1133,14 +1234,6 @@ const iconBtnStyle = {
   border: "none", borderRadius: 7,
   color: "rgba(255,255,255,0.5)",
   cursor: "pointer", fontSize: 12,
-  display: "flex", alignItems: "center", justifyContent: "center",
-};
-// 🆕 작은 화살표 버튼 (메뉴 카드용)
-const miniIconBtnStyle = {
-  width: 22, height: 18,
-  background: "rgba(255,255,255,0.04)",
-  border: "none", borderRadius: 5,
-  color: "rgba(255,255,255,0.5)",
   display: "flex", alignItems: "center", justifyContent: "center",
 };
 const imagePreviewStyle = {
