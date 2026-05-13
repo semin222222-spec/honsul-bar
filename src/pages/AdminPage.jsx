@@ -10,6 +10,7 @@ import { useSessionsAdmin } from "../hooks/useSessionsAdmin";
 import { useOrdersAdmin } from "../hooks/useOrdersAdmin";
 import { useMenus } from "../hooks/useMenus";
 import { useMenusAdmin } from "../hooks/useMenusAdmin";
+import { useMenuOptions } from "../hooks/useMenuOptions";
 import { useSeatRows } from "../hooks/useSeatRows";
 import { useSeatRowsAdmin } from "../hooks/useSeatRowsAdmin";
 import { useSalesStats } from "../hooks/useSalesStats";
@@ -141,273 +142,6 @@ function SOSCard({ signal, onAccept, onResolve }) {
   );
 }
 
-// ───────── 세션(좌석) 카드 ─────────
-function SessionCard({ session, orders, onClose, onSettle }) {
-  const [elapsed, setElapsed] = useState(sessionDuration(session.opened_at));
-  const [confirmAction, setConfirmAction] = useState(null); // null | 'empty' | 'settle'
-
-  useEffect(() => {
-    const iv = setInterval(() => setElapsed(sessionDuration(session.opened_at)), 60000);
-    return () => clearInterval(iv);
-  }, [session.opened_at]);
-
-  // 마지막 활동이 30분 이상 없으면 경고
-  const lastActive = session.last_active_at ? new Date(session.last_active_at) : null;
-  const inactiveMin = lastActive ? Math.floor((Date.now() - lastActive.getTime()) / 60000) : 0;
-  const isInactive = inactiveMin >= 30;
-
-  // 이 세션의 주문들
-  const sessionOrders = (orders || []).filter(o => o.session_id === session.id);
-  const sessionTotal = sessionOrders.reduce((sum, o) => sum + (o.price || 0), 0);
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 16, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 200, transition: { duration: 0.3 } }}
-      transition={{ type: "spring", damping: 26, stiffness: 300 }}
-      style={{
-        background: isInactive ? "rgba(226,150,75,0.04)" : "rgba(255,255,255,0.03)",
-        backdropFilter: "blur(16px)",
-        border: "1px solid " + (isInactive ? "rgba(226,150,75,0.25)" : "rgba(255,255,255,0.06)"),
-        borderRadius: 16, padding: "16px 18px", marginBottom: 10,
-      }}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: "rgba(212,165,55,0.1)",
-            border: "1.5px solid rgba(212,165,55,0.25)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18,
-          }}>
-            {session.avatar || "🥃"}
-          </div>
-          <div>
-            <div style={{
-              fontSize: 14, fontWeight: 600, color: "#F5E6C8",
-              fontFamily: "'Noto Serif KR', serif",
-            }}>
-              📍 {session.seat_label}
-            </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
-              {session.nickname || "손님"}
-            </div>
-          </div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          {sessionTotal > 0 && (
-            <div style={{
-              fontSize: 15, color: "#D4A537", fontWeight: 500,
-              fontFamily: "'Noto Serif KR', serif", marginBottom: 2,
-            }}>
-              {sessionTotal.toLocaleString()}<span style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginLeft: 2 }}>원</span>
-            </div>
-          )}
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)" }}>
-            {formatTime(session.opened_at)} 입장
-          </div>
-          <div style={{ fontSize: 10, color: "rgba(212,165,55,0.7)", marginTop: 2, fontWeight: 500 }}>
-            {elapsed}
-          </div>
-        </div>
-      </div>
-
-      {/* 주문 칩 */}
-      {sessionOrders.length > 0 && (
-        <div style={{
-          display: "flex", flexWrap: "wrap", gap: 4,
-          marginBottom: 10,
-          padding: "8px 10px",
-          background: "rgba(0,0,0,0.2)",
-          borderRadius: 8,
-        }}>
-          {sessionOrders.map((o) => (
-            <span key={o.id} style={{
-              fontSize: 10, padding: "3px 7px",
-              background: o.status === "pending" ? "rgba(212,165,55,0.1)" : "rgba(106,176,106,0.08)",
-              color: o.status === "pending" ? "rgba(212,165,55,0.8)" : "rgba(106,176,106,0.8)",
-              borderRadius: 5,
-              display: "inline-flex", alignItems: "center", gap: 3,
-            }}>
-              {o.menu_icon} {o.menu_name}
-              {o.status === "pending" && <span style={{ fontSize: 8 }}>⏳</span>}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {isInactive && (
-        <div style={{
-          padding: "8px 10px",
-          background: "rgba(226,150,75,0.1)",
-          border: "1px solid rgba(226,150,75,0.25)",
-          borderRadius: 8,
-          display: "flex", alignItems: "center", gap: 6,
-          marginBottom: 10,
-          fontSize: 11,
-          color: "rgba(255,200,130,0.9)",
-        }}>
-          <AlertTriangle size={13} />
-          마지막 활동이 {inactiveMin}분 전 — 자리를 뜬 걸 수도 있어요
-        </div>
-      )}
-
-      {!confirmAction ? (
-        <div style={{ display: "flex", gap: 6 }}>
-          <button
-            onClick={() => setConfirmAction("empty")}
-            style={{
-              flex: sessionTotal > 0 ? 0.7 : 1,
-              padding: "10px 8px", borderRadius: 10,
-              background: isInactive ? "rgba(226,150,75,0.12)" : "rgba(255,255,255,0.03)",
-              border: "1px solid " + (isInactive ? "rgba(226,150,75,0.35)" : "rgba(255,255,255,0.08)"),
-              color: isInactive ? "rgba(255,200,130,0.9)" : "rgba(255,255,255,0.5)",
-              fontSize: 11, fontWeight: 500, cursor: "pointer",
-              fontFamily: "inherit",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-            }}
-          >
-            <X size={12} /> 자리 비우기
-          </button>
-          {sessionTotal > 0 && (
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={() => setConfirmAction("settle")}
-              style={{
-                flex: 1.3, padding: "10px", borderRadius: 10,
-                background: "linear-gradient(135deg, #D4A537, #B8860B)",
-                border: "none",
-                color: "#0D0B08", fontSize: 12, fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-              }}
-            >
-              💰 정산 ({sessionTotal.toLocaleString()}원)
-            </motion.button>
-          )}
-        </div>
-      ) : confirmAction === "empty" ? (
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{
-            padding: "10px 12px",
-            background: "rgba(226,75,74,0.08)",
-            border: "1px solid rgba(226,75,74,0.3)",
-            borderRadius: 10,
-          }}
-        >
-          <div style={{
-            fontSize: 12, color: "rgba(255,180,180,0.95)",
-            marginBottom: 8, textAlign: "center", lineHeight: 1.5,
-          }}>
-            정말 <strong style={{ color: "#fff" }}>{session.seat_label}</strong> 자리를<br />
-            비우시겠어요?
-            {sessionTotal > 0 && (
-              <div style={{
-                fontSize: 10, color: "rgba(255,200,130,0.9)",
-                marginTop: 6, padding: "6px 8px",
-                background: "rgba(226,150,75,0.1)",
-                borderRadius: 6,
-              }}>
-                ⚠ {sessionTotal.toLocaleString()}원 미정산 상태로 비워져요
-              </div>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={() => setConfirmAction(null)}
-              style={{
-                flex: 1, padding: "8px", borderRadius: 8,
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "rgba(255,255,255,0.6)", fontSize: 11, cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              취소
-            </button>
-            <button
-              onClick={() => onClose(session.id)}
-              style={{
-                flex: 1.5, padding: "8px", borderRadius: 8,
-                background: "linear-gradient(135deg, #E24B4A, #B03838)",
-                border: "none",
-                color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              비우기 확정
-            </button>
-          </div>
-        </motion.div>
-      ) : (
-        /* 정산 확인 */
-        <motion.div
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{
-            padding: "12px",
-            background: "linear-gradient(135deg, rgba(212,165,55,0.12), rgba(180,120,30,0.06))",
-            border: "1px solid rgba(212,165,55,0.35)",
-            borderRadius: 10,
-          }}
-        >
-          <div style={{ textAlign: "center", marginBottom: 10 }}>
-            <div style={{
-              fontSize: 11, color: "rgba(212,165,55,0.7)",
-              letterSpacing: "0.15em", marginBottom: 4,
-            }}>
-              정산 확인
-            </div>
-            <div style={{
-              fontSize: 22, color: "#D4A537", fontWeight: 500,
-              fontFamily: "'Noto Serif KR', serif",
-            }}>
-              {sessionTotal.toLocaleString()}<span style={{ fontSize: 11, marginLeft: 3, color: "rgba(255,255,255,0.5)" }}>원</span>
-            </div>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>
-              {session.seat_label} · {sessionOrders.length}건 주문
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={() => setConfirmAction(null)}
-              style={{
-                flex: 1, padding: "9px", borderRadius: 8,
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.1)",
-                color: "rgba(255,255,255,0.6)", fontSize: 11, cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              취소
-            </button>
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={() => onSettle(session.id)}
-              style={{
-                flex: 1.8, padding: "9px", borderRadius: 8,
-                background: "linear-gradient(135deg, #D4A537, #B8860B)",
-                border: "none",
-                color: "#0D0B08", fontSize: 12, fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              ✓ 정산 완료
-            </motion.button>
-          </div>
-        </motion.div>
-      )}
-    </motion.div>
-  );
-}
-
 // ───────── 주문 카드 ─────────
 function OrderCard({ order, onServed, onCancel }) {
   const [elapsed, setElapsed] = useState(timeAgo(order.created_at));
@@ -448,6 +182,15 @@ function OrderCard({ order, onServed, onCancel }) {
           <div>
             <div style={{ fontSize: 14, fontWeight: 500, color: "#F5E6C8" }}>
               {order.menu_name}
+              {order.option_name && (
+                <span style={{
+                  fontSize: 10, padding: "1px 6px", marginLeft: 6,
+                  background: "rgba(212,165,55,0.15)", color: "#D4A537",
+                  borderRadius: 4, fontWeight: 600,
+                }}>
+                  {order.option_name}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3, display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ color: "#D4A537", fontWeight: 500 }}>📍 {order.seat_label}</span>
@@ -563,8 +306,8 @@ function OrderCard({ order, onServed, onCancel }) {
 
 // ───────── 메인 어드민 페이지 ─────────
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState("sos"); // sos | seats | orders | manage
-  const [managePanel, setManagePanel] = useState(null); // null | 'menus' | 'seatrows' | 'qr'
+  const [activeTab, setActiveTab] = useState("sos");
+  const [managePanel, setManagePanel] = useState(null);
 
   const { signals, loading: sosLoading, acceptSignal, resolveSignal, refetch: refetchSOS } = useSOSAdmin();
   const { sessions, todayRevenue, loading: sessionsLoading, closeSession, settleSession, moveSession, refetch: refetchSessions } = useSessionsAdmin();
@@ -575,6 +318,7 @@ export default function AdminPage() {
   const { storeSlug } = useStore();
   const { categories: menuCategories, menus: menuItems, loading: menusLoading, refetch: refetchMenus } = useMenus(storeId);
   const menuAdmin = useMenusAdmin(storeId, refetchMenus);
+  const menuOptions = useMenuOptions(storeId); // 🆕 옵션 관리
 
   // 좌석 행 관리
   const { rows: seatRows, loading: seatRowsLoading, refetch: refetchSeatRows } = useSeatRows(storeId);
@@ -586,11 +330,10 @@ export default function AdminPage() {
   const [prevSOSCount, setPrevSOSCount] = useState(0);
   const [prevOrdersCount, setPrevOrdersCount] = useState(0);
   const [flashHeader, setFlashHeader] = useState(false);
-  const [flashType, setFlashType] = useState(null); // 'sos' | 'order'
+  const [flashType, setFlashType] = useState(null);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const pendingSOSCount = signals.filter((s) => s.state === "pending").length;
 
-  // 사운드 토글
   const toggleSound = () => {
     if (soundOn) {
       disableSound();
@@ -601,23 +344,21 @@ export default function AdminPage() {
     }
   };
 
-  // 새 SOS 알림
   useEffect(() => {
     if (signals.length > prevSOSCount && prevSOSCount > 0) {
       setFlashHeader(true);
       setFlashType("sos");
-      playSOSNotification(); // 🔊 SOS 소리
+      playSOSNotification();
       setTimeout(() => setFlashHeader(false), 1500);
     }
     setPrevSOSCount(signals.length);
   }, [signals.length]);
 
-  // 새 주문 알림
   useEffect(() => {
     if (orders.length > prevOrdersCount && prevOrdersCount > 0) {
       setFlashHeader(true);
       setFlashType("order");
-      playOrderNotification(); // 🔊 주문 소리
+      playOrderNotification();
       setTimeout(() => setFlashHeader(false), 1500);
     }
     setPrevOrdersCount(orders.length);
@@ -728,7 +469,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* 오늘 매출 */}
           <div style={{
             marginTop: 10,
             padding: "12px 14px",
@@ -765,7 +505,6 @@ export default function AdminPage() {
           </div>
         </motion.div>
 
-        {/* 사운드 비활성 시 알림 배너 */}
         {!soundOn && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -800,7 +539,6 @@ export default function AdminPage() {
           </motion.div>
         )}
 
-        {/* 탭 바 */}
         <div style={{
           display: "flex", gap: 4, marginBottom: 16,
           padding: 4,
@@ -890,7 +628,6 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* 탭 내용 */}
         <AnimatePresence mode="wait">
           {activeTab === "sos" && (
             <motion.div
@@ -1022,7 +759,6 @@ export default function AdminPage() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.25 }}
             >
-              {/* 패널 미선택 → 카드 메뉴 */}
               {!managePanel && (
                 <div>
                   <div style={{
@@ -1040,7 +776,6 @@ export default function AdminPage() {
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {/* 매출 통계 카드 */}
                     <motion.button
                       onClick={() => setManagePanel("stats")}
                       whileTap={{ scale: 0.98 }}
@@ -1082,7 +817,6 @@ export default function AdminPage() {
                       <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
                     </motion.button>
 
-                    {/* 메뉴 관리 카드 */}
                     <motion.button
                       onClick={() => setManagePanel("menus")}
                       whileTap={{ scale: 0.98 }}
@@ -1116,7 +850,6 @@ export default function AdminPage() {
                       <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
                     </motion.button>
 
-                    {/* 좌석 설정 카드 */}
                     <motion.button
                       onClick={() => setManagePanel("seatrows")}
                       whileTap={{ scale: 0.98 }}
@@ -1150,7 +883,6 @@ export default function AdminPage() {
                       <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
                     </motion.button>
 
-                    {/* QR 출력 카드 */}
                     <motion.a
                       href={`/${storeSlug || 'honsul-main'}/qr`}
                       target="_blank"
@@ -1203,7 +935,6 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* 매출 통계 패널 */}
               {managePanel === "stats" && (
                 <div>
                   <button
@@ -1228,7 +959,6 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* 월별 히스토리 패널 */}
               {managePanel === "history" && (
                 <div>
                   <button
@@ -1251,7 +981,6 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* 메뉴 관리 패널 */}
               {managePanel === "menus" && (
                 <div>
                   <button
@@ -1269,20 +998,24 @@ export default function AdminPage() {
                     ← 관리 메뉴로
                   </button>
                   <MenuAdminPanel
+                    storeId={storeId}
                     categories={menuCategories}
                     menus={menuItems}
                     loading={menusLoading}
+                    optionsByMenu={menuOptions.optionsByMenu}
                     createMenu={menuAdmin.createMenu}
                     updateMenu={menuAdmin.updateMenu}
                     deleteMenu={menuAdmin.deleteMenu}
                     createCategory={menuAdmin.createCategory}
                     updateCategory={menuAdmin.updateCategory}
                     deleteCategory={menuAdmin.deleteCategory}
+                    createOption={menuOptions.createOption}
+                    updateOption={menuOptions.updateOption}
+                    deleteOption={menuOptions.deleteOption}
                   />
                 </div>
               )}
 
-              {/* 좌석 설정 패널 */}
               {managePanel === "seatrows" && (
                 <div>
                   <button

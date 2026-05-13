@@ -4,7 +4,6 @@ import { Plus, Edit2, Trash2, X, ChevronUp, ChevronDown, Upload, Camera } from "
 import { autoTranslateMenu, translateText } from "../lib/translateService";
 import { uploadMenuImage, deleteMenuImage } from "../lib/imageUpload";
 
-// 사용 가능한 이모지 목록 (메뉴 아이콘용)
 const ICON_OPTIONS = [
   "🥃", "🍸", "🍷", "🍹", "🫧", "🍾",
   "🍋", "🍊", "🍑", "🍈", "🍏", "🍒",
@@ -35,38 +34,24 @@ function CategoryModal({ category, onClose, onSave, onDelete }) {
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      style={{
-        position: "fixed", inset: 0, zIndex: 200,
-        background: "rgba(0,0,0,0.8)", backdropFilter: "blur(10px)",
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-      }}
+      style={modalOverlayStyle}
     >
       <motion.div
         initial={{ y: 30, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
-        style={{
-          width: "100%", maxWidth: 380,
-          background: "rgba(20,18,14,0.97)",
-          borderRadius: 18,
-          border: "1px solid rgba(212,165,55,0.3)",
-          padding: 24,
-        }}
+        style={modalContentStyle}
       >
-        <div style={{ fontSize: 18, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", marginBottom: 4 }}>
+        <div style={modalTitleStyle}>
           {category ? "카테고리 수정" : "새 카테고리 추가"}
         </div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 18 }}>
-          메뉴를 분류할 카테고리
-        </div>
+        <div style={modalSubtitleStyle}>메뉴를 분류할 카테고리</div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", fontSize: 10, color: "rgba(212,165,55,0.6)", marginBottom: 5, letterSpacing: "0.05em" }}>
-            카테고리 이름
-          </label>
+          <label style={labelStyle}>카테고리 이름</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="예: SIGNATURE LINE"
+            placeholder="예: WHISKY"
             style={inputStyle}
           />
         </div>
@@ -78,7 +63,7 @@ function CategoryModal({ category, onClose, onSave, onDelete }) {
               type="number"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              placeholder="9900"
+              placeholder="0 = 표시 안함"
               style={inputStyle}
             />
           </div>
@@ -104,7 +89,7 @@ function CategoryModal({ category, onClose, onSave, onDelete }) {
             ● {name || "(이름 없음)"}
           </div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
-            {price ? `${parseInt(price).toLocaleString()}원` : "(가격 미설정)"} · 미리보기
+            {price > 0 ? `${parseInt(price).toLocaleString()}원` : "(가격 미설정)"} · 미리보기
           </div>
         </div>
 
@@ -117,28 +102,181 @@ function CategoryModal({ category, onClose, onSave, onDelete }) {
                 }
               }}
               style={{ ...btnStyle, ...deleteBtnStyle }}
-            >
-              🗑️
-            </button>
+            >🗑️</button>
           )}
-          <button onClick={onClose} style={{ ...btnStyle, ...cancelBtnStyle, flex: 1 }}>
-            취소
-          </button>
+          <button onClick={onClose} style={{ ...btnStyle, ...cancelBtnStyle, flex: 1 }}>취소</button>
           <button
             onClick={handleSave}
             disabled={saving}
             style={{ ...btnStyle, ...saveBtnStyle, flex: 1.5, opacity: saving ? 0.5 : 1 }}
-          >
-            {saving ? "..." : "저장"}
-          </button>
+          >{saving ? "..." : "저장"}</button>
         </div>
       </motion.div>
     </motion.div>
   );
 }
 
-// ────── 메뉴 모달 (이미지 업로드 추가됨) ──────
-function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
+// ────── 옵션 행 (잔/바틀 등 하나의 옵션) ──────
+function OptionRow({ option, onUpdate, onDelete }) {
+  const [name, setName] = useState(option.name);
+  const [price, setPrice] = useState(option.price);
+  const [editing, setEditing] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim()) return alert("옵션 이름을 입력해주세요");
+    if (!price) return alert("가격을 입력해주세요");
+    
+    // 일본어 자동 번역
+    const name_ja = await translateText(name.trim());
+    await onUpdate({
+      name: name.trim(),
+      name_ja: name_ja || null,
+      price: parseInt(price),
+    });
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div style={{
+        display: "flex", gap: 6, alignItems: "center",
+        padding: 8,
+        background: "rgba(212,165,55,0.05)",
+        border: "1px solid rgba(212,165,55,0.2)",
+        borderRadius: 8, marginBottom: 6,
+      }}>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="잔"
+          style={{ ...inputStyle, flex: 1, padding: "6px 10px", fontSize: 11 }}
+        />
+        <input
+          type="number"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder="10000"
+          style={{ ...inputStyle, width: 80, padding: "6px 10px", fontSize: 11 }}
+        />
+        <button onClick={handleSave} style={{
+          padding: "6px 10px",
+          background: "linear-gradient(135deg, #D4A537, #B8860B)",
+          border: "none", borderRadius: 6,
+          color: "#0D0B08", fontSize: 11, fontWeight: 700,
+          cursor: "pointer", fontFamily: "inherit",
+        }}>✓</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      display: "flex", gap: 8, alignItems: "center",
+      padding: "8px 10px",
+      background: "rgba(255,255,255,0.02)",
+      border: "1px solid rgba(255,255,255,0.04)",
+      borderRadius: 8, marginBottom: 6,
+    }}>
+      <span style={{ fontSize: 12, color: "#F5E6C8", flex: 1 }}>
+        {option.name}
+      </span>
+      <span style={{ fontSize: 12, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>
+        {option.price.toLocaleString()}원
+      </span>
+      <button
+        onClick={() => setEditing(true)}
+        style={{
+          padding: 4, background: "transparent", border: "none",
+          color: "rgba(255,255,255,0.4)", cursor: "pointer",
+        }}
+      >
+        <Edit2 size={12} />
+      </button>
+      <button
+        onClick={() => {
+          if (confirm(`"${option.name}" 옵션을 삭제하시겠어요?`)) {
+            onDelete();
+          }
+        }}
+        style={{
+          padding: 4, background: "transparent", border: "none",
+          color: "rgba(255,180,180,0.7)", cursor: "pointer",
+        }}
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
+  );
+}
+
+// ────── 옵션 추가 폼 ──────
+function AddOptionForm({ onAdd }) {
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const handleAdd = async () => {
+    if (!name.trim()) return alert("옵션 이름을 입력해주세요");
+    if (!price) return alert("가격을 입력해주세요");
+    
+    setAdding(true);
+    const name_ja = await translateText(name.trim());
+    await onAdd({
+      name: name.trim(),
+      name_ja: name_ja || null,
+      price: parseInt(price),
+    });
+    setName("");
+    setPrice("");
+    setAdding(false);
+  };
+
+  return (
+    <div style={{
+      display: "flex", gap: 6, alignItems: "center",
+      padding: 8,
+      background: "rgba(212,165,55,0.04)",
+      border: "1px dashed rgba(212,165,55,0.3)",
+      borderRadius: 8,
+    }}>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="옵션명 (예: 잔)"
+        style={{ ...inputStyle, flex: 1, padding: "6px 10px", fontSize: 11 }}
+      />
+      <input
+        type="number"
+        value={price}
+        onChange={(e) => setPrice(e.target.value)}
+        placeholder="10000"
+        style={{ ...inputStyle, width: 80, padding: "6px 10px", fontSize: 11 }}
+      />
+      <button
+        onClick={handleAdd}
+        disabled={adding}
+        style={{
+          padding: "6px 10px",
+          background: adding ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg, #D4A537, #B8860B)",
+          border: "none", borderRadius: 6,
+          color: adding ? "rgba(255,255,255,0.4)" : "#0D0B08",
+          fontSize: 11, fontWeight: 700,
+          cursor: adding ? "default" : "pointer", fontFamily: "inherit",
+        }}
+      >
+        {adding ? "..." : "+"}
+      </button>
+    </div>
+  );
+}
+
+// ────── 메뉴 모달 (옵션 관리 추가됨) ──────
+function MenuModal({ 
+  menu, categories, storeId, 
+  options, // 이 메뉴의 옵션들
+  onClose, onSave, onDelete,
+  onCreateOption, onUpdateOption, onDeleteOption,
+}) {
   const [name, setName] = useState(menu?.name || "");
   const [icon, setIcon] = useState(menu?.icon || "🍸");
   const [price, setPrice] = useState(menu?.price || "");
@@ -153,6 +291,8 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
 
+  const hasOptions = options && options.length > 0;
+
   const handleCategoryChange = (newCatId) => {
     setCategoryId(newCatId);
     if (!menu) {
@@ -161,7 +301,6 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
     }
   };
 
-  // 이미지 업로드
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -177,35 +316,34 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
     setUploadProgress(0);
 
     if (result.ok) {
-      // 이전 이미지가 있으면 Storage에서 삭제
-      if (imageUrl) {
-        deleteMenuImage(imageUrl); // 비동기, 결과 안 기다림
-      }
+      if (imageUrl) deleteMenuImage(imageUrl);
       setImageUrl(result.url);
     } else {
       alert("업로드 실패: " + result.reason);
     }
 
-    // 파일 입력 초기화 (같은 파일 다시 선택 가능)
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // 이미지 삭제
   const handleImageRemove = () => {
     if (!confirm("사진을 삭제하시겠어요?")) return;
-    // Storage에서도 삭제 (비동기)
     if (imageUrl) deleteMenuImage(imageUrl);
     setImageUrl(null);
   };
 
   const handleSave = async () => {
     if (!name.trim()) return alert("메뉴 이름을 입력해주세요");
-    if (!price) return alert("가격을 입력해주세요");
+    
+    // 옵션이 없을 때만 가격 필수
+    if (!hasOptions && !price) {
+      return alert("가격을 입력해주세요 (옵션을 추가하면 가격은 옵션에서 관리됩니다)");
+    }
+    
     setSaving(true);
     await onSave({
       name: name.trim(),
       icon,
-      price: parseInt(price),
+      price: parseInt(price) || 0,
       category_id: categoryId || null,
       abv: abv.trim(),
       taste: taste.trim(),
@@ -220,41 +358,28 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      style={{
-        position: "fixed", inset: 0, zIndex: 200,
-        background: "rgba(0,0,0,0.8)", backdropFilter: "blur(10px)",
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-      }}
+      style={modalOverlayStyle}
     >
       <motion.div
         initial={{ y: 30, opacity: 0, scale: 0.95 }}
         animate={{ y: 0, opacity: 1, scale: 1 }}
         style={{
-          width: "100%", maxWidth: 380,
-          background: "rgba(20,18,14,0.97)",
-          borderRadius: 18,
-          border: "1px solid rgba(212,165,55,0.3)",
-          padding: 24,
+          ...modalContentStyle,
           maxHeight: "90vh",
           overflowY: "auto",
         }}
       >
-        <div style={{ fontSize: 18, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", marginBottom: 4 }}>
-          {menu ? "메뉴 수정" : "새 메뉴 추가"}
-        </div>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 18 }}>
+        <div style={modalTitleStyle}>{menu ? "메뉴 수정" : "새 메뉴 추가"}</div>
+        <div style={modalSubtitleStyle}>
           {menu ? menu.name : "손님이 주문할 새 메뉴를 등록합니다"}
         </div>
 
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {/* 🎨 이미지 업로드 영역  */}
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* 이미지 업로드 */}
         <div style={{ marginBottom: 16 }}>
           <label style={labelStyle}>
             메뉴 사진 <span style={{ color: "rgba(255,255,255,0.3)" }}>(선택)</span>
           </label>
 
-          {/* 숨겨진 파일 입력 */}
           <input
             ref={fileInputRef}
             type="file"
@@ -264,161 +389,44 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
           />
 
           {imageUrl ? (
-            // 이미지 있는 상태
-            <motion.div
-              layout
-              style={{
-                position: "relative",
-                width: "100%",
-                aspectRatio: "1",
-                borderRadius: 12,
-                overflow: "hidden",
-                border: "1px solid rgba(212,165,55,0.25)",
-                background: "rgba(255,255,255,0.02)",
-              }}
-            >
-              <img
-                src={imageUrl}
-                alt="메뉴 사진"
-                style={{
-                  width: "100%", height: "100%",
-                  objectFit: "cover",
-                }}
-              />
-              <div style={{
-                position: "absolute", top: 8, right: 8,
-                display: "flex", gap: 6,
-              }}>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  style={imageActionBtnStyle}
-                  title="다른 사진으로 변경"
-                >
+            <div style={imagePreviewStyle}>
+              <img src={imageUrl} alt="메뉴" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 6 }}>
+                <button onClick={() => fileInputRef.current?.click()} style={imageActionBtnStyle}>
                   <Camera size={14} />
                 </button>
-                <button
-                  onClick={handleImageRemove}
-                  style={{ ...imageActionBtnStyle, color: "rgba(255,180,180,0.95)" }}
-                  title="사진 삭제"
-                >
+                <button onClick={handleImageRemove} style={{ ...imageActionBtnStyle, color: "rgba(255,180,180,0.95)" }}>
                   <X size={14} />
                 </button>
               </div>
-              <div style={{
-                position: "absolute", bottom: 0, left: 0, right: 0,
-                padding: "20px 12px 10px",
-                background: "linear-gradient(180deg, transparent, rgba(13,11,8,0.85))",
-                fontSize: 10,
-                color: "rgba(255,255,255,0.6)",
-              }}>
-                ✓ 사진 등록됨 · 손님 화면에 표시됩니다
-              </div>
-            </motion.div>
+            </div>
           ) : uploading ? (
-            // 업로드 중
-            <div style={{
-              width: "100%",
-              aspectRatio: "1",
-              borderRadius: 12,
-              border: "2px dashed rgba(212,165,55,0.4)",
-              background: "rgba(212,165,55,0.04)",
-              display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center",
-              gap: 12,
-            }}>
-              <div style={{
-                width: 40, height: 40,
-                border: "3px solid rgba(212,165,55,0.2)",
-                borderTopColor: "#D4A537",
-                borderRadius: "50%",
-                animation: "spin 1s linear infinite",
-              }} />
+            <div style={uploadingStyle}>
+              <div style={spinnerStyle} />
               <div style={{ fontSize: 12, color: "#D4A537", fontWeight: 600 }}>
                 업로드 중... {uploadProgress}%
               </div>
-              <div style={{
-                width: "60%", height: 4,
-                background: "rgba(255,255,255,0.05)",
-                borderRadius: 2, overflow: "hidden",
-              }}>
-                <div style={{
-                  width: `${uploadProgress}%`, height: "100%",
-                  background: "linear-gradient(90deg, #D4A537, #F5E6C8)",
-                  transition: "width 0.2s",
-                }} />
-              </div>
             </div>
           ) : (
-            // 비어있음 - 업로드 영역
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              style={{
-                width: "100%",
-                aspectRatio: "1",
-                borderRadius: 12,
-                border: "2px dashed rgba(212,165,55,0.3)",
-                background: "rgba(212,165,55,0.03)",
-                cursor: "pointer",
-                transition: "all 0.2s",
-                fontFamily: "inherit",
-                position: "relative",
-                overflow: "hidden",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "rgba(212,165,55,0.6)";
-                e.currentTarget.style.background = "rgba(212,165,55,0.06)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "rgba(212,165,55,0.3)";
-                e.currentTarget.style.background = "rgba(212,165,55,0.03)";
-              }}
+              style={uploadButtonStyle}
             >
-              <div style={{
-                display: "flex", flexDirection: "column",
-                alignItems: "center", justifyContent: "center",
-                gap: 10, height: "100%",
-              }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 14,
-                  background: "rgba(212,165,55,0.1)",
-                  border: "1px solid rgba(212,165,55,0.2)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <Upload size={20} style={{ color: "#D4A537" }} />
-                </div>
-                <div style={{
-                  fontSize: 13, color: "#D4A537",
-                  fontWeight: 600,
-                }}>
-                  사진 업로드
-                </div>
-                <div style={{
-                  fontSize: 10, color: "rgba(255,255,255,0.4)",
-                  textAlign: "center", lineHeight: 1.5,
-                }}>
-                  탭하여 갤러리에서 선택<br />
-                  <span style={{ opacity: 0.6 }}>JPG, PNG · 최대 5MB</span>
-                </div>
+              <Upload size={20} style={{ color: "#D4A537" }} />
+              <div style={{ fontSize: 13, color: "#D4A537", fontWeight: 600, marginTop: 8 }}>
+                사진 업로드
+              </div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>
+                JPG, PNG · 최대 5MB
               </div>
             </button>
           )}
-
-          {!imageUrl && !uploading && (
-            <div style={{
-              marginTop: 8,
-              fontSize: 10,
-              color: "rgba(255,255,255,0.35)",
-              lineHeight: 1.5,
-            }}>
-              💡 사진은 자동으로 600x600 정사각형으로 압축됩니다
-            </div>
-          )}
         </div>
 
-        {/* 아이콘 피커 */}
+        {/* 아이콘 */}
         <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>아이콘 <span style={{ color: "rgba(255,255,255,0.3)" }}>(사진 없을 때 표시)</span></label>
+          <label style={labelStyle}>아이콘</label>
           <div style={{
             display: "flex", flexWrap: "wrap", gap: 5,
             padding: 8,
@@ -435,9 +443,7 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
                   width: 32, height: 32,
                   background: icon === emoji ? "rgba(212,165,55,0.15)" : "rgba(255,255,255,0.04)",
                   border: icon === emoji ? "2px solid #D4A537" : "2px solid transparent",
-                  borderRadius: 7,
-                  fontSize: 18,
-                  cursor: "pointer",
+                  borderRadius: 7, fontSize: 18, cursor: "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}
               >
@@ -452,7 +458,7 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="예: 트로피컬 선셋"
+            placeholder="예: 조니워커 블랙"
             style={inputStyle}
           />
         </div>
@@ -473,15 +479,90 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
           </select>
         </div>
 
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* 🆕 옵션 관리 섹션  */}
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {menu && (
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ ...labelStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span>
+                옵션 (잔/바틀 등) 
+                <span style={{ color: "rgba(255,255,255,0.3)", marginLeft: 4 }}>
+                  {hasOptions ? `· ${options.length}개` : "· 선택"}
+                </span>
+              </span>
+            </label>
+            
+            <div style={{
+              padding: 10,
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.05)",
+              borderRadius: 9,
+            }}>
+              {/* 기존 옵션 리스트 */}
+              {options && options.length > 0 ? (
+                options.map(opt => (
+                  <OptionRow
+                    key={opt.id}
+                    option={opt}
+                    onUpdate={(data) => onUpdateOption(opt.id, data)}
+                    onDelete={() => onDeleteOption(opt.id)}
+                  />
+                ))
+              ) : (
+                <div style={{
+                  fontSize: 10, color: "rgba(255,255,255,0.4)",
+                  textAlign: "center", padding: "8px 0", marginBottom: 8,
+                }}>
+                  옵션이 없습니다 (단일 가격으로 판매)
+                </div>
+              )}
+              
+              {/* 옵션 추가 폼 */}
+              <AddOptionForm onAdd={(data) => onCreateOption(menu.id, data)} />
+            </div>
+            
+            {hasOptions && (
+              <div style={{
+                marginTop: 6,
+                fontSize: 10,
+                color: "rgba(212,165,55,0.6)",
+                lineHeight: 1.5,
+              }}>
+                💡 옵션이 있으면 손님은 옵션을 선택해 주문합니다. 아래 "가격"은 무시됩니다.
+              </div>
+            )}
+          </div>
+        )}
+
+        {!menu && (
+          <div style={{
+            padding: 10, marginBottom: 12,
+            background: "rgba(212,165,55,0.05)",
+            border: "1px dashed rgba(212,165,55,0.2)",
+            borderRadius: 9,
+            fontSize: 10, color: "rgba(212,165,55,0.7)", textAlign: "center",
+          }}>
+            💡 메뉴 저장 후 옵션(잔/바틀 등)을 추가할 수 있어요
+          </div>
+        )}
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
           <div>
-            <label style={labelStyle}>가격 (원)</label>
+            <label style={labelStyle}>
+              가격 (원)
+              {hasOptions && <span style={{ color: "rgba(255,180,180,0.7)", marginLeft: 4 }}>(옵션 사용중)</span>}
+            </label>
             <input
               type="number"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="9900"
-              style={inputStyle}
+              style={{
+                ...inputStyle,
+                opacity: hasOptions ? 0.4 : 1,
+              }}
+              disabled={hasOptions}
             />
           </div>
           <div>
@@ -489,7 +570,7 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
             <input
               value={abv}
               onChange={(e) => setAbv(e.target.value)}
-              placeholder="8%"
+              placeholder="40%"
               style={inputStyle}
             />
           </div>
@@ -500,7 +581,7 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
           <input
             value={taste}
             onChange={(e) => setTaste(e.target.value)}
-            placeholder="예: 달콤 · 트로피컬"
+            placeholder="예: 스모키 · 아일라"
             style={inputStyle}
           />
         </div>
@@ -522,9 +603,7 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
             padding: 12,
             background: isActive ? "rgba(255,255,255,0.02)" : "rgba(226,75,74,0.06)",
             border: isActive ? "1px solid transparent" : "1px solid rgba(226,75,74,0.2)",
-            borderRadius: 9,
-            marginBottom: 12,
-            cursor: "pointer",
+            borderRadius: 9, marginBottom: 12, cursor: "pointer",
           }}
         >
           <div>
@@ -538,15 +617,11 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
           <div style={{
             width: 38, height: 22,
             background: isActive ? "#D4A537" : "rgba(255,255,255,0.1)",
-            borderRadius: 11,
-            position: "relative",
-            transition: "background 0.2s",
+            borderRadius: 11, position: "relative", transition: "background 0.2s",
           }}>
             <div style={{
-              position: "absolute",
-              top: 2, left: 2,
-              width: 18, height: 18,
-              background: "#fff",
+              position: "absolute", top: 2, left: 2,
+              width: 18, height: 18, background: "#fff",
               borderRadius: "50%",
               transform: isActive ? "translateX(16px)" : "translateX(0)",
               transition: "transform 0.2s",
@@ -559,26 +634,19 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
             <button
               onClick={() => {
                 if (confirm(`"${menu.name}" 메뉴를 삭제하시겠어요?\n복구할 수 없습니다.`)) {
-                  // 이미지도 같이 삭제
                   if (imageUrl) deleteMenuImage(imageUrl);
                   onDelete();
                 }
               }}
               style={{ ...btnStyle, ...deleteBtnStyle }}
-            >
-              🗑️
-            </button>
+            >🗑️</button>
           )}
-          <button onClick={onClose} style={{ ...btnStyle, ...cancelBtnStyle, flex: 1 }}>
-            취소
-          </button>
+          <button onClick={onClose} style={{ ...btnStyle, ...cancelBtnStyle, flex: 1 }}>취소</button>
           <button
             onClick={handleSave}
             disabled={saving || uploading}
             style={{ ...btnStyle, ...saveBtnStyle, flex: 1.5, opacity: (saving || uploading) ? 0.5 : 1 }}
-          >
-            {saving ? "..." : menu ? "저장" : "+ 추가"}
-          </button>
+          >{saving ? "..." : menu ? "저장" : "+ 추가"}</button>
         </div>
       </motion.div>
 
@@ -595,8 +663,10 @@ function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
 export default function MenuAdminPanel({
   storeId,
   categories, menus, loading,
+  optionsByMenu = new Map(), // 🆕 옵션 데이터
   createMenu, updateMenu, deleteMenu,
   createCategory, updateCategory, deleteCategory,
+  createOption, updateOption, deleteOption, // 🆕 옵션 CRUD
 }) {
   const [editingMenu, setEditingMenu] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -728,8 +798,7 @@ export default function MenuAdminPanel({
               borderRadius: 10,
               color: "#C47AFF", fontSize: 10, fontWeight: 600,
               cursor: batchTranslating ? "default" : "pointer",
-              fontFamily: "inherit",
-              opacity: batchTranslating ? 0.5 : 1,
+              fontFamily: "inherit", opacity: batchTranslating ? 0.5 : 1,
               display: "flex", alignItems: "center", gap: 4,
             }}
           >
@@ -764,20 +833,14 @@ export default function MenuAdminPanel({
               padding: "10px 14px",
               background: "rgba(255,255,255,0.03)",
               border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 10,
-              marginBottom: 8,
-              opacity: isReordering ? 0.5 : 1,
-              transition: "opacity 0.2s",
+              borderRadius: 10, marginBottom: 8,
+              opacity: isReordering ? 0.5 : 1, transition: "opacity 0.2s",
             }}>
               <span style={{
-                fontSize: 13, fontWeight: 600,
-                letterSpacing: "0.1em",
+                fontSize: 13, fontWeight: 600, letterSpacing: "0.1em",
                 color: cat.color || "#D4A537",
-                flex: 1,
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                flex: 1, minWidth: 0,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               }}>
                 ● {cat.name}
                 {cat.default_price > 0 && (
@@ -787,35 +850,15 @@ export default function MenuAdminPanel({
                 )}
               </span>
               <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                <button
-                  onClick={() => moveCategoryUp(index)}
-                  disabled={isFirst || isReorderingAny}
-                  style={{
-                    ...iconBtnStyle,
-                    opacity: isFirst ? 0.2 : 1,
-                    cursor: isFirst || isReorderingAny ? "default" : "pointer",
-                  }}
-                  title="위로 이동"
-                >
+                <button onClick={() => moveCategoryUp(index)} disabled={isFirst || isReorderingAny}
+                  style={{ ...iconBtnStyle, opacity: isFirst ? 0.2 : 1 }} title="위로">
                   <ChevronUp size={14} />
                 </button>
-                <button
-                  onClick={() => moveCategoryDown(index)}
-                  disabled={isLast || isReorderingAny}
-                  style={{
-                    ...iconBtnStyle,
-                    opacity: isLast ? 0.2 : 1,
-                    cursor: isLast || isReorderingAny ? "default" : "pointer",
-                  }}
-                  title="아래로 이동"
-                >
+                <button onClick={() => moveCategoryDown(index)} disabled={isLast || isReorderingAny}
+                  style={{ ...iconBtnStyle, opacity: isLast ? 0.2 : 1 }} title="아래로">
                   <ChevronDown size={14} />
                 </button>
-                <button
-                  onClick={() => setEditingCategory(cat)}
-                  style={iconBtnStyle}
-                  title="카테고리 수정"
-                >
+                <button onClick={() => setEditingCategory(cat)} style={iconBtnStyle} title="수정">
                   <Edit2 size={12} />
                 </button>
               </div>
@@ -826,6 +869,7 @@ export default function MenuAdminPanel({
                 <MenuCard
                   key={menu.id}
                   menu={menu}
+                  options={optionsByMenu.get(menu.id) || []}
                   onEdit={() => setEditingMenu(menu)}
                 />
               ))}
@@ -836,9 +880,7 @@ export default function MenuAdminPanel({
                   background: "rgba(255,255,255,0.01)",
                   border: "1px dashed rgba(255,255,255,0.05)",
                   borderRadius: 10,
-                }}>
-                  메뉴 없음
-                </div>
+                }}>메뉴 없음</div>
               )}
             </div>
           </div>
@@ -853,12 +895,15 @@ export default function MenuAdminPanel({
             border: "1px dashed rgba(255,255,255,0.1)",
             borderRadius: 10, marginBottom: 8,
             fontSize: 11, color: "rgba(255,255,255,0.5)",
-          }}>
-            ● 카테고리 없음
-          </div>
+          }}>● 카테고리 없음</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {orphanMenus.map(menu => (
-              <MenuCard key={menu.id} menu={menu} onEdit={() => setEditingMenu(menu)} />
+              <MenuCard
+                key={menu.id}
+                menu={menu}
+                options={optionsByMenu.get(menu.id) || []}
+                onEdit={() => setEditingMenu(menu)}
+              />
             ))}
           </div>
         </div>
@@ -875,9 +920,7 @@ export default function MenuAdminPanel({
           fontSize: 12, cursor: "pointer", fontFamily: "inherit",
           marginTop: 8,
         }}
-      >
-        + 새 카테고리 추가
-      </button>
+      >+ 새 카테고리 추가</button>
 
       <AnimatePresence>
         {(editingMenu || showNewMenu) && (
@@ -885,6 +928,7 @@ export default function MenuAdminPanel({
             menu={editingMenu}
             categories={sortedCategories}
             storeId={storeId}
+            options={editingMenu ? (optionsByMenu.get(editingMenu.id) || []) : []}
             onClose={() => { setEditingMenu(null); setShowNewMenu(false); }}
             onSave={async (data) => {
               showToast("🌐 일본어 번역 중...");
@@ -912,6 +956,20 @@ export default function MenuAdminPanel({
                 setEditingMenu(null);
               }
             } : null}
+            onCreateOption={async (menuId, data) => {
+              const result = await createOption(menuId, data);
+              if (result.ok) showToast("✓ 옵션 추가됨");
+              else alert("옵션 추가 실패: " + result.reason);
+            }}
+            onUpdateOption={async (optionId, data) => {
+              const result = await updateOption(optionId, data);
+              if (result.ok) showToast("✓ 옵션 수정됨");
+              else alert("옵션 수정 실패: " + result.reason);
+            }}
+            onDeleteOption={async (optionId) => {
+              const result = await deleteOption(optionId);
+              if (result.ok) showToast("✓ 옵션 삭제됨");
+            }}
           />
         )}
 
@@ -923,7 +981,6 @@ export default function MenuAdminPanel({
               showToast("🌐 일본어 번역 중...");
               const name_ja = data.name ? await translateText(data.name) : "";
               const dataWithJa = { ...data, name_ja };
-
               const result = editingCategory
                 ? await updateCategory(editingCategory.id, dataWithJa)
                 : await createCategory(dataWithJa);
@@ -952,22 +1009,21 @@ export default function MenuAdminPanel({
             style={{
               position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)",
               background: "linear-gradient(135deg, rgba(106,176,106,0.95), rgba(60,120,60,0.95))",
-              color: "white",
-              padding: "12px 20px", borderRadius: 12,
+              color: "white", padding: "12px 20px", borderRadius: 12,
               fontSize: 13, fontWeight: 500, zIndex: 400,
               boxShadow: "0 8px 30px rgba(106,176,106,0.4)",
             }}
-          >
-            {toast}
-          </motion.div>
+          >{toast}</motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 }
 
-// ────── 메뉴 카드 (이미지 썸네일 추가) ──────
-function MenuCard({ menu, onEdit }) {
+// ────── 메뉴 카드 (옵션 표시 추가) ──────
+function MenuCard({ menu, options = [], onEdit }) {
+  const hasOptions = options.length > 0;
+  
   return (
     <motion.div
       layout
@@ -983,20 +1039,14 @@ function MenuCard({ menu, onEdit }) {
       onClick={onEdit}
       whileHover={{ background: "rgba(255,255,255,0.04)" }}
     >
-      {/* 썸네일 (이미지 있으면 사진, 없으면 이모지) */}
       <div style={{
         width: 38, height: 38, borderRadius: 9,
         background: "rgba(212,165,55,0.08)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 18, flexShrink: 0,
-        overflow: "hidden",
+        fontSize: 18, flexShrink: 0, overflow: "hidden",
       }}>
         {menu.image_url ? (
-          <img
-            src={menu.image_url}
-            alt={menu.name}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
+          <img src={menu.image_url} alt={menu.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
           menu.icon || "🍸"
         )}
@@ -1007,20 +1057,30 @@ function MenuCard({ menu, onEdit }) {
           {!menu.is_active && (
             <span style={{
               display: "inline-block", padding: "1px 6px",
-              background: "rgba(226,75,74,0.15)",
-              color: "rgba(255,180,180,0.85)",
+              background: "rgba(226,75,74,0.15)", color: "rgba(255,180,180,0.85)",
               borderRadius: 4, fontSize: 9, fontWeight: 600, marginLeft: 6,
-            }}>
-              품절
-            </span>
+            }}>품절</span>
+          )}
+          {hasOptions && (
+            <span style={{
+              display: "inline-block", padding: "1px 6px",
+              background: "rgba(212,165,55,0.15)", color: "#D4A537",
+              borderRadius: 4, fontSize: 9, fontWeight: 600, marginLeft: 6,
+            }}>{options.length}개 옵션</span>
           )}
         </div>
         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
           {[menu.abv, menu.taste].filter(Boolean).join(" · ")}
         </div>
       </div>
-      <div style={{ fontSize: 13, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>
-        {menu.price.toLocaleString()}원
+      <div style={{ fontSize: 13, color: "#D4A537", fontFamily: "'Noto Serif KR', serif", textAlign: "right" }}>
+        {hasOptions ? (
+          <div style={{ fontSize: 11 }}>
+            {Math.min(...options.map(o => o.price)).toLocaleString()}원~
+          </div>
+        ) : (
+          `${menu.price.toLocaleString()}원`
+        )}
       </div>
       <Edit2 size={12} style={{ color: "rgba(255,255,255,0.3)", marginLeft: 4 }} />
     </motion.div>
@@ -1028,34 +1088,49 @@ function MenuCard({ menu, onEdit }) {
 }
 
 // ────── 스타일 ──────
+const modalOverlayStyle = {
+  position: "fixed", inset: 0, zIndex: 200,
+  background: "rgba(0,0,0,0.8)", backdropFilter: "blur(10px)",
+  display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+};
+
+const modalContentStyle = {
+  width: "100%", maxWidth: 380,
+  background: "rgba(20,18,14,0.97)",
+  borderRadius: 18,
+  border: "1px solid rgba(212,165,55,0.3)",
+  padding: 24,
+};
+
+const modalTitleStyle = {
+  fontSize: 18, color: "#F5E6C8",
+  fontFamily: "'Noto Serif KR', serif",
+  marginBottom: 4,
+};
+
+const modalSubtitleStyle = {
+  fontSize: 11, color: "rgba(255,255,255,0.4)",
+  marginBottom: 18,
+};
+
 const labelStyle = {
-  display: "block",
-  fontSize: 10,
+  display: "block", fontSize: 10,
   color: "rgba(212,165,55,0.6)",
-  marginBottom: 5,
-  letterSpacing: "0.05em",
+  marginBottom: 5, letterSpacing: "0.05em",
 };
 
 const inputStyle = {
-  width: "100%",
-  padding: "10px 12px",
+  width: "100%", padding: "10px 12px",
   background: "rgba(255,255,255,0.03)",
   border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 9,
-  color: "#F5E6C8",
-  fontSize: 12,
-  fontFamily: "inherit",
-  outline: "none",
+  borderRadius: 9, color: "#F5E6C8",
+  fontSize: 12, fontFamily: "inherit", outline: "none",
 };
 
 const btnStyle = {
-  padding: 12,
-  border: "none",
-  borderRadius: 10,
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: "pointer",
-  fontFamily: "inherit",
+  padding: 12, border: "none", borderRadius: 10,
+  fontSize: 12, fontWeight: 600,
+  cursor: "pointer", fontFamily: "inherit",
 };
 
 const cancelBtnStyle = {
@@ -1066,8 +1141,7 @@ const cancelBtnStyle = {
 
 const saveBtnStyle = {
   background: "linear-gradient(135deg, #D4A537, #B8860B)",
-  color: "#0D0B08",
-  fontWeight: 700,
+  color: "#0D0B08", fontWeight: 700,
 };
 
 const deleteBtnStyle = {
@@ -1082,9 +1156,15 @@ const iconBtnStyle = {
   background: "rgba(255,255,255,0.04)",
   border: "none", borderRadius: 7,
   color: "rgba(255,255,255,0.5)",
-  cursor: "pointer",
-  fontSize: 12,
+  cursor: "pointer", fontSize: 12,
   display: "flex", alignItems: "center", justifyContent: "center",
+};
+
+const imagePreviewStyle = {
+  position: "relative", width: "100%",
+  aspectRatio: "1", borderRadius: 12,
+  overflow: "hidden",
+  border: "1px solid rgba(212,165,55,0.25)",
 };
 
 const imageActionBtnStyle = {
@@ -1096,6 +1176,34 @@ const imageActionBtnStyle = {
   color: "rgba(245,230,200,0.85)",
   cursor: "pointer",
   display: "flex", alignItems: "center", justifyContent: "center",
+};
+
+const uploadingStyle = {
+  width: "100%", aspectRatio: "1",
+  borderRadius: 12,
+  border: "2px dashed rgba(212,165,55,0.4)",
+  background: "rgba(212,165,55,0.04)",
+  display: "flex", flexDirection: "column",
+  alignItems: "center", justifyContent: "center", gap: 12,
+};
+
+const spinnerStyle = {
+  width: 40, height: 40,
+  border: "3px solid rgba(212,165,55,0.2)",
+  borderTopColor: "#D4A537",
+  borderRadius: "50%",
+  animation: "spin 1s linear infinite",
+};
+
+const uploadButtonStyle = {
+  width: "100%", aspectRatio: "1",
+  borderRadius: 12,
+  border: "2px dashed rgba(212,165,55,0.3)",
+  background: "rgba(212,165,55,0.03)",
+  cursor: "pointer", transition: "all 0.2s",
+  fontFamily: "inherit",
+  display: "flex", flexDirection: "column",
+  alignItems: "center", justifyContent: "center",
 };
 
 function hexToRgba(hex, alpha = 1) {
