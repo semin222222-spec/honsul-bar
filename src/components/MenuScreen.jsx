@@ -2,71 +2,9 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Sparkles, Droplets, Shuffle, ShoppingBag, Check } from "lucide-react";
 import { enableSound, playOrderSuccess } from "../lib/sounds";
-import { useLocale, pickLocaleField } from "../lib/LocaleContext";
 
-const MENU_DATA = [
-  {
-    line: "LIGHT LINE",
-    price: "9,900",
-    priceNum: 9900,
-    desc: "가볍게 시작하는 한 잔",
-    color: "#6AB06A",
-    bg: "rgba(106,176,106,0.06)",
-    border: "rgba(106,176,106,0.15)",
-    items: [
-      { name: "오늘,혼술 하이볼", desc: "위스키 베이스에 토닉, 혼술의 시작을 위한 시그니처", abv: "8%", taste: "청량 · 깔끔", icon: "🥃" },
-      { name: "진 토닉", desc: "드라이 진과 토닉워터의 클래식한 조합", abv: "10%", taste: "쌉싸름 · 상쾌", icon: "🫧" },
-      { name: "말리부 오렌지", desc: "코코넛 럼과 오렌지 주스, 달콤한 트로피컬", abv: "7%", taste: "달콤 · 트로피컬", icon: "🍊" },
-      { name: "피치 크러쉬", desc: "복숭아 리큐르 베이스, 과즙 가득 상큼함", abv: "6%", taste: "달콤 · 과일향", icon: "🍑" },
-      { name: "미도리 사워", desc: "메론 리큐르와 레몬의 새콤달콤 밸런스", abv: "8%", taste: "새콤 · 달콤", icon: "🍈" },
-      { name: "다이키리", desc: "화이트 럼과 라임, 쿠바의 클래식 칵테일", abv: "12%", taste: "시트러스 · 드라이", icon: "🍋" },
-      { name: "블랙 러시안", desc: "보드카와 커피 리큐르, 은은한 커피 향", abv: "15%", taste: "쓴맛 · 커피", icon: "☕" },
-    ],
-  },
-  {
-    line: "DEEP LINE",
-    price: "12,900",
-    priceNum: 12900,
-    desc: "한 단계 깊어지는 밤",
-    color: "#D4A537",
-    bg: "rgba(212,165,55,0.06)",
-    border: "rgba(212,165,55,0.15)",
-    items: [
-      { name: "얼그레이 하이볼", desc: "얼그레이 인퓨즈드 위스키, 은은한 찻향", abv: "10%", taste: "향긋 · 우아", icon: "🫖" },
-      { name: "모스크 뮬", desc: "보드카와 진저비어, 라임의 킥이 있는 한 잔", abv: "10%", taste: "매콤 · 청량", icon: "🫚" },
-      { name: "코스모폴리탄", desc: "보드카와 크랜베리, 뉴욕 감성 그 자체", abv: "14%", taste: "상큼 · 세련", icon: "🍸" },
-      { name: "마가리타", desc: "데킬라와 라임, 소금 림의 멕시칸 클래식", abv: "13%", taste: "시트러스 · 짭짤", icon: "🧂" },
-      { name: "섹스 온 더 비치", desc: "보드카와 복숭아, 오렌지의 서머 바이브", abv: "11%", taste: "달콤 · 프루티", icon: "🏖️" },
-      { name: "준 벅", desc: "버번과 진저에일, 민트의 남부 스타일", abv: "12%", taste: "스파이시 · 민트", icon: "🌿" },
-      { name: "애플 마티니", desc: "보드카와 사과 리큐르, 새콤한 그린 애플", abv: "15%", taste: "새콤 · 사과향", icon: "🍏" },
-    ],
-  },
-  {
-    line: "PREMIUM LINE",
-    price: "14,900",
-    priceNum: 14900,
-    desc: "오늘 밤의 주인공",
-    color: "#C47AFF",
-    bg: "rgba(196,122,255,0.06)",
-    border: "rgba(196,122,255,0.15)",
-    items: [
-      { name: "블루 하와이", desc: "럼과 블루 큐라소, 눈으로 먼저 마시는 칵테일", abv: "12%", taste: "트로피컬 · 달콤", icon: "🌊" },
-      { name: "갓파더", desc: "위스키와 아마레또, 묵직한 한 모금", abv: "20%", taste: "묵직 · 견과류", icon: "🎩" },
-      { name: "네그로니", desc: "진, 캄파리, 베르무트의 쓴맛 삼총사", abv: "22%", taste: "비터 · 복합적", icon: "🔴" },
-      { name: "올드 패션드", desc: "버번과 비터스, 바텐더의 자존심", abv: "25%", taste: "스모키 · 클래식", icon: "🥃" },
-      { name: "마티니", desc: "진과 드라이 베르무트, 칵테일의 제왕", abv: "28%", taste: "드라이 · 강렬", icon: "🍸" },
-      { name: "카타르시스", desc: "하우스 스페셜, 한 잔으로 정화되는 밤", abv: "18%", taste: "플로럴 · 미스터리", icon: "✨" },
-      { name: "파우스트", desc: "하우스 시그니처, 악마에게 영혼을 판 맛", abv: "23%", taste: "다크 · 복합적", icon: "🖤" },
-    ],
-  },
-];
-
-const ALL_DRINKS = MENU_DATA.flatMap(section =>
-  section.items.map(item => ({ ...item, line: section.line, price: section.price, priceNum: section.priceNum, lineColor: section.color, lineBg: section.bg, lineBorder: section.border }))
-);
-
+// ────── 메뉴 상세 모달 ──────
 function DrinkDetail({ drink, lineColor, onClose, onOrder, ordering, justOrdered }) {
-  const { locale } = useLocale();
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -89,119 +27,159 @@ function DrinkDetail({ drink, lineColor, onClose, onOrder, ordering, justOrdered
           backdropFilter: "blur(24px)",
           borderRadius: 20,
           border: "1px solid " + lineColor + "30",
-          padding: "28px 24px",
+          padding: drink.image_url ? "0 0 28px 0" : "28px 24px",
           textAlign: "center",
           position: "relative",
+          overflow: "hidden",
         }}
       >
+        {/* 닫기 버튼 */}
         <button onClick={onClose} style={{
           position: "absolute", top: 16, right: 16,
-          background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 10,
+          background: "rgba(0,0,0,0.5)",
+          backdropFilter: "blur(8px)",
+          border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10,
           width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", color: "rgba(255,255,255,0.4)",
+          cursor: "pointer", color: "rgba(255,255,255,0.7)",
+          zIndex: 10,
         }}>
           <X size={14} />
         </button>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>{drink.icon}</div>
-        <div style={{
-          fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 400, color: "#F5E6C8",
-          fontFamily: "'Noto Serif KR', serif", marginBottom: 8,
-        }}>{drink.name}</div>
-        <div style={{
-          fontSize: "clamp(12px, 3vw, 13px)", color: "rgba(255,255,255,0.45)",
-          lineHeight: 1.7, marginBottom: 20,
-        }}>{drink.desc}</div>
-        <div style={{ display: "flex", justifyContent: "center", gap: 12, marginBottom: 20 }}>
+
+        {/* 🆕 이미지 있으면 큰 사진 (라이트박스 느낌) */}
+        {drink.image_url ? (
           <div style={{
-            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 10, padding: "10px 16px",
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+            width: "100%",
+            aspectRatio: "1",
+            position: "relative",
+            background: "rgba(0,0,0,0.3)",
+            marginBottom: 20,
           }}>
-            <Droplets size={14} style={{ color: lineColor }} />
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>도수</span>
-            <span style={{ fontSize: 15, fontWeight: 500, color: "#F5E6C8" }}>{drink.abv}</span>
+            <img
+              src={drink.image_url}
+              alt={drink.name}
+              style={{
+                width: "100%", height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+            {/* 하단 그라데이션 (텍스트 가독성) */}
+            <div style={{
+              position: "absolute", bottom: 0, left: 0, right: 0,
+              height: 60,
+              background: "linear-gradient(180deg, transparent, rgba(20,18,14,1))",
+              pointerEvents: "none",
+            }} />
           </div>
+        ) : (
+          // 이미지 없으면 큰 이모지 (기존)
+          <div style={{ fontSize: 48, marginBottom: 16 }}>{drink.icon}</div>
+        )}
+
+        {/* 텍스트 영역 */}
+        <div style={{ padding: drink.image_url ? "0 24px" : "0" }}>
           <div style={{
-            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 10, padding: "10px 16px",
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-          }}>
-            <Sparkles size={14} style={{ color: lineColor }} />
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>맛</span>
-            <span style={{ fontSize: 15, fontWeight: 500, color: "#F5E6C8" }}>{drink.taste}</span>
+            fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 400, color: "#F5E6C8",
+            fontFamily: "'Noto Serif KR', serif", marginBottom: 8,
+          }}>{drink.name}</div>
+          <div style={{
+            fontSize: "clamp(12px, 3vw, 13px)", color: "rgba(255,255,255,0.45)",
+            lineHeight: 1.7, marginBottom: 20,
+          }}>{drink.desc}</div>
+          <div style={{ display: "flex", justifyContent: "center", gap: 12, marginBottom: 20 }}>
+            <div style={{
+              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 10, padding: "10px 16px",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+            }}>
+              <Droplets size={14} style={{ color: lineColor }} />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>도수</span>
+              <span style={{ fontSize: 15, fontWeight: 500, color: "#F5E6C8" }}>{drink.abv}</span>
+            </div>
+            <div style={{
+              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 10, padding: "10px 16px",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+            }}>
+              <Sparkles size={14} style={{ color: lineColor }} />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>맛</span>
+              <span style={{ fontSize: 15, fontWeight: 500, color: "#F5E6C8" }}>{drink.taste}</span>
+            </div>
           </div>
-        </div>
 
-        {/* 가격 + 주문 버튼 */}
-        <div style={{
-          padding: "14px 16px",
-          background: "rgba(0,0,0,0.3)",
-          borderRadius: 12,
-          marginBottom: 12,
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-        }}>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em" }}>가격</span>
-          <span style={{
-            fontSize: 20, fontWeight: 400, color: lineColor,
-            fontFamily: "'Noto Serif KR', serif",
+          {/* 가격 */}
+          <div style={{
+            padding: "14px 16px",
+            background: "rgba(0,0,0,0.3)",
+            borderRadius: 12,
+            marginBottom: 12,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
           }}>
-            {drink.price}<span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 4 }}>원</span>
-          </span>
-        </div>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em" }}>가격</span>
+            <span style={{
+              fontSize: 20, fontWeight: 400, color: lineColor,
+              fontFamily: "'Noto Serif KR', serif",
+            }}>
+              {drink.price}<span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 4 }}>원</span>
+            </span>
+          </div>
 
-        <motion.button
-          whileTap={!ordering && !justOrdered ? { scale: 0.96 } : {}}
-          onClick={() => { if (!ordering && !justOrdered) onOrder(drink); }}
-          disabled={ordering || justOrdered}
-          style={{
-            width: "100%", padding: "14px",
-            border: "none", borderRadius: 12,
-            background: justOrdered
-              ? "linear-gradient(135deg, #6AB06A, #4A9A4A)"
-              : ordering
-              ? "rgba(255,255,255,0.08)"
-              : `linear-gradient(135deg, ${lineColor}, ${lineColor}aa)`,
-            color: justOrdered ? "#fff" : ordering ? "rgba(255,255,255,0.4)" : "#0D0B08",
-            fontSize: 14, fontWeight: 600,
-            cursor: ordering || justOrdered ? "default" : "pointer",
-            fontFamily: "inherit",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            transition: "all 0.3s",
-            WebkitTapHighlightColor: "transparent",
-            minHeight: 48,
-          }}
-        >
-          {justOrdered ? (
-            <>
-              <Check size={16} />
-              {locale === "ja" ? "ご注文完了!" : "주문 완료!"}
-            </>
-          ) : ordering ? (
-            locale === "ja" ? "注文中..." : "주문 중..."
-          ) : (
-            <>
-              <ShoppingBag size={16} />
-              {locale === "ja" ? "注文する" : "주문하기"}
-            </>
-          )}
-        </motion.button>
+          {/* 주문 버튼 */}
+          <motion.button
+            whileTap={!ordering && !justOrdered ? { scale: 0.96 } : {}}
+            onClick={() => { if (!ordering && !justOrdered) onOrder(drink); }}
+            disabled={ordering || justOrdered}
+            style={{
+              width: "100%", padding: "14px",
+              border: "none", borderRadius: 12,
+              background: justOrdered
+                ? "linear-gradient(135deg, #6AB06A, #4A9A4A)"
+                : ordering
+                ? "rgba(255,255,255,0.08)"
+                : `linear-gradient(135deg, ${lineColor}, ${lineColor}aa)`,
+              color: justOrdered ? "#fff" : ordering ? "rgba(255,255,255,0.4)" : "#0D0B08",
+              fontSize: 14, fontWeight: 600,
+              cursor: ordering || justOrdered ? "default" : "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              transition: "all 0.3s",
+              WebkitTapHighlightColor: "transparent",
+              minHeight: 48,
+            }}
+          >
+            {justOrdered ? (
+              <>
+                <Check size={16} />
+                주문 완료!
+              </>
+            ) : ordering ? (
+              "주문 중..."
+            ) : (
+              <>
+                <ShoppingBag size={16} />
+                주문하기
+              </>
+            )}
+          </motion.button>
 
-        <div style={{
-          fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 10,
-          lineHeight: 1.5,
-        }}>
-          {locale === "ja" ? "ご注文時、オーナーにすぐにお知らせします" : "주문 시 사장님께 바로 알림이 전달됩니다"}
+          <div style={{
+            fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 10,
+            lineHeight: 1.5,
+          }}>
+            주문 시 사장님께 바로 알림이 전달됩니다
+          </div>
         </div>
       </motion.div>
     </motion.div>
   );
 }
 
+// ────── 랜덤 픽커 ──────
 function RandomPicker({ allDrinks = [] }) {
   const [picked, setPicked] = useState(null);
   const [spinning, setSpinning] = useState(false);
   const [spinKey, setSpinKey] = useState(0);
-  const { locale } = useLocale();
 
   const pickRandom = () => {
     if (spinning || allDrinks.length === 0) return;
@@ -238,7 +216,7 @@ function RandomPicker({ allDrinks = [] }) {
         fontSize: "clamp(11px, 2.8vw, 12px)", color: "rgba(212,165,55,0.6)",
         fontWeight: 500, marginBottom: 12, letterSpacing: "0.08em",
       }}>
-        {locale === "ja" ? "🎰 何を飲むか迷ったら?" : "🎰 뭘 마실지 모르겠다면?"}
+        🎰 뭘 마실지 모르겠다면?
       </div>
 
       <AnimatePresence mode="wait">
@@ -260,7 +238,24 @@ function RandomPicker({ allDrinks = [] }) {
               minHeight: 70,
             }}
           >
-            <div style={{ fontSize: "clamp(28px, 8vw, 36px)" }}>{picked.icon}</div>
+            {/* 🆕 사진 있으면 사진, 없으면 이모지 */}
+            {picked.image_url ? (
+              <div style={{
+                width: "clamp(44px, 11vw, 52px)",
+                height: "clamp(44px, 11vw, 52px)",
+                borderRadius: 10,
+                overflow: "hidden",
+                flexShrink: 0,
+              }}>
+                <img
+                  src={picked.image_url}
+                  alt={picked.name}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </div>
+            ) : (
+              <div style={{ fontSize: "clamp(28px, 8vw, 36px)" }}>{picked.icon}</div>
+            )}
             <div style={{ textAlign: "left" }}>
               <div style={{
                 fontSize: "clamp(14px, 3.8vw, 16px)", fontWeight: 500, color: "#F5E6C8",
@@ -288,7 +283,7 @@ function RandomPicker({ allDrinks = [] }) {
               marginBottom: 14,
             }}
           >
-            {locale === "ja" ? "ボタンを押して今夜の一杯を引いてみてください!" : "버튼을 눌러 오늘의 한 잔을 뽑아보세요!"}
+            버튼을 눌러 오늘의 한 잔을 뽑아보세요!
           </motion.div>
         )}
       </AnimatePresence>
@@ -319,17 +314,13 @@ function RandomPicker({ allDrinks = [] }) {
         >
           <Shuffle size={16} />
         </motion.div>
-        {spinning
-          ? (locale === "ja" ? "選んでいます..." : "뽑는 중...")
-          : (picked
-              ? (locale === "ja" ? "もう一度引く" : "다시 뽑기")
-              : (locale === "ja" ? "今夜のおすすめを引く" : "오늘의 추천 술 뽑기"))}
+        {spinning ? "뽑는 중..." : (picked ? "다시 뽑기" : "오늘의 추천 술 뽑기")}
       </motion.button>
     </div>
   );
 }
 
-// 주문 탭 카드 (내 주문 내역 · 화면 상단)
+// ────── MY TAB 카드 ──────
 function MyTabCard({ orders, totalAmount, seat }) {
   if (orders.length === 0) return null;
 
@@ -416,29 +407,28 @@ function MyTabCard({ orders, totalAmount, seat }) {
   );
 }
 
+// ────── 메인 ──────
 export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, mySeat, categories = [], menus = [], loading = false }) {
   const [selectedDrink, setSelectedDrink] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [ordering, setOrdering] = useState(false);
   const [justOrdered, setJustOrdered] = useState(false);
-  const { locale, t } = useLocale();
 
-  // DB 카테고리/메뉴를 화면용 구조로 변환 (기존 MENU_DATA 형식과 호환)
+  // DB 카테고리/메뉴를 화면용 구조로 변환
   const menuSections = categories.map(cat => {
-    // 카테고리에 속한 메뉴만 필터
     const items = menus
       .filter(m => m.category_id === cat.id)
       .map(m => ({
-        name: pickLocaleField(m, "name", locale),
+        name: m.name,
         icon: m.icon,
-        desc: pickLocaleField(m, "description", locale),
+        desc: m.description,
         abv: m.abv,
         taste: m.taste,
         priceNum: m.price,
         price: m.price.toLocaleString(),
+        image_url: m.image_url, // 🆕 이미지 URL 전달
       }));
 
-    // 카테고리 색상 — DB 색상 우선, 없으면 fallback
     const colorMap = {
       "LIGHT LINE": { color: "#6AB06A", bg: "rgba(106,176,106,0.06)", border: "rgba(106,176,106,0.15)" },
       "DEEP LINE": { color: "#D4A537", bg: "rgba(212,165,55,0.06)", border: "rgba(212,165,55,0.15)" },
@@ -447,7 +437,7 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
     const fallback = colorMap[cat.name] || { color: "#D4A537", bg: "rgba(212,165,55,0.06)", border: "rgba(212,165,55,0.15)" };
 
     return {
-      line: pickLocaleField(cat, "name", locale),
+      line: cat.name,
       price: cat.default_price?.toLocaleString() || "",
       priceNum: cat.default_price || 0,
       desc: cat.description || "",
@@ -458,7 +448,6 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
     };
   });
 
-  // 모든 메뉴 평탄화 (랜덤 픽커용)
   const allDrinks = menuSections.flatMap(section =>
     section.items.map(item => ({
       ...item,
@@ -476,24 +465,17 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
       alert("주문 기능을 사용할 수 없습니다");
       return;
     }
-    // 유저 상호작용 순간 사운드 활성화 (브라우저 정책)
     enableSound();
-    // 사장님은 항상 한국어로 봐야 함 - 원본 메뉴 데이터에서 ko 이름 찾음
-    const originalMenu = menus.find(m =>
-      m.name === drink.name || m.name_ja === drink.name
-    );
-    const koreanName = originalMenu?.name || drink.name;
-
     setOrdering(true);
     const result = await createOrder({
-      menuName: koreanName, // 항상 한국어로 저장
+      menuName: drink.name,
       menuIcon: drink.icon,
       price: drink.priceNum,
     });
     setOrdering(false);
 
     if (result) {
-      playOrderSuccess(); // 🔊 주문 성공 소리
+      playOrderSuccess();
       setJustOrdered(true);
       setTimeout(() => {
         setSelectedDrink(null);
@@ -513,21 +495,20 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
         fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8",
         fontFamily: "'Noto Serif KR', serif", marginBottom: "clamp(16px, 5vw, 24px)",
       }}>
-        {locale === "ja" ? "今夜、何を飲みますか?" : "오늘 밤, 무엇을 마실까요?"}
+        오늘 밤, 무엇을 마실까요?
       </div>
 
-      {/* My TAB 카드 */}
       <MyTabCard orders={orders} totalAmount={totalAmount} seat={mySeat} />
 
       <RandomPicker allDrinks={allDrinks} />
 
       {loading ? (
         <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-          {t("common.loading")}
+          메뉴를 불러오는 중...
         </div>
       ) : menuSections.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-          {locale === "ja" ? "メニューがまだ登録されていません" : "아직 등록된 메뉴가 없어요"}
+          아직 등록된 메뉴가 없어요
         </div>
       ) : menuSections.map((section, si) => (
         <motion.div
@@ -582,13 +563,30 @@ export default function MenuScreen({ createOrder, orders = [], totalAmount = 0, 
                   WebkitTapHighlightColor: "transparent", minHeight: 44,
                 }}
               >
+                {/* 🆕 썸네일 (이미지 있으면 사진, 없으면 이모지) */}
                 <div style={{
-                  width: "clamp(36px, 9vw, 42px)", height: "clamp(36px, 9vw, 42px)",
+                  width: "clamp(44px, 11vw, 52px)",
+                  height: "clamp(44px, 11vw, 52px)",
                   borderRadius: 10, flexShrink: 0,
-                  background: section.bg, border: "1px solid " + section.border,
+                  background: item.image_url ? "transparent" : section.bg,
+                  border: item.image_url ? "1px solid " + section.border : "1px solid " + section.border,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "clamp(16px, 4.5vw, 20px)",
-                }}>{item.icon}</div>
+                  fontSize: "clamp(20px, 5.5vw, 24px)",
+                  overflow: "hidden",
+                }}>
+                  {item.image_url ? (
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      style={{
+                        width: "100%", height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    item.icon
+                  )}
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     fontSize: "clamp(13px, 3.5vw, 14px)", fontWeight: 500, color: "#F5E6C8",
