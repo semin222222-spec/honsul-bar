@@ -5,16 +5,15 @@ import { supabase } from "../lib/supabaseClient";
  * useOrders
  * - 손님 화면용 주문 관리
  * - 현재 세션의 주문 목록 실시간 조회
- * - 새 주문 생성
+ * - 새 주문 생성 (옵션 지원)
  *
- * @param {string} sessionId - 현재 세션 ID (없으면 비활성)
- * @param {string} seatLabel - 좌석 (주문 시 저장용)
+ * @param {string} sessionId - 현재 세션 ID
+ * @param {string} seatLabel - 좌석
  */
 export function useOrders(sessionId, seatLabel) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // 내 세션의 주문 목록 조회
   const fetchOrders = useCallback(async () => {
     if (!sessionId) {
       setOrders([]);
@@ -38,7 +37,6 @@ export function useOrders(sessionId, seatLabel) {
 
     if (!sessionId) return;
 
-    // 실시간 구독 — 내 세션 주문만
     const channel = supabase
       .channel(`orders-${sessionId}`)
       .on(
@@ -58,24 +56,30 @@ export function useOrders(sessionId, seatLabel) {
     };
   }, [sessionId, fetchOrders]);
 
-  // 주문 생성
+  // 주문 생성 (옵션 정보 추가)
   const createOrder = useCallback(
-    async ({ menuName, menuIcon, price }) => {
+    async ({ menuName, menuIcon, price, optionId, optionName }) => {
       if (!sessionId || !seatLabel) {
         console.error("세션 없이 주문 불가");
         return null;
       }
 
+      const orderData = {
+        session_id: sessionId,
+        seat_label: seatLabel,
+        menu_name: menuName,
+        menu_icon: menuIcon,
+        price: parseInt(price),
+        status: "pending",
+      };
+
+      // 옵션 정보가 있으면 추가
+      if (optionId) orderData.option_id = optionId;
+      if (optionName) orderData.option_name = optionName;
+
       const { data, error } = await supabase
         .from("orders")
-        .insert({
-          session_id: sessionId,
-          seat_label: seatLabel,
-          menu_name: menuName,
-          menu_icon: menuIcon,
-          price: parseInt(price),
-          status: "pending",
-        })
+        .insert(orderData)
         .select()
         .single();
 
@@ -88,7 +92,6 @@ export function useOrders(sessionId, seatLabel) {
     [sessionId, seatLabel]
   );
 
-  // 총 금액 계산
   const totalAmount = orders.reduce((sum, o) => sum + (o.price || 0), 0);
 
   return {

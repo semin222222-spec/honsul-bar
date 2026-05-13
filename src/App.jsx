@@ -21,6 +21,7 @@ import { useMatchmaking } from "./hooks/useMatchmaking";
 import { useSession } from "./hooks/useSession";
 import { useOrders } from "./hooks/useOrders";
 import { useMenus } from "./hooks/useMenus";
+import { useMenuOptionsCustomer } from "./hooks/useMenuOptionsCustomer";
 import { useStoreId, useStore } from "./lib/StoreContext";
 import { useLocale, pickLocaleField } from "./lib/LocaleContext";
 import LanguageToggle from "./components/LanguageToggle";
@@ -452,6 +453,7 @@ export default function App() {
   const storeId = useStoreId();
   const { store } = useStore();
   const { categories: menuCategories, menus: menuItems, loading: menusLoading } = useMenus(storeId);
+  const { optionsByMenu } = useMenuOptionsCustomer(storeId);
 
   const presence = usePresence(mySeat, inMatchState, {
     myId,
@@ -616,7 +618,7 @@ export default function App() {
               )}
               {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
               {tab === "question" && <QuestionCardScreen />}
-              {tab === "menu" && <MenuScreen createOrder={createOrder} orders={orders} totalAmount={totalAmount} mySeat={mySeat} categories={menuCategories} menus={menuItems} loading={menusLoading} />}
+              {tab === "menu" && <MenuScreen createOrder={createOrder} orders={orders} totalAmount={totalAmount} mySeat={mySeat} categories={menuCategories} menus={menuItems} optionsByMenu={optionsByMenu} loading={menusLoading} />}
               {tab === "game" && (
                 <GameCenter
                   users={users}
