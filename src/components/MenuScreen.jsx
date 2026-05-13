@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Droplets, Shuffle, ShoppingBag, Check } from "lucide-react";
+import { X, Sparkles, Droplets, Shuffle, ShoppingBag, Check, Wifi, Copy } from "lucide-react";
 import { enableSound, playOrderSuccess } from "../lib/sounds";
 
 // ────── 메뉴 상세 + 옵션 선택 모달 ──────
@@ -242,6 +242,200 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
   );
 }
 
+// ────── 🆕 WiFi 카드 ──────
+function WifiCard({ ssid, password }) {
+  const [copiedField, setCopiedField] = useState(null);
+
+  if (!ssid || !password) return null;
+
+  const handleCopy = async (text, field) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 1500);
+    } catch (err) {
+      // 폴백: textarea로 복사
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopiedField(field);
+        setTimeout(() => setCopiedField(null), 1500);
+      } catch (err2) {
+        console.error('복사 실패:', err2);
+      }
+      document.body.removeChild(textArea);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 12,
+        padding: "12px 14px",
+        marginBottom: 14,
+      }}
+    >
+      {/* 헤더 */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 10,
+      }}>
+        <Wifi size={14} style={{ color: "#60A5FA" }} />
+        <span style={{
+          fontSize: 11,
+          color: "rgba(212,165,55,0.7)",
+          fontWeight: 600,
+          letterSpacing: "0.05em",
+        }}>
+          매장 WiFi
+        </span>
+      </div>
+
+      {/* SSID 행 */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "7px 0",
+        fontSize: 12,
+        borderBottom: "1px solid rgba(255,255,255,0.04)",
+      }}>
+        <span style={{
+          color: "rgba(255,255,255,0.4)",
+          width: 32,
+          fontSize: 10,
+          letterSpacing: "0.05em",
+        }}>
+          ID
+        </span>
+        <span style={{
+          flex: 1,
+          color: "#F5E6C8",
+          fontFamily: "'SF Mono', Monaco, monospace",
+          fontWeight: 500,
+          fontSize: 12,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
+          {ssid}
+        </span>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => handleCopy(ssid, "ssid")}
+          style={{
+            padding: "4px 9px",
+            background: copiedField === "ssid"
+              ? "linear-gradient(135deg, #6AB06A, #4A9A4A)"
+              : "rgba(212,165,55,0.1)",
+            border: "1px solid " + (copiedField === "ssid" ? "transparent" : "rgba(212,165,55,0.2)"),
+            borderRadius: 5,
+            color: copiedField === "ssid" ? "#fff" : "#D4A537",
+            fontSize: 10,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+            WebkitTapHighlightColor: "transparent",
+            minWidth: 50,
+            justifyContent: "center",
+          }}
+        >
+          {copiedField === "ssid" ? (
+            <>
+              <Check size={10} />
+              <span>복사됨</span>
+            </>
+          ) : (
+            <>
+              <Copy size={10} />
+              <span>복사</span>
+            </>
+          )}
+        </motion.button>
+      </div>
+
+      {/* Password 행 */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "7px 0",
+        fontSize: 12,
+      }}>
+        <span style={{
+          color: "rgba(255,255,255,0.4)",
+          width: 32,
+          fontSize: 10,
+          letterSpacing: "0.05em",
+        }}>
+          PW
+        </span>
+        <span style={{
+          flex: 1,
+          color: "#F5E6C8",
+          fontFamily: "'SF Mono', Monaco, monospace",
+          fontWeight: 500,
+          fontSize: 12,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}>
+          {password}
+        </span>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => handleCopy(password, "password")}
+          style={{
+            padding: "4px 9px",
+            background: copiedField === "password"
+              ? "linear-gradient(135deg, #6AB06A, #4A9A4A)"
+              : "rgba(212,165,55,0.1)",
+            border: "1px solid " + (copiedField === "password" ? "transparent" : "rgba(212,165,55,0.2)"),
+            borderRadius: 5,
+            color: copiedField === "password" ? "#fff" : "#D4A537",
+            fontSize: 10,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+            WebkitTapHighlightColor: "transparent",
+            minWidth: 50,
+            justifyContent: "center",
+          }}
+        >
+          {copiedField === "password" ? (
+            <>
+              <Check size={10} />
+              <span>복사됨</span>
+            </>
+          ) : (
+            <>
+              <Copy size={10} />
+              <span>복사</span>
+            </>
+          )}
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
 // ────── 랜덤 픽커 ──────
 function RandomPicker({ allDrinks = [] }) {
   const [picked, setPicked] = useState(null);
@@ -456,7 +650,9 @@ export default function MenuScreen({
   createOrder, orders = [], totalAmount = 0, mySeat, 
   categories = [], menus = [], 
   optionsByMenu = new Map(),
-  loading = false 
+  loading = false,
+  wifiSsid = null,        // 🆕 WiFi SSID
+  wifiPassword = null,    // 🆕 WiFi Password
 }) {
   const [selectedDrink, setSelectedDrink] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
@@ -487,12 +683,12 @@ export default function MenuScreen({
           image_url: m.image_url,
           hasOptions: hasOpts,
           options: opts,
-          group_name: m.group_name || null,  // 🆕 그룹 정보
+          group_name: m.group_name || null,
           group_name_ja: m.group_name_ja || null,
           display_order: m.display_order || 0,
         };
       })
-      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0)); // display_order로 정렬
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
     const colorMap = {
       "LIGHT LINE": { color: "#6AB06A", bg: "rgba(106,176,106,0.06)", border: "rgba(106,176,106,0.15)" },
@@ -501,7 +697,6 @@ export default function MenuScreen({
     };
     const fallback = colorMap[cat.name] || { color: "#D4A537", bg: "rgba(212,165,55,0.06)", border: "rgba(212,165,55,0.15)" };
 
-    // 🆕 그룹별로 묶기 (display_order 유지하면서)
     const itemsByGroup = [];
     const seenGroups = new Set();
     items.forEach(item => {
@@ -518,7 +713,6 @@ export default function MenuScreen({
         if ((last.groupName || '__no_group__') === groupKey) {
           last.items.push(item);
         } else {
-          // 그룹 중간에 끼어든 경우 - 새 섹션으로
           itemsByGroup.push({
             groupName: item.group_name,
             groupNameJa: item.group_name_ja,
@@ -537,8 +731,8 @@ export default function MenuScreen({
       color: cat.color || fallback.color,
       bg: fallback.bg,
       border: fallback.border,
-      items, // 평탄화된 전체 리스트 (랜덤 픽커용)
-      groups: itemsByGroup, // 🆕 그룹화된 리스트
+      items,
+      groups: itemsByGroup,
     };
   });
 
@@ -642,10 +836,12 @@ export default function MenuScreen({
 
         <MyTabCard orders={orders} totalAmount={totalAmount} seat={mySeat} />
 
+        {/* 🆕 WiFi 카드 */}
+        <WifiCard ssid={wifiSsid} password={wifiPassword} />
+
         <RandomPicker allDrinks={allDrinks} />
       </div>
 
-      {/* 카테고리 탭 (sticky, 2줄 자동 줄바꿈) */}
       {menuSections.length > 0 && (
         <div style={{
           position: "sticky",
@@ -691,7 +887,6 @@ export default function MenuScreen({
         </div>
       )}
 
-      {/* 메뉴 콘텐츠 */}
       <div style={{ padding: "0 clamp(16px, 4vw, 24px) 40px" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
@@ -708,7 +903,6 @@ export default function MenuScreen({
             data-category-id={section.id}
             style={{ marginBottom: "clamp(20px, 6vw, 28px)" }}
           >
-            {/* 카테고리 헤더 */}
             <div style={{
               display: "flex", justifyContent: "space-between", alignItems: "flex-end",
               marginBottom: "clamp(10px, 3vw, 14px)",
@@ -737,10 +931,8 @@ export default function MenuScreen({
               )}
             </div>
 
-            {/* 🆕 그룹별로 메뉴 표시 */}
             {section.groups.map((group, gi) => (
               <div key={gi} style={{ marginBottom: 14 }}>
-                {/* 그룹 헤더 (그룹명 있을 때만 표시) */}
                 {group.groupName && (
                   <div style={{
                     marginTop: gi === 0 ? 0 : 16,
@@ -770,7 +962,6 @@ export default function MenuScreen({
                   </div>
                 )}
 
-                {/* 그룹 안의 메뉴들 */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {group.items.map((item) => (
                     <motion.div

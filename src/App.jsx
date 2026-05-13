@@ -618,7 +618,7 @@ export default function App() {
               )}
               {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
               {tab === "question" && <QuestionCardScreen />}
-              {tab === "menu" && <MenuScreen createOrder={createOrder} orders={orders} totalAmount={totalAmount} mySeat={mySeat} categories={menuCategories} menus={menuItems} optionsByMenu={optionsByMenu} loading={menusLoading} />}
+              {tab === "menu" && <MenuScreen createOrder={createOrder} orders={orders} totalAmount={totalAmount} mySeat={mySeat} categories={menuCategories} menus={menuItems} optionsByMenu={optionsByMenu} loading={menusLoading} wifiSsid={store?.wifi_ssid} wifiPassword={store?.wifi_password} />}
               {tab === "game" && (
                 <GameCenter
                   users={users}
