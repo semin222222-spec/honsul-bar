@@ -112,7 +112,6 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
             </div>
           )}
 
-          {/* 옵션 선택 */}
           {hasOptions && (
             <div style={{ marginBottom: 14 }}>
               <div style={{
@@ -488,8 +487,12 @@ export default function MenuScreen({
           image_url: m.image_url,
           hasOptions: hasOpts,
           options: opts,
+          group_name: m.group_name || null,  // 🆕 그룹 정보
+          group_name_ja: m.group_name_ja || null,
+          display_order: m.display_order || 0,
         };
-      });
+      })
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0)); // display_order로 정렬
 
     const colorMap = {
       "LIGHT LINE": { color: "#6AB06A", bg: "rgba(106,176,106,0.06)", border: "rgba(106,176,106,0.15)" },
@@ -497,6 +500,33 @@ export default function MenuScreen({
       "PREMIUM LINE": { color: "#C47AFF", bg: "rgba(196,122,255,0.06)", border: "rgba(196,122,255,0.15)" },
     };
     const fallback = colorMap[cat.name] || { color: "#D4A537", bg: "rgba(212,165,55,0.06)", border: "rgba(212,165,55,0.15)" };
+
+    // 🆕 그룹별로 묶기 (display_order 유지하면서)
+    const itemsByGroup = [];
+    const seenGroups = new Set();
+    items.forEach(item => {
+      const groupKey = item.group_name || '__no_group__';
+      if (!seenGroups.has(groupKey)) {
+        seenGroups.add(groupKey);
+        itemsByGroup.push({
+          groupName: item.group_name,
+          groupNameJa: item.group_name_ja,
+          items: [item],
+        });
+      } else {
+        const last = itemsByGroup[itemsByGroup.length - 1];
+        if ((last.groupName || '__no_group__') === groupKey) {
+          last.items.push(item);
+        } else {
+          // 그룹 중간에 끼어든 경우 - 새 섹션으로
+          itemsByGroup.push({
+            groupName: item.group_name,
+            groupNameJa: item.group_name_ja,
+            items: [item],
+          });
+        }
+      }
+    });
 
     return {
       id: cat.id,
@@ -507,7 +537,8 @@ export default function MenuScreen({
       color: cat.color || fallback.color,
       bg: fallback.bg,
       border: fallback.border,
-      items,
+      items, // 평탄화된 전체 리스트 (랜덤 픽커용)
+      groups: itemsByGroup, // 🆕 그룹화된 리스트
     };
   });
 
@@ -558,7 +589,7 @@ export default function MenuScreen({
     setActiveCategoryId(catId);
     const el = sectionRefs.current[catId];
     if (el) {
-      const top = el.getBoundingClientRect().top + window.pageYOffset - 110; // 2줄 sticky 탭 높이 고려
+      const top = el.getBoundingClientRect().top + window.pageYOffset - 110;
       window.scrollTo({ top, behavior: "smooth" });
     }
   };
@@ -614,7 +645,7 @@ export default function MenuScreen({
         <RandomPicker allDrinks={allDrinks} />
       </div>
 
-      {/* 🆕 카테고리 탭 (sticky, 2줄 자동 줄바꿈) */}
+      {/* 카테고리 탭 (sticky, 2줄 자동 줄바꿈) */}
       {menuSections.length > 0 && (
         <div style={{
           position: "sticky",
@@ -677,6 +708,7 @@ export default function MenuScreen({
             data-category-id={section.id}
             style={{ marginBottom: "clamp(20px, 6vw, 28px)" }}
           >
+            {/* 카테고리 헤더 */}
             <div style={{
               display: "flex", justifyContent: "space-between", alignItems: "flex-end",
               marginBottom: "clamp(10px, 3vw, 14px)",
@@ -705,86 +737,122 @@ export default function MenuScreen({
               )}
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {section.items.map((item) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  onClick={() => {
-                    setSelectedDrink(item);
-                    setSelectedColor(section.color);
-                    setSelectedDrinkOptions(item.options || []);
-                  }}
-                  style={{
-                    display: "flex", alignItems: "center", gap: "clamp(10px, 3vw, 14px)",
-                    padding: "clamp(10px, 3vw, 13px) clamp(12px, 3.5vw, 14px)",
-                    background: "rgba(255,255,255,0.02)",
-                    border: "1px solid rgba(255,255,255,0.05)",
-                    borderRadius: "clamp(10px, 3vw, 12px)",
-                    cursor: "pointer", transition: "all 0.2s",
-                    WebkitTapHighlightColor: "transparent", minHeight: 44,
-                  }}
-                >
+            {/* 🆕 그룹별로 메뉴 표시 */}
+            {section.groups.map((group, gi) => (
+              <div key={gi} style={{ marginBottom: 14 }}>
+                {/* 그룹 헤더 (그룹명 있을 때만 표시) */}
+                {group.groupName && (
                   <div style={{
-                    width: "clamp(44px, 11vw, 52px)", height: "clamp(44px, 11vw, 52px)",
-                    borderRadius: 10, flexShrink: 0,
-                    background: item.image_url ? "transparent" : section.bg,
-                    border: "1px solid " + section.border,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "clamp(20px, 5.5vw, 24px)",
-                    overflow: "hidden",
+                    marginTop: gi === 0 ? 0 : 16,
+                    marginBottom: 8,
+                    padding: "7px 10px",
+                    background: hexToRgba(section.color, 0.06),
+                    borderLeft: `2px solid ${section.color}`,
+                    borderRadius: "0 6px 6px 0",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
                   }}>
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.name}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    ) : (
-                      item.icon
-                    )}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: "clamp(13px, 3.5vw, 14px)", fontWeight: 500, color: "#F5E6C8" }}>
-                      {item.name}
-                      {item.hasOptions && (
-                        <span style={{
-                          fontSize: 9, padding: "1px 5px", marginLeft: 5,
-                          background: hexToRgba(section.color, 0.15),
-                          color: section.color, borderRadius: 4, fontWeight: 600,
-                        }}>
-                          {item.options.length}옵션
-                        </span>
-                      )}
-                    </div>
-                    <div style={{
-                      fontSize: "clamp(10px, 2.5vw, 11px)",
-                      color: "rgba(255,255,255,0.3)", marginTop: 2,
-                      display: "flex", gap: 8,
-                    }}>
-                      {item.taste && <span>{item.taste}</span>}
-                      {item.abv && <span style={{ color: section.color }}>{item.abv}</span>}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{
-                      fontSize: "clamp(12px, 3vw, 13px)",
+                    <span style={{
+                      fontSize: "clamp(10px, 2.6vw, 11px)",
                       color: section.color,
-                      fontFamily: "'Noto Serif KR', serif",
-                      fontWeight: 500,
+                      fontWeight: 600,
+                      letterSpacing: "0.05em",
                     }}>
-                      {item.priceDisplay}원
-                    </div>
-                    <div style={{
-                      fontSize: "clamp(9px, 2.2vw, 10px)", color: section.color, 
-                      display: "flex", alignItems: "center", gap: 3, marginTop: 2,
-                      justifyContent: "flex-end",
+                      {group.groupName}
+                    </span>
+                    <span style={{
+                      fontSize: "clamp(9px, 2.2vw, 10px)",
+                      color: "rgba(255,255,255,0.4)",
                     }}>
-                      <ShoppingBag size={10} />
-                      <span>{item.hasOptions ? "선택" : "주문"}</span>
-                    </div>
+                      · {group.items.length}종
+                    </span>
                   </div>
-                </motion.div>
-              ))}
-            </div>
+                )}
+
+                {/* 그룹 안의 메뉴들 */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {group.items.map((item) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      onClick={() => {
+                        setSelectedDrink(item);
+                        setSelectedColor(section.color);
+                        setSelectedDrinkOptions(item.options || []);
+                      }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: "clamp(10px, 3vw, 14px)",
+                        padding: "clamp(10px, 3vw, 13px) clamp(12px, 3.5vw, 14px)",
+                        background: "rgba(255,255,255,0.02)",
+                        border: "1px solid rgba(255,255,255,0.05)",
+                        borderRadius: "clamp(10px, 3vw, 12px)",
+                        cursor: "pointer", transition: "all 0.2s",
+                        WebkitTapHighlightColor: "transparent", minHeight: 44,
+                      }}
+                    >
+                      <div style={{
+                        width: "clamp(44px, 11vw, 52px)", height: "clamp(44px, 11vw, 52px)",
+                        borderRadius: 10, flexShrink: 0,
+                        background: item.image_url ? "transparent" : section.bg,
+                        border: "1px solid " + section.border,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "clamp(20px, 5.5vw, 24px)",
+                        overflow: "hidden",
+                      }}>
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.name}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          item.icon
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "clamp(13px, 3.5vw, 14px)", fontWeight: 500, color: "#F5E6C8" }}>
+                          {item.name}
+                          {item.hasOptions && (
+                            <span style={{
+                              fontSize: 9, padding: "1px 5px", marginLeft: 5,
+                              background: hexToRgba(section.color, 0.15),
+                              color: section.color, borderRadius: 4, fontWeight: 600,
+                            }}>
+                              {item.options.length}옵션
+                            </span>
+                          )}
+                        </div>
+                        <div style={{
+                          fontSize: "clamp(10px, 2.5vw, 11px)",
+                          color: "rgba(255,255,255,0.3)", marginTop: 2,
+                          display: "flex", gap: 8,
+                        }}>
+                          {item.taste && <span>{item.taste}</span>}
+                          {item.abv && <span style={{ color: section.color }}>{item.abv}</span>}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{
+                          fontSize: "clamp(12px, 3vw, 13px)",
+                          color: section.color,
+                          fontFamily: "'Noto Serif KR', serif",
+                          fontWeight: 500,
+                        }}>
+                          {item.priceDisplay}원
+                        </div>
+                        <div style={{
+                          fontSize: "clamp(9px, 2.2vw, 10px)", color: section.color, 
+                          display: "flex", alignItems: "center", gap: 3, marginTop: 2,
+                          justifyContent: "flex-end",
+                        }}>
+                          <ShoppingBag size={10} />
+                          <span>{item.hasOptions ? "선택" : "주문"}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         ))}
       </div>
