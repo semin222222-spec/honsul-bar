@@ -149,7 +149,6 @@ function MenuModal({ menu, categories, onClose, onSave, onDelete }) {
   const [isActive, setIsActive] = useState(menu?.is_active ?? true);
   const [saving, setSaving] = useState(false);
 
-  // 카테고리 변경하면 기본 가격 자동 채움 (새 메뉴 추가 시)
   const handleCategoryChange = (newCatId) => {
     setCategoryId(newCatId);
     if (!menu) {
@@ -205,7 +204,6 @@ function MenuModal({ menu, categories, onClose, onSave, onDelete }) {
           {menu ? menu.name : "손님이 주문할 새 메뉴를 등록합니다"}
         </div>
 
-        {/* 아이콘 피커 */}
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle}>아이콘</label>
           <div style={{
@@ -304,7 +302,6 @@ function MenuModal({ menu, categories, onClose, onSave, onDelete }) {
           />
         </div>
 
-        {/* 활성화 토글 */}
         <div
           onClick={() => setIsActive(!isActive)}
           style={{
@@ -386,13 +383,58 @@ export default function MenuAdminPanel({
   const [toast, setToast] = useState(null);
   const [batchTranslating, setBatchTranslating] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
+  // 순서 변경 중 표시 (해당 카테고리 id 또는 null)
+  const [reorderingId, setReorderingId] = useState(null);
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   };
 
-  // 🌐 기존 메뉴 일괄 번역 (name_ja가 비어있는 메뉴/카테고리만)
+  // display_order로 정렬된 카테고리 (안전)
+  const sortedCategories = [...categories].sort(
+    (a, b) => (a.display_order || 0) - (b.display_order || 0)
+  );
+
+  // ────── 카테고리 순서 변경 ──────
+  // ↑ 위로 이동: 위 카테고리와 display_order 스왑
+  const moveCategoryUp = async (index) => {
+    if (index <= 0 || reorderingId) return;
+    const current = sortedCategories[index];
+    const above = sortedCategories[index - 1];
+
+    setReorderingId(current.id);
+    try {
+      // 두 카테고리의 display_order를 서로 바꿈
+      await updateCategory(current.id, { display_order: above.display_order });
+      await updateCategory(above.id, { display_order: current.display_order });
+      showToast(`✓ "${current.name}" 위로 이동`);
+    } catch (err) {
+      showToast("순서 변경 실패");
+    } finally {
+      setReorderingId(null);
+    }
+  };
+
+  // ↓ 아래로 이동
+  const moveCategoryDown = async (index) => {
+    if (index >= sortedCategories.length - 1 || reorderingId) return;
+    const current = sortedCategories[index];
+    const below = sortedCategories[index + 1];
+
+    setReorderingId(current.id);
+    try {
+      await updateCategory(current.id, { display_order: below.display_order });
+      await updateCategory(below.id, { display_order: current.display_order });
+      showToast(`✓ "${current.name}" 아래로 이동`);
+    } catch (err) {
+      showToast("순서 변경 실패");
+    } finally {
+      setReorderingId(null);
+    }
+  };
+
+  // 🌐 기존 메뉴 일괄 번역
   const handleBatchTranslate = async () => {
     const menusToTranslate = menus.filter(m => !m.name_ja);
     const categoriesToTranslate = categories.filter(c => !c.name_ja);
@@ -411,7 +453,6 @@ export default function MenuAdminPanel({
     setBatchProgress({ current: 0, total });
     let count = 0;
 
-    // 카테고리 먼저
     for (const cat of categoriesToTranslate) {
       const name_ja = await translateText(cat.name);
       if (name_ja) {
@@ -421,7 +462,6 @@ export default function MenuAdminPanel({
       setBatchProgress({ current: count, total });
     }
 
-    // 메뉴
     for (const menu of menusToTranslate) {
       const result = await autoTranslateMenu(menu);
       await updateMenu(menu.id, {
@@ -438,10 +478,9 @@ export default function MenuAdminPanel({
 
   // 카테고리별 메뉴 그룹핑
   const menusByCategory = new Map();
-  categories.forEach(cat => {
+  sortedCategories.forEach(cat => {
     menusByCategory.set(cat.id, menus.filter(m => m.category_id === cat.id));
   });
-  // 카테고리 없는 메뉴
   const orphanMenus = menus.filter(m => !m.category_id);
 
   if (loading) {
@@ -502,61 +541,106 @@ export default function MenuAdminPanel({
       </div>
 
       {/* 카테고리별 메뉴 */}
-      {categories.map(cat => (
-        <div key={cat.id} style={{ marginBottom: 18 }}>
-          {/* 카테고리 헤더 */}
-          <div style={{
-            display: "flex", justifyContent: "space-between", alignItems: "center",
-            padding: "10px 14px",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
-            borderRadius: 10,
-            marginBottom: 8,
-          }}>
-            <span style={{
-              fontSize: 13, fontWeight: 600,
-              letterSpacing: "0.1em",
-              color: cat.color || "#D4A537",
-            }}>
-              ● {cat.name}
-              {cat.default_price && (
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginLeft: 8, fontWeight: 400 }}>
-                  · {cat.default_price.toLocaleString()}원 기준
-                </span>
-              )}
-            </span>
-            <button
-              onClick={() => setEditingCategory(cat)}
-              style={iconBtnStyle}
-              title="카테고리 수정"
-            >
-              <Edit2 size={12} />
-            </button>
-          </div>
+      {sortedCategories.map((cat, index) => {
+        const isFirst = index === 0;
+        const isLast = index === sortedCategories.length - 1;
+        const isReordering = reorderingId === cat.id;
+        const isReorderingAny = !!reorderingId;
 
-          {/* 메뉴 카드들 */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {(menusByCategory.get(cat.id) || []).map(menu => (
-              <MenuCard
-                key={menu.id}
-                menu={menu}
-                onEdit={() => setEditingMenu(menu)}
-              />
-            ))}
-            {(menusByCategory.get(cat.id) || []).length === 0 && (
-              <div style={{
-                padding: 14, textAlign: "center",
-                fontSize: 11, color: "rgba(255,255,255,0.3)",
-                background: "rgba(255,255,255,0.01)",
-                border: "1px dashed rgba(255,255,255,0.05)",
-                borderRadius: 10,
+        return (
+          <div key={cat.id} style={{ marginBottom: 18 }}>
+            {/* 카테고리 헤더 */}
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "10px 14px",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
+              borderRadius: 10,
+              marginBottom: 8,
+              opacity: isReordering ? 0.5 : 1,
+              transition: "opacity 0.2s",
+            }}>
+              <span style={{
+                fontSize: 13, fontWeight: 600,
+                letterSpacing: "0.1em",
+                color: cat.color || "#D4A537",
+                flex: 1,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}>
-                메뉴 없음
+                ● {cat.name}
+                {cat.default_price > 0 && (
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginLeft: 8, fontWeight: 400 }}>
+                    · {cat.default_price.toLocaleString()}원 기준
+                  </span>
+                )}
+              </span>
+
+              {/* 순서 변경 + 수정 버튼 */}
+              <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                {/* ↑ 위로 */}
+                <button
+                  onClick={() => moveCategoryUp(index)}
+                  disabled={isFirst || isReorderingAny}
+                  style={{
+                    ...iconBtnStyle,
+                    opacity: isFirst ? 0.2 : 1,
+                    cursor: isFirst || isReorderingAny ? "default" : "pointer",
+                  }}
+                  title="위로 이동"
+                >
+                  <ChevronUp size={14} />
+                </button>
+                {/* ↓ 아래로 */}
+                <button
+                  onClick={() => moveCategoryDown(index)}
+                  disabled={isLast || isReorderingAny}
+                  style={{
+                    ...iconBtnStyle,
+                    opacity: isLast ? 0.2 : 1,
+                    cursor: isLast || isReorderingAny ? "default" : "pointer",
+                  }}
+                  title="아래로 이동"
+                >
+                  <ChevronDown size={14} />
+                </button>
+                {/* 수정 */}
+                <button
+                  onClick={() => setEditingCategory(cat)}
+                  style={iconBtnStyle}
+                  title="카테고리 수정"
+                >
+                  <Edit2 size={12} />
+                </button>
               </div>
-            )}
+            </div>
+
+            {/* 메뉴 카드들 */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {(menusByCategory.get(cat.id) || []).map(menu => (
+                <MenuCard
+                  key={menu.id}
+                  menu={menu}
+                  onEdit={() => setEditingMenu(menu)}
+                />
+              ))}
+              {(menusByCategory.get(cat.id) || []).length === 0 && (
+                <div style={{
+                  padding: 14, textAlign: "center",
+                  fontSize: 11, color: "rgba(255,255,255,0.3)",
+                  background: "rgba(255,255,255,0.01)",
+                  border: "1px dashed rgba(255,255,255,0.05)",
+                  borderRadius: 10,
+                }}>
+                  메뉴 없음
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* 카테고리 없는 메뉴 */}
       {orphanMenus.length > 0 && (
@@ -599,10 +683,9 @@ export default function MenuAdminPanel({
         {(editingMenu || showNewMenu) && (
           <MenuModal
             menu={editingMenu}
-            categories={categories}
+            categories={sortedCategories}
             onClose={() => { setEditingMenu(null); setShowNewMenu(false); }}
             onSave={async (data) => {
-              // 일본어 자동 번역 (이름 + 설명)
               showToast("🌐 일본어 번역 중...");
               const translations = await autoTranslateMenu(data);
               const dataWithJa = {
@@ -636,7 +719,6 @@ export default function MenuAdminPanel({
             category={editingCategory}
             onClose={() => { setEditingCategory(null); setShowNewCategory(false); }}
             onSave={async (data) => {
-              // 일본어 자동 번역 (카테고리 이름)
               showToast("🌐 일본어 번역 중...");
               const name_ja = data.name ? await translateText(data.name) : "";
               const dataWithJa = { ...data, name_ja };
@@ -795,7 +877,6 @@ const iconBtnStyle = {
   display: "flex", alignItems: "center", justifyContent: "center",
 };
 
-// 헥스 컬러 → rgba 변환
 function hexToRgba(hex, alpha = 1) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
