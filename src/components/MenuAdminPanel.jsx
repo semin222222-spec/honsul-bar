@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Edit2, Trash2, X, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Edit2, Trash2, X, ChevronUp, ChevronDown, Upload, Camera } from "lucide-react";
 import { autoTranslateMenu, translateText } from "../lib/translateService";
+import { uploadMenuImage, deleteMenuImage } from "../lib/imageUpload";
 
 // 사용 가능한 이모지 목록 (메뉴 아이콘용)
 const ICON_OPTIONS = [
@@ -92,7 +93,6 @@ function CategoryModal({ category, onClose, onSave, onDelete }) {
           </div>
         </div>
 
-        {/* 미리보기 */}
         <div style={{
           padding: 12,
           background: hexToRgba(color, 0.06),
@@ -137,8 +137,8 @@ function CategoryModal({ category, onClose, onSave, onDelete }) {
   );
 }
 
-// ────── 메뉴 모달 ──────
-function MenuModal({ menu, categories, onClose, onSave, onDelete }) {
+// ────── 메뉴 모달 (이미지 업로드 추가됨) ──────
+function MenuModal({ menu, categories, storeId, onClose, onSave, onDelete }) {
   const [name, setName] = useState(menu?.name || "");
   const [icon, setIcon] = useState(menu?.icon || "🍸");
   const [price, setPrice] = useState(menu?.price || "");
@@ -147,7 +147,11 @@ function MenuModal({ menu, categories, onClose, onSave, onDelete }) {
   const [taste, setTaste] = useState(menu?.taste || "");
   const [description, setDescription] = useState(menu?.description || "");
   const [isActive, setIsActive] = useState(menu?.is_active ?? true);
+  const [imageUrl, setImageUrl] = useState(menu?.image_url || null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleCategoryChange = (newCatId) => {
     setCategoryId(newCatId);
@@ -155,6 +159,43 @@ function MenuModal({ menu, categories, onClose, onSave, onDelete }) {
       const cat = categories.find(c => c.id === newCatId);
       if (cat?.default_price) setPrice(cat.default_price);
     }
+  };
+
+  // 이미지 업로드
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    const result = await uploadMenuImage(file, storeId, (progress) => {
+      setUploadProgress(progress);
+    });
+
+    setUploading(false);
+    setUploadProgress(0);
+
+    if (result.ok) {
+      // 이전 이미지가 있으면 Storage에서 삭제
+      if (imageUrl) {
+        deleteMenuImage(imageUrl); // 비동기, 결과 안 기다림
+      }
+      setImageUrl(result.url);
+    } else {
+      alert("업로드 실패: " + result.reason);
+    }
+
+    // 파일 입력 초기화 (같은 파일 다시 선택 가능)
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // 이미지 삭제
+  const handleImageRemove = () => {
+    if (!confirm("사진을 삭제하시겠어요?")) return;
+    // Storage에서도 삭제 (비동기)
+    if (imageUrl) deleteMenuImage(imageUrl);
+    setImageUrl(null);
   };
 
   const handleSave = async () => {
@@ -170,6 +211,7 @@ function MenuModal({ menu, categories, onClose, onSave, onDelete }) {
       taste: taste.trim(),
       description: description.trim(),
       is_active: isActive,
+      image_url: imageUrl,
     });
     setSaving(false);
   };
@@ -204,8 +246,179 @@ function MenuModal({ menu, categories, onClose, onSave, onDelete }) {
           {menu ? menu.name : "손님이 주문할 새 메뉴를 등록합니다"}
         </div>
 
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* 🎨 이미지 업로드 영역  */}
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <div style={{ marginBottom: 16 }}>
+          <label style={labelStyle}>
+            메뉴 사진 <span style={{ color: "rgba(255,255,255,0.3)" }}>(선택)</span>
+          </label>
+
+          {/* 숨겨진 파일 입력 */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            style={{ display: "none" }}
+          />
+
+          {imageUrl ? (
+            // 이미지 있는 상태
+            <motion.div
+              layout
+              style={{
+                position: "relative",
+                width: "100%",
+                aspectRatio: "1",
+                borderRadius: 12,
+                overflow: "hidden",
+                border: "1px solid rgba(212,165,55,0.25)",
+                background: "rgba(255,255,255,0.02)",
+              }}
+            >
+              <img
+                src={imageUrl}
+                alt="메뉴 사진"
+                style={{
+                  width: "100%", height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+              <div style={{
+                position: "absolute", top: 8, right: 8,
+                display: "flex", gap: 6,
+              }}>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  style={imageActionBtnStyle}
+                  title="다른 사진으로 변경"
+                >
+                  <Camera size={14} />
+                </button>
+                <button
+                  onClick={handleImageRemove}
+                  style={{ ...imageActionBtnStyle, color: "rgba(255,180,180,0.95)" }}
+                  title="사진 삭제"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <div style={{
+                position: "absolute", bottom: 0, left: 0, right: 0,
+                padding: "20px 12px 10px",
+                background: "linear-gradient(180deg, transparent, rgba(13,11,8,0.85))",
+                fontSize: 10,
+                color: "rgba(255,255,255,0.6)",
+              }}>
+                ✓ 사진 등록됨 · 손님 화면에 표시됩니다
+              </div>
+            </motion.div>
+          ) : uploading ? (
+            // 업로드 중
+            <div style={{
+              width: "100%",
+              aspectRatio: "1",
+              borderRadius: 12,
+              border: "2px dashed rgba(212,165,55,0.4)",
+              background: "rgba(212,165,55,0.04)",
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              gap: 12,
+            }}>
+              <div style={{
+                width: 40, height: 40,
+                border: "3px solid rgba(212,165,55,0.2)",
+                borderTopColor: "#D4A537",
+                borderRadius: "50%",
+                animation: "spin 1s linear infinite",
+              }} />
+              <div style={{ fontSize: 12, color: "#D4A537", fontWeight: 600 }}>
+                업로드 중... {uploadProgress}%
+              </div>
+              <div style={{
+                width: "60%", height: 4,
+                background: "rgba(255,255,255,0.05)",
+                borderRadius: 2, overflow: "hidden",
+              }}>
+                <div style={{
+                  width: `${uploadProgress}%`, height: "100%",
+                  background: "linear-gradient(90deg, #D4A537, #F5E6C8)",
+                  transition: "width 0.2s",
+                }} />
+              </div>
+            </div>
+          ) : (
+            // 비어있음 - 업로드 영역
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: "100%",
+                aspectRatio: "1",
+                borderRadius: 12,
+                border: "2px dashed rgba(212,165,55,0.3)",
+                background: "rgba(212,165,55,0.03)",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "inherit",
+                position: "relative",
+                overflow: "hidden",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(212,165,55,0.6)";
+                e.currentTarget.style.background = "rgba(212,165,55,0.06)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(212,165,55,0.3)";
+                e.currentTarget.style.background = "rgba(212,165,55,0.03)";
+              }}
+            >
+              <div style={{
+                display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                gap: 10, height: "100%",
+              }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 14,
+                  background: "rgba(212,165,55,0.1)",
+                  border: "1px solid rgba(212,165,55,0.2)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Upload size={20} style={{ color: "#D4A537" }} />
+                </div>
+                <div style={{
+                  fontSize: 13, color: "#D4A537",
+                  fontWeight: 600,
+                }}>
+                  사진 업로드
+                </div>
+                <div style={{
+                  fontSize: 10, color: "rgba(255,255,255,0.4)",
+                  textAlign: "center", lineHeight: 1.5,
+                }}>
+                  탭하여 갤러리에서 선택<br />
+                  <span style={{ opacity: 0.6 }}>JPG, PNG · 최대 5MB</span>
+                </div>
+              </div>
+            </button>
+          )}
+
+          {!imageUrl && !uploading && (
+            <div style={{
+              marginTop: 8,
+              fontSize: 10,
+              color: "rgba(255,255,255,0.35)",
+              lineHeight: 1.5,
+            }}>
+              💡 사진은 자동으로 600x600 정사각형으로 압축됩니다
+            </div>
+          )}
+        </div>
+
+        {/* 아이콘 피커 */}
         <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>아이콘</label>
+          <label style={labelStyle}>아이콘 <span style={{ color: "rgba(255,255,255,0.3)" }}>(사진 없을 때 표시)</span></label>
           <div style={{
             display: "flex", flexWrap: "wrap", gap: 5,
             padding: 8,
@@ -346,6 +559,8 @@ function MenuModal({ menu, categories, onClose, onSave, onDelete }) {
             <button
               onClick={() => {
                 if (confirm(`"${menu.name}" 메뉴를 삭제하시겠어요?\n복구할 수 없습니다.`)) {
+                  // 이미지도 같이 삭제
+                  if (imageUrl) deleteMenuImage(imageUrl);
                   onDelete();
                 }
               }}
@@ -359,19 +574,26 @@ function MenuModal({ menu, categories, onClose, onSave, onDelete }) {
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
-            style={{ ...btnStyle, ...saveBtnStyle, flex: 1.5, opacity: saving ? 0.5 : 1 }}
+            disabled={saving || uploading}
+            style={{ ...btnStyle, ...saveBtnStyle, flex: 1.5, opacity: (saving || uploading) ? 0.5 : 1 }}
           >
             {saving ? "..." : menu ? "저장" : "+ 추가"}
           </button>
         </div>
       </motion.div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </motion.div>
   );
 }
 
 // ────── 메인 패널 ──────
 export default function MenuAdminPanel({
+  storeId,
   categories, menus, loading,
   createMenu, updateMenu, deleteMenu,
   createCategory, updateCategory, deleteCategory,
@@ -383,7 +605,6 @@ export default function MenuAdminPanel({
   const [toast, setToast] = useState(null);
   const [batchTranslating, setBatchTranslating] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
-  // 순서 변경 중 표시 (해당 카테고리 id 또는 null)
   const [reorderingId, setReorderingId] = useState(null);
 
   const showToast = (msg) => {
@@ -391,21 +612,16 @@ export default function MenuAdminPanel({
     setTimeout(() => setToast(null), 2500);
   };
 
-  // display_order로 정렬된 카테고리 (안전)
   const sortedCategories = [...categories].sort(
     (a, b) => (a.display_order || 0) - (b.display_order || 0)
   );
 
-  // ────── 카테고리 순서 변경 ──────
-  // ↑ 위로 이동: 위 카테고리와 display_order 스왑
   const moveCategoryUp = async (index) => {
     if (index <= 0 || reorderingId) return;
     const current = sortedCategories[index];
     const above = sortedCategories[index - 1];
-
     setReorderingId(current.id);
     try {
-      // 두 카테고리의 display_order를 서로 바꿈
       await updateCategory(current.id, { display_order: above.display_order });
       await updateCategory(above.id, { display_order: current.display_order });
       showToast(`✓ "${current.name}" 위로 이동`);
@@ -416,12 +632,10 @@ export default function MenuAdminPanel({
     }
   };
 
-  // ↓ 아래로 이동
   const moveCategoryDown = async (index) => {
     if (index >= sortedCategories.length - 1 || reorderingId) return;
     const current = sortedCategories[index];
     const below = sortedCategories[index + 1];
-
     setReorderingId(current.id);
     try {
       await updateCategory(current.id, { display_order: below.display_order });
@@ -434,7 +648,6 @@ export default function MenuAdminPanel({
     }
   };
 
-  // 🌐 기존 메뉴 일괄 번역
   const handleBatchTranslate = async () => {
     const menusToTranslate = menus.filter(m => !m.name_ja);
     const categoriesToTranslate = categories.filter(c => !c.name_ja);
@@ -476,7 +689,6 @@ export default function MenuAdminPanel({
     showToast(`✓ ${total}개 항목 일본어 번역 완료!`);
   };
 
-  // 카테고리별 메뉴 그룹핑
   const menusByCategory = new Map();
   sortedCategories.forEach(cat => {
     menusByCategory.set(cat.id, menus.filter(m => m.category_id === cat.id));
@@ -493,7 +705,6 @@ export default function MenuAdminPanel({
 
   return (
     <div>
-      {/* 헤더 */}
       <div style={{
         display: "flex", justifyContent: "space-between", alignItems: "center",
         marginBottom: 14, padding: "0 4px",
@@ -540,7 +751,6 @@ export default function MenuAdminPanel({
         </div>
       </div>
 
-      {/* 카테고리별 메뉴 */}
       {sortedCategories.map((cat, index) => {
         const isFirst = index === 0;
         const isLast = index === sortedCategories.length - 1;
@@ -549,7 +759,6 @@ export default function MenuAdminPanel({
 
         return (
           <div key={cat.id} style={{ marginBottom: 18 }}>
-            {/* 카테고리 헤더 */}
             <div style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
               padding: "10px 14px",
@@ -577,10 +786,7 @@ export default function MenuAdminPanel({
                   </span>
                 )}
               </span>
-
-              {/* 순서 변경 + 수정 버튼 */}
               <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                {/* ↑ 위로 */}
                 <button
                   onClick={() => moveCategoryUp(index)}
                   disabled={isFirst || isReorderingAny}
@@ -593,7 +799,6 @@ export default function MenuAdminPanel({
                 >
                   <ChevronUp size={14} />
                 </button>
-                {/* ↓ 아래로 */}
                 <button
                   onClick={() => moveCategoryDown(index)}
                   disabled={isLast || isReorderingAny}
@@ -606,7 +811,6 @@ export default function MenuAdminPanel({
                 >
                   <ChevronDown size={14} />
                 </button>
-                {/* 수정 */}
                 <button
                   onClick={() => setEditingCategory(cat)}
                   style={iconBtnStyle}
@@ -617,7 +821,6 @@ export default function MenuAdminPanel({
               </div>
             </div>
 
-            {/* 메뉴 카드들 */}
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {(menusByCategory.get(cat.id) || []).map(menu => (
                 <MenuCard
@@ -642,7 +845,6 @@ export default function MenuAdminPanel({
         );
       })}
 
-      {/* 카테고리 없는 메뉴 */}
       {orphanMenus.length > 0 && (
         <div style={{ marginBottom: 18 }}>
           <div style={{
@@ -662,7 +864,6 @@ export default function MenuAdminPanel({
         </div>
       )}
 
-      {/* 새 카테고리 추가 */}
       <button
         onClick={() => setShowNewCategory(true)}
         style={{
@@ -678,12 +879,12 @@ export default function MenuAdminPanel({
         + 새 카테고리 추가
       </button>
 
-      {/* 모달들 */}
       <AnimatePresence>
         {(editingMenu || showNewMenu) && (
           <MenuModal
             menu={editingMenu}
             categories={sortedCategories}
+            storeId={storeId}
             onClose={() => { setEditingMenu(null); setShowNewMenu(false); }}
             onSave={async (data) => {
               showToast("🌐 일본어 번역 중...");
@@ -698,7 +899,7 @@ export default function MenuAdminPanel({
                 ? await updateMenu(editingMenu.id, dataWithJa)
                 : await createMenu(dataWithJa);
               if (result.ok) {
-                showToast(editingMenu ? "✓ 메뉴 수정됨 (일본어 자동 번역)" : "✓ 메뉴 추가됨 (일본어 자동 번역)");
+                showToast(editingMenu ? "✓ 메뉴 수정됨" : "✓ 메뉴 추가됨");
                 setEditingMenu(null); setShowNewMenu(false);
               } else {
                 alert("저장 실패: " + (result.reason || "알 수 없는 오류"));
@@ -727,7 +928,7 @@ export default function MenuAdminPanel({
                 ? await updateCategory(editingCategory.id, dataWithJa)
                 : await createCategory(dataWithJa);
               if (result.ok) {
-                showToast(editingCategory ? "✓ 카테고리 수정됨 (일본어 자동 번역)" : "✓ 카테고리 추가됨 (일본어 자동 번역)");
+                showToast(editingCategory ? "✓ 카테고리 수정됨" : "✓ 카테고리 추가됨");
                 setEditingCategory(null); setShowNewCategory(false);
               }
             }}
@@ -742,7 +943,6 @@ export default function MenuAdminPanel({
         )}
       </AnimatePresence>
 
-      {/* 토스트 */}
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -766,7 +966,7 @@ export default function MenuAdminPanel({
   );
 }
 
-// ────── 메뉴 카드 ──────
+// ────── 메뉴 카드 (이미지 썸네일 추가) ──────
 function MenuCard({ menu, onEdit }) {
   return (
     <motion.div
@@ -783,13 +983,23 @@ function MenuCard({ menu, onEdit }) {
       onClick={onEdit}
       whileHover={{ background: "rgba(255,255,255,0.04)" }}
     >
+      {/* 썸네일 (이미지 있으면 사진, 없으면 이모지) */}
       <div style={{
         width: 38, height: 38, borderRadius: 9,
         background: "rgba(212,165,55,0.08)",
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 18, flexShrink: 0,
+        overflow: "hidden",
       }}>
-        {menu.icon || "🍸"}
+        {menu.image_url ? (
+          <img
+            src={menu.image_url}
+            alt={menu.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          menu.icon || "🍸"
+        )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12, color: "#F5E6C8", fontWeight: 500, marginBottom: 2 }}>
@@ -874,6 +1084,17 @@ const iconBtnStyle = {
   color: "rgba(255,255,255,0.5)",
   cursor: "pointer",
   fontSize: 12,
+  display: "flex", alignItems: "center", justifyContent: "center",
+};
+
+const imageActionBtnStyle = {
+  width: 32, height: 32,
+  background: "rgba(13,11,8,0.7)",
+  backdropFilter: "blur(10px)",
+  border: "1px solid rgba(212,165,55,0.25)",
+  borderRadius: 8,
+  color: "rgba(245,230,200,0.85)",
+  cursor: "pointer",
   display: "flex", alignItems: "center", justifyContent: "center",
 };
 
