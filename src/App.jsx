@@ -72,8 +72,6 @@ function PulseDot({ color = "#D4A537", size = 8 }) {
   );
 }
 
-// ───── 내 프로필 카드는 components/MyProfileCard.jsx 에서 import하여 사용 ─────
-
 function TabBar({ active, onChange }) {
   const { t } = useLocale();
   const tabs = [
@@ -124,7 +122,7 @@ function TabBar({ active, onChange }) {
 
 function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myNicknameJa, myAvatar, onReroll, store }) {
   const { locale, t } = useLocale();
-  const greetings = t("home.greetings"); // 배열 반환
+  const greetings = t("home.greetings");
   const [gi, setGi] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setGi(p => (p + 1) % (Array.isArray(greetings) ? greetings.length : 1)), 5000);
@@ -133,12 +131,10 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myN
   const statusCounts = { open: 0, hello: 0, alone: 0 };
   users.forEach(u => { if (statusCounts[u.status] !== undefined) statusCounts[u.status]++; });
 
-  // 매장 이름 (한국어/일본어)
   const storeName = pickLocaleField(store, "name", locale) || "오늘, 혼술";
 
   return (
     <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: "clamp(12px, 3vw, 20px)" }}>
-      {/* 언어 토글 (우측 상단) */}
       <div style={{
         display: "flex",
         justifyContent: "flex-end",
@@ -149,7 +145,6 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myN
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}
         style={{ textAlign: "center", marginBottom: "clamp(16px, 5vw, 28px)" }}>
-        {/* 매장 이름 (DB에서 동적으로) */}
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -183,7 +178,6 @@ function HubScreen({ userCount, myStatus, onGoTo, users, mySeat, myNickname, myN
         </div>
       </motion.div>
 
-      {/* ✨ 내 프로필 카드 (맨 위로!) */}
       <MyProfileCard
         nickname={myNickname}
         nicknameJa={myNicknameJa}
@@ -403,11 +397,6 @@ export default function App() {
   const [tab, setTab] = useState("hub");
   const [inMatchState, setInMatchState] = useState(false);
 
-  // 1. 기본 UUID + 닉네임 만들기 (좌석 없어도 생성됨)
-  // 2. session 훅으로 DB의 내 세션 확인 → 자동 복구
-  // 3. session이 있으면 mySeat도 자동 세팅됨
-
-  // 먼저 customer 정보 확보 (localStorage에 persist)
   const [myId] = useState(() => {
     let id = localStorage.getItem("honsul_customer_id");
     if (!id) {
@@ -417,21 +406,18 @@ export default function App() {
     return id;
   });
 
-  // 세션 훅
   const { session, loading: sessionLoading, createSession, justSettled, seatMoveNotice, dismissSeatMove } = useSession({
     myId,
-    myNickname: null, // 나중에 presence에서 업데이트
+    myNickname: null,
     myAvatar: null,
   });
 
-  // 정산 완료된 세션의 주문 기록 (ThankYou 화면에 표시용)
   const [settledOrders, setSettledOrders] = useState([]);
   useEffect(() => {
     if (!justSettled?.id) {
       setSettledOrders([]);
       return;
     }
-    // 정산된 세션의 주문 조회
     import("./lib/supabaseClient").then(({ supabase }) => {
       supabase
         .from("orders")
@@ -446,10 +432,8 @@ export default function App() {
 
   const mySeat = session?.seat_label || null;
 
-  // 주문 훅
   const { orders, totalAmount, createOrder } = useOrders(session?.id, mySeat);
 
-  // 매장 ID + 매장 정보 + 메뉴 데이터
   const storeId = useStoreId();
   const { store } = useStore();
   const { categories: menuCategories, menus: menuItems, loading: menusLoading } = useMenus(storeId);
@@ -468,7 +452,6 @@ export default function App() {
 
   const mm = useMatchmaking({ myId, myNickname, myAvatar, mySeat });
 
-  // 매치 시작/종료 시 presence inMatch 플래그 갱신
   useEffect(() => {
     setInMatchState(!!mm.match);
   }, [mm.match]);
@@ -482,12 +465,16 @@ export default function App() {
     if (s === "open") completeQuest("q6");
   }, [setMyStatus, completeQuest]);
 
-  // 좌석 선택 → 세션 생성
+  // 🆕 좌석 선택 → 세션 생성 (중복 체크 포함)
   const handleSeatSelect = useCallback(async (seatLabel) => {
-    await createSession(seatLabel);
+    const result = await createSession(seatLabel);
+    if (!result.ok) {
+      alert(result.message);
+      return false;
+    }
+    return true;
   }, [createSession]);
 
-  // 🔗 URL ?seat=A-3 으로 들어오면 자동 입장
   const [searchParams, setSearchParams] = useSearchParams();
   const [autoSeatTried, setAutoSeatTried] = useState(false);
 
@@ -497,25 +484,20 @@ export default function App() {
     const seatFromUrl = searchParams.get("seat");
     if (!seatFromUrl) return;
 
-    // 이미 시도했음 표시 (무한 시도 방지)
     setAutoSeatTried(true);
 
-    // 좌석 형식 검증 (A-1, B-20, 한글-3 등 어떤 형식이든 허용)
     const valid = /^[A-Za-z가-힣]+-\d{1,3}$/.test(seatFromUrl);
     if (!valid) {
-      // 잘못된 좌석 → URL에서 제거
       setSearchParams({});
       return;
     }
 
-    // 자동 입장 시도
+    // 자동 입장 시도 (실패하면 좌석 선택 화면이 자동으로 나옴)
     handleSeatSelect(seatFromUrl).then(() => {
-      // 입장 후 URL에서 ?seat 제거 (재입장 방지)
       setSearchParams({});
     });
   }, [sessionLoading, session, autoSeatTried, searchParams, setSearchParams, handleSeatSelect]);
 
-  // 세션 로딩 중 (재접속 복구 체크)
   if (sessionLoading) {
     return (
       <div style={{
@@ -533,7 +515,6 @@ export default function App() {
     );
   }
 
-  // 정산 완료 → ThankYouScreen 표시 (세션 없어질 때까지 유지)
   if (justSettled) {
     const settledTotal = settledOrders.reduce((sum, o) => sum + (o.price || 0), 0);
     return (
@@ -587,16 +568,14 @@ export default function App() {
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.2}
               onDragEnd={(e, info) => {
-                const swipeThreshold = 80; // 최소 스와이프 거리(px)
+                const swipeThreshold = 80;
                 const tabOrder = ["hub", "menu", "question", "game", "quest"];
                 const currentIdx = tabOrder.indexOf(tab);
                 if (currentIdx === -1) return;
 
-                // 왼쪽으로 스와이프 → 다음 탭
                 if (info.offset.x < -swipeThreshold && currentIdx < tabOrder.length - 1) {
                   setTab(tabOrder[currentIdx + 1]);
                 }
-                // 오른쪽으로 스와이프 → 이전 탭
                 else if (info.offset.x > swipeThreshold && currentIdx > 0) {
                   setTab(tabOrder[currentIdx - 1]);
                 }
@@ -642,7 +621,6 @@ export default function App() {
       {!inMatch && <SOSFAB onClick={() => setSosOpen(true)} />}
       <SOSModal open={sosOpen} onClose={() => setSosOpen(false)} seatLabel={mySeat} />
 
-      {/* 좌석 이동 알림 토스트 (손님용) */}
       <AnimatePresence>
         {seatMoveNotice && (
           <motion.div
