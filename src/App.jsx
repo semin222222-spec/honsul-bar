@@ -393,6 +393,117 @@ function SOSFAB({ onClick }) {
   );
 }
 
+// 🆕 복구 모달 컴포넌트
+function RecoveryModal({ prompt, onRecover, onCancel }) {
+  if (!prompt) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.7)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        zIndex: 2000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px",
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        transition={{ type: "spring", damping: 22, stiffness: 280 }}
+        style={{
+          background: "linear-gradient(135deg, rgba(40,30,20,0.98), rgba(20,15,10,0.98))",
+          border: "1px solid rgba(212,165,55,0.3)",
+          borderRadius: 16,
+          padding: "24px 20px",
+          maxWidth: 360,
+          width: "100%",
+          color: "#F5E6C8",
+          fontFamily: "'Pretendard', -apple-system, sans-serif",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+        }}
+      >
+        <div style={{ textAlign: "center", marginBottom: 18 }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>🔄</div>
+          <div style={{
+            fontSize: 17,
+            fontWeight: 600,
+            color: "#D4A537",
+            fontFamily: "'Noto Serif KR', serif",
+            marginBottom: 6,
+          }}>
+            혹시 이전에 사용하던 자리세요?
+          </div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
+            <strong style={{ color: "#D4A537" }}>{prompt.seatLabel}</strong> 자리에<br />
+            {prompt.existingSession.minutesSinceActive}분 전 활동이 끊긴 세션이 있어요.
+          </div>
+        </div>
+
+        <div style={{
+          background: "rgba(212,165,55,0.08)",
+          border: "1px solid rgba(212,165,55,0.15)",
+          borderRadius: 10,
+          padding: "10px 14px",
+          marginBottom: 18,
+          fontSize: 12,
+          color: "rgba(255,255,255,0.6)",
+          lineHeight: 1.5,
+        }}>
+          💡 사파리를 완전히 나갔다 다시 들어오신 경우<br />
+          본인이라면 <strong style={{ color: "#D4A537" }}>"네, 재입장"</strong>을 눌러주세요.<br />
+          본인이 아니라면 사장님께 문의해주세요.
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button
+            onClick={onRecover}
+            style={{
+              background: "linear-gradient(135deg, #D4A537, #B8902F)",
+              color: "#0D0B08",
+              border: "none",
+              borderRadius: 12,
+              padding: "14px",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+              minHeight: 48,
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            네, 재입장 할게요
+          </button>
+          <button
+            onClick={onCancel}
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              color: "rgba(255,255,255,0.6)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 12,
+              padding: "12px",
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              minHeight: 44,
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            아니요, 다른 자리 선택
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function App() {
   const [tab, setTab] = useState("hub");
   const [inMatchState, setInMatchState] = useState(false);
@@ -406,11 +517,15 @@ export default function App() {
     return id;
   });
 
-  const { session, loading: sessionLoading, createSession, justSettled, seatMoveNotice, dismissSeatMove } = useSession({
+  // 🆕 takeoverSession 추가로 받음
+  const { session, loading: sessionLoading, createSession, takeoverSession, justSettled, seatMoveNotice, dismissSeatMove } = useSession({
     myId,
     myNickname: null,
     myAvatar: null,
   });
+
+  // 🆕 복구 모달 상태
+  const [recoveryPrompt, setRecoveryPrompt] = useState(null);
 
   const [settledOrders, setSettledOrders] = useState([]);
   useEffect(() => {
@@ -465,15 +580,41 @@ export default function App() {
     if (s === "open") completeQuest("q6");
   }, [setMyStatus, completeQuest]);
 
-  // 🆕 좌석 선택 → 세션 생성 (중복 체크 포함)
+  // 🆕 좌석 선택 → 세션 생성 (복구 모드 포함)
   const handleSeatSelect = useCallback(async (seatLabel) => {
     const result = await createSession(seatLabel);
     if (!result.ok) {
+      // 🆕 복구 가능한 경우 → 모달로 사용자에게 물어보기
+      if (result.recoverable && result.existingSession) {
+        setRecoveryPrompt({
+          seatLabel,
+          existingSession: result.existingSession,
+        });
+        return false;
+      }
       alert(result.message);
       return false;
     }
     return true;
   }, [createSession]);
+
+  // 🆕 복구 모달에서 "재입장" 선택 시
+  const handleRecoverSession = useCallback(async () => {
+    if (!recoveryPrompt) return;
+    const result = await takeoverSession(
+      recoveryPrompt.existingSession.id,
+      recoveryPrompt.seatLabel
+    );
+    setRecoveryPrompt(null);
+    if (!result.ok) {
+      alert(result.message || "재입장에 실패했어요. 사장님께 문의해주세요.");
+    }
+  }, [recoveryPrompt, takeoverSession]);
+
+  // 🆕 복구 모달 취소
+  const handleCancelRecovery = useCallback(() => {
+    setRecoveryPrompt(null);
+  }, []);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [autoSeatTried, setAutoSeatTried] = useState(false);
@@ -527,7 +668,23 @@ export default function App() {
     );
   }
 
-  if (!mySeat) return <SeatPicker onSelect={handleSeatSelect} />;
+  // 🆕 좌석 선택 화면 + 복구 모달
+  if (!mySeat) {
+    return (
+      <>
+        <SeatPicker onSelect={handleSeatSelect} />
+        <AnimatePresence>
+          {recoveryPrompt && (
+            <RecoveryModal
+              prompt={recoveryPrompt}
+              onRecover={handleRecoverSession}
+              onCancel={handleCancelRecovery}
+            />
+          )}
+        </AnimatePresence>
+      </>
+    );
+  }
 
   const inMatch = !!mm.match;
 
@@ -659,6 +816,17 @@ export default function App() {
               </div>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 🆕 복구 모달 (메인 화면에서도 띄울 수 있게) */}
+      <AnimatePresence>
+        {recoveryPrompt && (
+          <RecoveryModal
+            prompt={recoveryPrompt}
+            onRecover={handleRecoverSession}
+            onCancel={handleCancelRecovery}
+          />
         )}
       </AnimatePresence>
 

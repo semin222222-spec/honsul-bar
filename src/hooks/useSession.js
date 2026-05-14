@@ -2,20 +2,26 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 /**
- * useSession - 🚨 버그 수정 최종본 (v2)
+ * useSession - 🚨 버그 수정 + 복구 모드 (v3)
  *
  * [해결한 버그]
  * - 같은 좌석 재입장 안 됨
  * - 다른 좌석으로 주문 들어감 (b-3 → a-3)
  * - 같은 customer_id로 여러 세션 중복 생성
+ * - 사파리 사설모드 등 localStorage 날아간 케이스 → 복구 모드 제공
  *
  * [핵심 수정]
  * 1. URL 좌석과 저장된 세션 좌석이 다르면 → localStorage 무시
  * 2. URL에 좌석 있으면 그 좌석으로만 세션 검색
- * 3. 좌석 이동 시 옛 세션 자동 close (race condition 방지 강화)
- * 4. 정산 시 localStorage 확실히 정리 (이중 안전장치)
- * 5. customer_id로 다른 좌석의 잔여 세션 자동 정리
+ * 3. 좌석 이동 시 옛 세션 자동 close
+ * 4. 정산 시 localStorage 확실히 정리
+ * 5. 좌석에 옛 세션 있고 활동 끊긴 지 오래된 경우 → 복구 가능 신호
+ * 6. takeoverSession 함수 추가 - 손님이 직접 옛 세션 정리
  */
+
+// 활동 끊긴 지 이 시간 이상이면 "버려진 세션"으로 간주 (복구 가능)
+const STALE_SESSION_MINUTES = 10;
+
 export function useSession({ myId, myNickname, myAvatar }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +46,7 @@ export function useSession({ myId, myNickname, myAvatar }) {
     return params.get("seat");
   };
 
-  // ───── 🛡️ 안전장치: 내 customer_id로 열린 모든 세션 중 현재 좌석 외 정리 ─────
+  // ───── 내 customer_id로 열린 모든 세션 중 현재 좌석 외 정리 ─────
   const cleanupStaleSessions = useCallback(async (customerId, currentSeatLabel) => {
     if (!customerId) return;
     const { data: openSessions } = await supabase
@@ -84,16 +90,13 @@ export function useSession({ myId, myNickname, myAvatar }) {
           .maybeSingle();
 
         if (!error && data) {
-          // 🚨 URL 좌석과 저장된 세션 좌석이 다르면 localStorage 무효화
           if (seatFromUrl && seatFromUrl !== data.seat_label) {
             console.log(
               `[Session] URL(${seatFromUrl}) ≠ 저장(${data.seat_label}) → localStorage 폐기`
             );
             localStorage.removeItem("honsul_session_id");
-            // ❗ 잔여 세션도 정리 (이게 다른 좌석으로 주문 가는 버그 막음)
             await cleanupStaleSessions(myId, seatFromUrl);
           } else {
-            // 정상 복구
             await touchSession(data.id);
             lastSeatRef.current = data.seat_label;
             setSession(data);
@@ -101,14 +104,12 @@ export function useSession({ myId, myNickname, myAvatar }) {
             return;
           }
         } else {
-          // 세션이 closed됐거나 없음
           localStorage.removeItem("honsul_session_id");
         }
       }
 
       // 2. customer_id로 복구
       if (!seatFromUrl) {
-        // URL에 좌석 없음 → 최근 열린 세션 복구 OK
         const { data: byCustomer } = await supabase
           .from("sessions")
           .select("*")
@@ -125,7 +126,6 @@ export function useSession({ myId, myNickname, myAvatar }) {
           setSession(byCustomer);
         }
       } else {
-        // URL에 좌석 명시됨 → 그 좌석에 내 세션 있는지만 확인
         const { data: bySeatAndCustomer } = await supabase
           .from("sessions")
           .select("*")
@@ -137,15 +137,12 @@ export function useSession({ myId, myNickname, myAvatar }) {
           .maybeSingle();
 
         if (bySeatAndCustomer) {
-          // 같은 좌석에 내 세션 있음 → 복구
           localStorage.setItem("honsul_session_id", bySeatAndCustomer.id);
           await touchSession(bySeatAndCustomer.id);
           lastSeatRef.current = bySeatAndCustomer.seat_label;
           setSession(bySeatAndCustomer);
-          // 다른 좌석에 잔여 세션 있으면 정리
           await cleanupStaleSessions(myId, seatFromUrl);
         } else {
-          // 해당 좌석에 내 세션 없음 → 다른 좌석 잔여 세션 정리
           await cleanupStaleSessions(myId, seatFromUrl);
         }
       }
@@ -173,7 +170,6 @@ export function useSession({ myId, myNickname, myAvatar }) {
         (payload) => {
           const updated = payload.new;
           if (updated.status === "closed") {
-            // 🚨 정산됨 → localStorage 확실히 삭제 (이중 안전장치)
             localStorage.removeItem("honsul_session_id");
             lastSeatRef.current = null;
             setJustSettled(updated);
@@ -208,6 +204,47 @@ export function useSession({ myId, myNickname, myAvatar }) {
     return () => clearInterval(interval);
   }, [session?.id, touchSession]);
 
+  // ───── 🆕 takeoverSession: 손님이 직접 옛 세션 인수 ─────
+  // (사파리 사설모드 등으로 localStorage 날아간 경우에 사용)
+  const takeoverSession = useCallback(
+    async (oldSessionId, seatLabel) => {
+      if (!myId || !oldSessionId || !seatLabel) {
+        return { ok: false, reason: "invalid" };
+      }
+
+      // 옛 세션의 customer_id를 내 ID로 변경 (인수)
+      // nickname/avatar는 그대로 유지 (주문 기록 보존)
+      const { data, error } = await supabase
+        .from("sessions")
+        .update({
+          customer_id: myId,
+          last_active_at: new Date().toISOString(),
+        })
+        .eq("id", oldSessionId)
+        .eq("seat_label", seatLabel) // 안전장치: 좌석 일치 확인
+        .eq("status", "open")
+        .select()
+        .single();
+
+      if (error || !data) {
+        console.error("세션 인수 실패:", error);
+        return { ok: false, reason: "takeover_failed", message: "재입장에 실패했어요. 다시 시도해주세요." };
+      }
+
+      // localStorage 저장 + 내 세션으로 set
+      localStorage.setItem("honsul_session_id", data.id);
+      lastSeatRef.current = data.seat_label;
+      setSession(data);
+
+      // 혹시 내 다른 좌석 세션 잔여물 정리
+      await cleanupStaleSessions(myId, seatLabel);
+
+      console.log(`[Session] 세션 인수 완료: ${seatLabel} (${oldSessionId})`);
+      return { ok: true, session: data, recovered: true };
+    },
+    [myId, cleanupStaleSessions]
+  );
+
   // ───── 새 세션 만들기 ─────
   const createSession = useCallback(
     async (seatLabel) => {
@@ -228,28 +265,47 @@ export function useSession({ myId, myNickname, myAvatar }) {
         return { ok: false, reason: "error", message: "좌석 확인 중 오류가 발생했어요" };
       }
 
-      // 2. 이미 있다면 - 같은 사람인지 확인
+      // 2. 이미 있다면
       if (existingSession) {
         if (existingSession.customer_id === myId) {
           // 같은 사람 → 기존 세션 재사용
           localStorage.setItem("honsul_session_id", existingSession.id);
           lastSeatRef.current = existingSession.seat_label;
           setSession(existingSession);
-          // 🛡️ 다른 좌석 잔여 세션도 정리
           await cleanupStaleSessions(myId, seatLabel);
           return { ok: true, session: existingSession, reused: true };
         } else {
-          // 다른 사람이 사용 중
+          // 🆕 다른 사람으로 보이지만... 사파리 사설모드 등으로 ID가 바뀐 본인일 수 있음
+          // 마지막 활동 시간 체크
+          const lastActive = existingSession.last_active_at
+            ? new Date(existingSession.last_active_at)
+            : new Date(existingSession.opened_at);
+          const minutesSinceActive = (Date.now() - lastActive.getTime()) / 1000 / 60;
+
+          // 🚨 핵심: 활동이 오래 끊긴 세션 → 복구 가능 후보
+          const isStale = minutesSinceActive >= STALE_SESSION_MINUTES;
+
           return {
             ok: false,
             reason: "seat_occupied",
-            message: `'${seatLabel}' 자리는 이미 사용 중이에요.\n다른 자리를 선택하거나 사장님께 문의해주세요.`,
+            // 🆕 복구 정보 같이 전달
+            recoverable: isStale,
+            existingSession: isStale ? {
+              id: existingSession.id,
+              seat_label: existingSession.seat_label,
+              nickname: existingSession.nickname,
+              opened_at: existingSession.opened_at,
+              last_active_at: existingSession.last_active_at,
+              minutesSinceActive: Math.floor(minutesSinceActive),
+            } : null,
+            message: isStale
+              ? `'${seatLabel}' 자리에 ${Math.floor(minutesSinceActive)}분 전 활동이 끊긴 세션이 있어요.`
+              : `'${seatLabel}' 자리는 이미 사용 중이에요.\n다른 자리를 선택하거나 사장님께 문의해주세요.`,
           };
         }
       }
 
-      // 3. 🛡️ 내가 다른 좌석에 열린 세션 모두 close (race condition 방지)
-      // 단일 maybeSingle 대신 .in 으로 일괄 처리 (다중 잔여 세션 케이스 대응)
+      // 3. 내가 다른 좌석에 열린 세션 모두 close
       const { data: myOldSessions } = await supabase
         .from("sessions")
         .select("id, seat_label")
@@ -268,7 +324,6 @@ export function useSession({ myId, myNickname, myAvatar }) {
           `[Session] 기존 세션 ${myOldSessions.length}개 종료 → ${seatLabel}로 이동`,
           myOldSessions.map((s) => s.seat_label)
         );
-        // 🛡️ localStorage도 정리 (옛 세션 id가 남아있을 수 있음)
         localStorage.removeItem("honsul_session_id");
       }
 
@@ -309,9 +364,9 @@ export function useSession({ myId, myNickname, myAvatar }) {
     session,
     loading,
     createSession,
+    takeoverSession, // 🆕 복구 함수 추가
     justSettled,
     dismissThankYou: () => {
-      // 🛡️ 정산 안내 닫을 때 localStorage 한 번 더 확인
       localStorage.removeItem("honsul_session_id");
       setJustSettled(null);
     },
