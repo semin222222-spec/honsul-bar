@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Move, Wallet, Trash2, Plus, Users, Edit3, Save, RotateCcw } from "lucide-react";
+import { X, Move, Wallet, Trash2, Plus, Users, Edit3, Save, RotateCcw, AlertTriangle } from "lucide-react";
 import { useSeatRows } from "../hooks/useSeatRows";
 import { useStoreId } from "../lib/StoreContext";
+import { supabase } from "../lib/supabaseClient";
 import ManualOrderModal from "./ManualOrderModal";
 import FloorPlan, { saveLayoutToDB, resetLayoutInDB } from "./FloorPlan";
 
@@ -16,13 +17,24 @@ function elapsedMin(iso) {
 }
 
 // ───── 디테일 팝업 ─────
-function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSettle, onMove, onMerge, onEmpty, onManualOrder }) {
+function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSettle, onMove, onMerge, onEmpty, onManualOrder, onCancelOrder }) {
+  // 🆕 어떤 주문을 취소할지
+  const [cancelingOrderId, setCancelingOrderId] = useState(null);
+
   if (!session) return null;
   const inactiveMin = session.last_active_at
     ? Math.floor((Date.now() - new Date(session.last_active_at).getTime()) / 60000)
     : 0;
 
   const isMerged = session.nickname && (session.nickname.includes("+") || session.nickname.includes("외"));
+
+  const cancelingOrder = sessionOrders.find(o => o.id === cancelingOrderId);
+
+  const handleConfirmCancel = async () => {
+    if (!cancelingOrderId) return;
+    await onCancelOrder(cancelingOrderId);
+    setCancelingOrderId(null);
+  };
 
   return (
     <motion.div
@@ -115,48 +127,77 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
           </div>
         )}
 
+        {/* 🆕 주문 리스트 (각 주문 옆에 X 버튼 추가) */}
         {sessionOrders.length > 0 && (
           <div style={{
             background: "rgba(0,0,0,0.3)",
             borderRadius: 10,
             padding: 12,
             marginBottom: 14,
-            maxHeight: 160,
+            maxHeight: 200,
             overflowY: "auto",
           }}>
             {sessionOrders.map((o, i) => (
               <div key={o.id} style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "5px 0",
+                padding: "6px 0",
                 fontSize: 12, color: "rgba(255,255,255,0.7)",
                 borderTop: i > 0 ? "1px dashed rgba(255,255,255,0.05)" : "none",
+                gap: 6,
               }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 0 }}>
                   <span>{o.menu_icon}</span>
-                  <span>{o.menu_name}</span>
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {o.menu_name}
+                  </span>
                   {o.option_name && (
                     <span style={{
                       fontSize: 8, padding: "1px 4px", borderRadius: 3,
                       background: "rgba(212,165,55,0.1)", color: "rgba(212,165,55,0.8)",
+                      whiteSpace: "nowrap", flexShrink: 0,
                     }}>{o.option_name}</span>
                   )}
                   {o.is_manual && (
                     <span style={{
                       fontSize: 8, padding: "1px 5px", borderRadius: 3,
                       background: "rgba(196,122,255,0.15)", color: "#C47AFF",
-                      fontWeight: 600,
+                      fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0,
                     }}>사장님</span>
                   )}
                   {o.status === "served" && (
                     <span style={{
                       fontSize: 8, padding: "1px 5px", borderRadius: 4,
                       background: "rgba(106,176,106,0.15)", color: "#6AB06A",
+                      whiteSpace: "nowrap", flexShrink: 0,
                     }}>✓</span>
                   )}
                 </span>
-                <span style={{ color: "rgba(212,165,55,0.7)" }}>
+                <span style={{
+                  color: "rgba(212,165,55,0.7)",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}>
                   {o.price.toLocaleString()}원
                 </span>
+                {/* 🆕 X 버튼 - 각 주문 옆 */}
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setCancelingOrderId(o.id)}
+                  style={{
+                    width: 22, height: 22,
+                    background: "rgba(226,75,74,0.08)",
+                    border: "1px solid rgba(226,75,74,0.25)",
+                    borderRadius: 6,
+                    color: "rgba(255,150,150,0.7)",
+                    cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "inherit", padding: 0,
+                    flexShrink: 0,
+                  }}
+                  title="주문 취소"
+                >
+                  <X size={11} />
+                </motion.button>
               </div>
             ))}
           </div>
@@ -238,6 +279,123 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
             <Wallet size={14} /> 정산 완료 ({sessionTotal.toLocaleString()}원)
           </motion.button>
         )}
+
+        {/* 🆕 개별 주문 취소 확인 모달 */}
+        <AnimatePresence>
+          {cancelingOrder && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={(e) => { if (e.target === e.currentTarget) setCancelingOrderId(null); }}
+              style={{
+                position: "fixed", inset: 0, zIndex: 250,
+                background: "rgba(0,0,0,0.8)", backdropFilter: "blur(10px)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: 20,
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                style={{
+                  width: "100%", maxWidth: 320,
+                  background: "rgba(20,18,14,0.98)",
+                  border: "1px solid rgba(226,75,74,0.4)",
+                  borderRadius: 16,
+                  padding: 22,
+                  textAlign: "center",
+                }}
+              >
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  gap: 6, marginBottom: 12,
+                  color: "rgba(255,150,150,0.95)",
+                }}>
+                  <AlertTriangle size={20} />
+                  <span style={{
+                    fontSize: 14, fontWeight: 700,
+                    fontFamily: "'Noto Serif KR', serif",
+                  }}>
+                    이 주문을 취소할까요?
+                  </span>
+                </div>
+
+                <div style={{
+                  padding: "10px 12px",
+                  background: "rgba(255,255,255,0.04)",
+                  borderRadius: 9,
+                  marginBottom: 14,
+                  display: "flex", alignItems: "center", gap: 8,
+                  fontSize: 13,
+                  color: "#F5E6C8",
+                }}>
+                  <span style={{ fontSize: 18 }}>{cancelingOrder.menu_icon}</span>
+                  <span style={{ flex: 1, textAlign: "left" }}>
+                    {cancelingOrder.menu_name}
+                    {cancelingOrder.option_name && (
+                      <span style={{
+                        fontSize: 9, padding: "1px 5px", marginLeft: 4,
+                        background: "rgba(212,165,55,0.15)", color: "#D4A537",
+                        borderRadius: 3,
+                      }}>{cancelingOrder.option_name}</span>
+                    )}
+                  </span>
+                  <span style={{
+                    color: "#D4A537",
+                    fontFamily: "'Noto Serif KR', serif",
+                  }}>
+                    {cancelingOrder.price.toLocaleString()}원
+                  </span>
+                </div>
+
+                {cancelingOrder.status === "served" && (
+                  <div style={{
+                    padding: "8px 10px",
+                    background: "rgba(226,75,74,0.08)",
+                    border: "1px solid rgba(226,75,74,0.2)",
+                    borderRadius: 8,
+                    marginBottom: 14,
+                    fontSize: 10,
+                    color: "rgba(255,180,180,0.85)",
+                    lineHeight: 1.5,
+                  }}>
+                    ⚠️ 이미 제공된 주문입니다. 재고 등을 확인해주세요.
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => setCancelingOrderId(null)}
+                    style={{
+                      flex: 1, padding: 11, borderRadius: 9,
+                      background: "rgba(255,255,255,0.05)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      color: "rgba(255,255,255,0.6)",
+                      fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    아니요
+                  </button>
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
+                    onClick={handleConfirmCancel}
+                    style={{
+                      flex: 1.3, padding: 11, borderRadius: 9,
+                      background: "linear-gradient(135deg, #E24B4A, #B03838)",
+                      border: "none", color: "#fff",
+                      fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    네, 취소
+                  </motion.button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );
@@ -415,9 +573,8 @@ export default function SeatMap({
   const [manualOrderSession, setManualOrderSession] = useState(null);
   const [toast, setToast] = useState(null);
 
-  // 🆕 편집 모드 상태
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editingLayouts, setEditingLayouts] = useState({}); // { rowName: layout }
+  const [editingLayouts, setEditingLayouts] = useState({});
   const [saving, setSaving] = useState(false);
 
   const storeId = useStoreId();
@@ -438,7 +595,7 @@ export default function SeatMap({
   });
 
   const handleSeatClick = (seat) => {
-    if (isEditMode) return; // 편집 모드에서는 클릭 무시
+    if (isEditMode) return;
 
     if (movingSession) {
       if (movingSession.seat_label === seat) return;
@@ -512,9 +669,38 @@ export default function SeatMap({
     onOrdersRefetch?.();
   };
 
-  // 🆕 편집 모드 진입
+  // 🆕 개별 주문 취소
+  const handleCancelOrder = async (orderId) => {
+    if (!orderId) return;
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .delete()
+        .eq("id", orderId);
+
+      if (error) {
+        console.error("주문 취소 실패:", error);
+        setToast("주문 취소에 실패했어요");
+      } else {
+        setToast("✓ 주문이 취소되었어요");
+        onOrdersRefetch?.();
+        // 선택된 세션 정보 업데이트를 위해 약간 지연 후 sessions에서 가져옴
+        setTimeout(() => {
+          if (selectedSession) {
+            const updated = sessions.find(s => s.id === selectedSession.id);
+            if (updated) setSelectedSession(updated);
+          }
+        }, 300);
+      }
+    } catch (err) {
+      console.error("주문 취소 예외:", err);
+      setToast("주문 취소 중 오류가 발생했어요");
+    }
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // 편집 모드
   const handleStartEdit = () => {
-    // 다른 모드들 취소
     setMovingSession(null);
     setMergingSession(null);
     setSelectedSession(null);
@@ -522,15 +708,12 @@ export default function SeatMap({
     setIsEditMode(true);
   };
 
-  // 🆕 편집 모드 저장
   const handleSaveLayout = async () => {
     setSaving(true);
     try {
       const promises = seatRows.map(async (row) => {
         const layout = editingLayouts[row.name];
-        if (layout) {
-          return saveLayoutToDB(row.id, layout);
-        }
+        if (layout) return saveLayoutToDB(row.id, layout);
         return Promise.resolve(true);
       });
       const results = await Promise.all(promises);
@@ -551,13 +734,11 @@ export default function SeatMap({
     setSaving(false);
   };
 
-  // 🆕 편집 모드 취소
   const handleCancelEdit = () => {
     setIsEditMode(false);
     setEditingLayouts({});
   };
 
-  // 🆕 기본값으로 리셋
   const handleResetLayout = async () => {
     if (!window.confirm("좌석 배치를 기본값으로 되돌릴까요?\n저장된 위치/크기가 모두 사라져요.")) return;
     setSaving(true);
@@ -576,14 +757,12 @@ export default function SeatMap({
     setSaving(false);
   };
 
-  // 편집 중 레이아웃 변경 콜백
   const handleLayoutChange = (rowName, newLayout) => {
     setEditingLayouts((prev) => ({ ...prev, [rowName]: newLayout }));
   };
 
   return (
     <div>
-      {/* 범례 */}
       {!isEditMode && (
         <div style={{
           display: "flex", gap: 12, flexWrap: "wrap",
@@ -601,7 +780,6 @@ export default function SeatMap({
         </div>
       )}
 
-      {/* 편집 모드 배너 */}
       <AnimatePresence>
         {isEditMode && (
           <motion.div
@@ -678,7 +856,6 @@ export default function SeatMap({
         )}
       </AnimatePresence>
 
-      {/* 이동 모드 배너 */}
       <AnimatePresence>
         {movingSession && !isEditMode && (
           <motion.div
@@ -710,7 +887,6 @@ export default function SeatMap({
         )}
       </AnimatePresence>
 
-      {/* 합석 모드 배너 */}
       <AnimatePresence>
         {mergingSession && !isEditMode && (
           <motion.div
@@ -742,7 +918,6 @@ export default function SeatMap({
         )}
       </AnimatePresence>
 
-      {/* 편집 시작 버튼 (일반 모드일 때만) */}
       {!isEditMode && !movingSession && !mergingSession && seatRows.length > 0 && (
         <button
           onClick={handleStartEdit}
@@ -760,7 +935,6 @@ export default function SeatMap({
         </button>
       )}
 
-      {/* 평면도들 */}
       {seatRows.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
           좌석이 설정되지 않았어요
@@ -782,7 +956,6 @@ export default function SeatMap({
         ))
       )}
 
-      {/* 디테일 팝업 */}
       <AnimatePresence>
         {selectedSession && (
           <SeatDetailPopup
@@ -793,13 +966,13 @@ export default function SeatMap({
             onMove={handleStartMove}
             onMerge={handleStartMerge}
             onManualOrder={handleStartManualOrder}
+            onCancelOrder={handleCancelOrder}
             onEmpty={() => { onClose(selectedSession.id); setSelectedSession(null); }}
             onSettle={() => { onSettle(selectedSession.id); setSelectedSession(null); }}
           />
         )}
       </AnimatePresence>
 
-      {/* 이동 확인 */}
       <AnimatePresence>
         {pendingMove && (
           <MoveConfirmModal
@@ -813,7 +986,6 @@ export default function SeatMap({
         )}
       </AnimatePresence>
 
-      {/* 합석 확인 */}
       <AnimatePresence>
         {pendingMerge && (
           <MergeConfirmModal
@@ -827,7 +999,6 @@ export default function SeatMap({
         )}
       </AnimatePresence>
 
-      {/* 수동 주문 */}
       <AnimatePresence>
         {manualOrderSession && (
           <ManualOrderModal
@@ -841,7 +1012,6 @@ export default function SeatMap({
         )}
       </AnimatePresence>
 
-      {/* 토스트 */}
       <AnimatePresence>
         {toast && (
           <motion.div
