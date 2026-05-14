@@ -1,19 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 /**
  * useSessionsAdmin
  * - 관리자: 활성 세션 목록 + 강제 해제 + 정산 + 자리이동 + 합석
  * - 오늘 매출 계산 (closed 세션의 주문 합산)
+ *
+ * 🆕 v2: realtime 갱신 시 setLoading(true) 안 함 → 화면 깜빡임 방지
  */
 export function useSessionsAdmin() {
   const [sessions, setSessions] = useState([]);
   const [todayRevenue, setTodayRevenue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const initialFetchedRef = useRef(false); // 🆕 첫 로딩 완료 여부
 
-  const fetchSessions = useCallback(async () => {
-    setLoading(true);
+  // 🆕 silent: true면 setLoading 호출 안 함 (백그라운드 갱신용)
+  const fetchSessions = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+
     const { data, error: err } = await supabase
       .from("sessions")
       .select("*")
@@ -26,7 +31,9 @@ export function useSessionsAdmin() {
       setError(null);
       setSessions(data || []);
     }
-    setLoading(false);
+
+    if (!silent) setLoading(false);
+    initialFetchedRef.current = true;
   }, []);
 
   // 오늘 매출 계산 — 정산 완료된 세션의 주문 합산
@@ -47,7 +54,8 @@ export function useSessionsAdmin() {
   }, []);
 
   useEffect(() => {
-    fetchSessions();
+    // 첫 로딩: 로딩 표시
+    fetchSessions(false);
     fetchTodayRevenue();
 
     const channel = supabase
@@ -60,7 +68,8 @@ export function useSessionsAdmin() {
           table: "sessions",
         },
         () => {
-          fetchSessions();
+          // 🆕 realtime 갱신: silent (로딩 표시 안 함)
+          fetchSessions(true);
           fetchTodayRevenue();
         }
       )
@@ -155,13 +164,12 @@ export function useSessionsAdmin() {
     return { ok: true };
   }, []);
 
-  // 🆕 합석 (fromSession을 toSeat의 세션에 합치기)
+  // 합석
   const mergeSession = useCallback(async (fromSessionId, toSeatLabel) => {
     if (!fromSessionId || !toSeatLabel) {
       return { ok: false, reason: "invalid" };
     }
 
-    // 1) from 세션 가져오기
     const { data: fromSession, error: fromErr } = await supabase
       .from("sessions")
       .select("*")
@@ -174,12 +182,10 @@ export function useSessionsAdmin() {
       return { ok: false, reason: "from_not_found" };
     }
 
-    // 같은 좌석으로 합석 시도하면 거부
     if (fromSession.seat_label === toSeatLabel) {
       return { ok: false, reason: "same_seat" };
     }
 
-    // 2) to 세션(대상 좌석) 가져오기
     const { data: toSession, error: toErr } = await supabase
       .from("sessions")
       .select("*")
@@ -192,18 +198,15 @@ export function useSessionsAdmin() {
       return { ok: false, reason: "to_not_found" };
     }
 
-    // 3) 닉네임 합치기 ("기존 + 새로운")
     const fromNickname = fromSession.nickname || "손님";
     const toNickname = toSession.nickname || "손님";
     let mergedNickname = `${toNickname} + ${fromNickname}`;
 
-    // 너무 길어지면 (이미 합석된 자리에 또 합석) "외 N명" 으로
     if (mergedNickname.length > 20) {
       const plusCount = (toNickname.match(/\+/g) || []).length;
       mergedNickname = `${toNickname.split(" + ")[0]} 외 ${plusCount + 1}명`;
     }
 
-    // 일본어 닉네임도 합치기 (있으면)
     let mergedNicknameJa = null;
     if (toSession.nickname_ja || fromSession.nickname_ja) {
       const fromJa = fromSession.nickname_ja || fromSession.nickname || "ゲスト";
@@ -215,7 +218,6 @@ export function useSessionsAdmin() {
       }
     }
 
-    // 4) from 세션의 모든 주문을 to 세션으로 이전
     const { error: ordersErr } = await supabase
       .from("orders")
       .update({
@@ -229,7 +231,6 @@ export function useSessionsAdmin() {
       return { ok: false, reason: "orders_transfer_failed" };
     }
 
-    // 5) to 세션 닉네임 업데이트 + 활동시간 갱신
     const updatePayload = {
       nickname: mergedNickname,
       last_active_at: new Date().toISOString(),
@@ -245,10 +246,8 @@ export function useSessionsAdmin() {
 
     if (updateErr) {
       console.error("대상 세션 업데이트 실패:", updateErr);
-      // 주문은 이미 이전된 상태라 롤백 어려움 - 일단 진행
     }
 
-    // 6) from 세션 close 처리
     const { error: closeErr } = await supabase
       .from("sessions")
       .update({
@@ -281,7 +280,7 @@ export function useSessionsAdmin() {
     closeSession,
     settleSession,
     moveSession,
-    mergeSession, // 🆕
-    refetch: fetchSessions,
+    mergeSession,
+    refetch: () => fetchSessions(false), // 수동 새로고침은 로딩 표시
   };
 }
