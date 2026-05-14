@@ -20,6 +20,7 @@ import MenuAdminPanel from "../components/MenuAdminPanel";
 import SeatRowsAdminPanel from "../components/SeatRowsAdminPanel";
 import SalesStatsPanel from "../components/SalesStatsPanel";
 import MonthlyHistoryPanel from "../components/MonthlyHistoryPanel";
+import InventoryAdminPanel from "../components/InventoryAdminPanel";
 import {
   enableSound, disableSound, isSoundEnabled,
   playOrderNotification, playSOSNotification,
@@ -318,7 +319,7 @@ export default function AdminPage() {
   const { storeSlug } = useStore();
   const { categories: menuCategories, menus: menuItems, loading: menusLoading, refetch: refetchMenus } = useMenus(storeId);
   const menuAdmin = useMenusAdmin(storeId, refetchMenus);
-  const menuOptions = useMenuOptions(storeId); // 🆕 옵션 관리
+  const menuOptions = useMenuOptions(storeId);
 
   // 좌석 행 관리
   const { rows: seatRows, loading: seatRowsLoading, refetch: refetchSeatRows } = useSeatRows(storeId);
@@ -851,6 +852,39 @@ export default function AdminPage() {
                     </motion.button>
 
                     <motion.button
+                      onClick={() => setManagePanel("inventory")}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        padding: 16,
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        borderRadius: 12,
+                        cursor: "pointer", fontFamily: "inherit",
+                        display: "flex", alignItems: "center", gap: 14,
+                        textAlign: "left",
+                      }}
+                    >
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 11,
+                        background: "rgba(212,165,55,0.1)",
+                        border: "1px solid rgba(212,165,55,0.2)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 20, flexShrink: 0,
+                      }}>
+                        📦
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: "#F5E6C8", fontWeight: 500, marginBottom: 3 }}>
+                          재고 관리
+                        </div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+                          술 · 리큐르 · 믹서 · 시럽 · 자동 차감 중
+                        </div>
+                      </div>
+                      <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
+                    </motion.button>
+
+                    <motion.button
                       onClick={() => setManagePanel("seatrows")}
                       whileTap={{ scale: 0.98 }}
                       style={{
@@ -1013,6 +1047,26 @@ export default function AdminPage() {
                     updateOption={menuOptions.updateOption}
                     deleteOption={menuOptions.deleteOption}
                   />
+                </div>
+              )}
+
+              {managePanel === "inventory" && (
+                <div>
+                  <button
+                    onClick={() => setManagePanel(null)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "6px 10px", marginBottom: 12,
+                      background: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: 8,
+                      color: "rgba(255,255,255,0.6)",
+                      fontSize: 11, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    ← 관리 메뉴로
+                  </button>
+                  <InventoryAdminPanel storeId={storeId} />
                 </div>
               )}
 
