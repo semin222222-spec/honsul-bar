@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Edit2, Trash2, X, ChevronUp, ChevronDown, Upload, Camera, GripVertical, Beaker } from "lucide-react";
 import { autoTranslateMenu, translateText } from "../lib/translateService";
 import { uploadMenuImage, deleteMenuImage } from "../lib/imageUpload";
-import { useMenuRecipes } from "../hooks/useMenuRecipes";
-import { useInventory } from "../hooks/useInventory";
+// 🚧 재고 관리 시스템 - 영업 안정화 후 활성화 예정
+// import { useMenuRecipes } from "../hooks/useMenuRecipes";
+// import { useInventory } from "../hooks/useInventory";
 import {
   DndContext,
   closestCenter,
@@ -229,246 +230,8 @@ function AddOptionForm({ onAdd }) {
   );
 }
 
-// ────── 🆕 레시피 항목 행 ──────
-function RecipeRow({ recipe, onUpdate, onDelete }) {
-  const [amount, setAmount] = useState(recipe.amount);
-  const [notes, setNotes] = useState(recipe.notes || "");
-  const [editing, setEditing] = useState(false);
-
-  const handleSave = async () => {
-    if (!amount || amount <= 0) return alert("용량은 0보다 커야 합니다");
-    const result = await onUpdate({
-      amount: Number(amount),
-      notes: notes.trim() || null,
-    });
-    if (result.success) {
-      setEditing(false);
-    } else {
-      alert(result.error || "수정 실패");
-    }
-  };
-
-  const ing = recipe.ingredient;
-  const inactiveIng = ing && ing.is_active === false;
-
-  if (editing) {
-    return (
-      <div style={{
-        padding: 10,
-        background: "rgba(212,165,55,0.05)",
-        border: "1px solid rgba(212,165,55,0.2)",
-        borderRadius: 8, marginBottom: 6,
-      }}>
-        <div style={{ fontSize: 11, color: "#F5E6C8", fontWeight: 500, marginBottom: 6 }}>
-          {ing?.name || "(삭제된 재료)"}
-        </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <div style={{ position: "relative", flex: 1 }}>
-            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min={1}
-              placeholder="용량"
-              style={{ ...inputStyle, padding: "6px 28px 6px 10px", fontSize: 11, width: "100%" }} />
-            <span style={{
-              position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
-              fontSize: 10, color: "rgba(255,255,255,0.4)", pointerEvents: "none",
-            }}>ml</span>
-          </div>
-          <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="메모 (예: 채우기)"
-            style={{ ...inputStyle, flex: 1.2, padding: "6px 10px", fontSize: 11 }} />
-          <button onClick={handleSave} style={{
-            padding: "6px 10px",
-            background: "linear-gradient(135deg, #D4A537, #B8860B)",
-            border: "none", borderRadius: 6,
-            color: "#0D0B08", fontSize: 11, fontWeight: 700,
-            cursor: "pointer", fontFamily: "inherit",
-          }}>✓</button>
-          <button onClick={() => { setAmount(recipe.amount); setNotes(recipe.notes || ""); setEditing(false); }} style={{
-            padding: "6px 8px",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 6,
-            color: "rgba(255,255,255,0.5)", fontSize: 11,
-            cursor: "pointer", fontFamily: "inherit",
-          }}>✕</button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{
-      display: "flex", gap: 8, alignItems: "center",
-      padding: "8px 10px",
-      background: inactiveIng ? "rgba(226,75,74,0.04)" : "rgba(255,255,255,0.02)",
-      border: "1px solid " + (inactiveIng ? "rgba(226,75,74,0.15)" : "rgba(255,255,255,0.04)"),
-      borderRadius: 8, marginBottom: 6,
-    }}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, color: inactiveIng ? "rgba(255,180,180,0.7)" : "#F5E6C8", fontWeight: 500 }}>
-          {ing?.name || "(삭제된 재료)"}
-          {inactiveIng && (
-            <span style={{
-              marginLeft: 6, padding: "1px 5px",
-              background: "rgba(226,75,74,0.15)", color: "rgba(255,180,180,0.85)",
-              borderRadius: 3, fontSize: 9, fontWeight: 600,
-            }}>비활성</span>
-          )}
-        </div>
-        {recipe.notes && (
-          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>
-            {recipe.notes}
-          </div>
-        )}
-      </div>
-      <span style={{ fontSize: 12, color: "#D4A537", fontFamily: "'Noto Serif KR', serif", flexShrink: 0 }}>
-        {recipe.amount}<span style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginLeft: 1 }}>ml</span>
-      </span>
-      <button onClick={() => setEditing(true)} style={{
-        padding: 4, background: "transparent", border: "none",
-        color: "rgba(255,255,255,0.4)", cursor: "pointer",
-      }}>
-        <Edit2 size={12} />
-      </button>
-      <button onClick={() => {
-        if (confirm(`"${ing?.name}"을(를) 레시피에서 제거하시겠어요?`)) onDelete();
-      }} style={{
-        padding: 4, background: "transparent", border: "none",
-        color: "rgba(255,180,180,0.7)", cursor: "pointer",
-      }}>
-        <Trash2 size={12} />
-      </button>
-    </div>
-  );
-}
-
-// ────── 🆕 레시피 추가 폼 ──────
-function AddRecipeForm({ ingredients, existingIngredientIds, onAdd }) {
-  const [ingredientId, setIngredientId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [notes, setNotes] = useState("");
-  const [adding, setAdding] = useState(false);
-
-  // 이미 추가된 재료 제외 + 활성만
-  const availableIngredients = ingredients.filter(
-    (i) => i.is_active !== false && !existingIngredientIds.includes(i.id)
-  );
-
-  const handleAdd = async () => {
-    if (!ingredientId) return alert("재료를 선택해주세요");
-    if (!amount || amount <= 0) return alert("용량을 입력해주세요");
-    setAdding(true);
-    const result = await onAdd(ingredientId, Number(amount), notes.trim() || null);
-    setAdding(false);
-    if (result.success) {
-      setIngredientId(""); setAmount(""); setNotes("");
-    } else {
-      alert(result.error || "추가 실패");
-    }
-  };
-
-  if (availableIngredients.length === 0) {
-    return (
-      <div style={{
-        padding: 10, textAlign: "center",
-        background: "rgba(255,255,255,0.02)",
-        border: "1px dashed rgba(255,255,255,0.06)",
-        borderRadius: 8, fontSize: 10, color: "rgba(255,255,255,0.4)",
-      }}>
-        추가할 수 있는 재료가 없어요 (모두 이미 추가됨)
-      </div>
-    );
-  }
-
-  return (
-    <div style={{
-      padding: 10,
-      background: "rgba(212,165,55,0.04)",
-      border: "1px dashed rgba(212,165,55,0.3)",
-      borderRadius: 8,
-    }}>
-      <div style={{ marginBottom: 6 }}>
-        <select value={ingredientId} onChange={(e) => setIngredientId(e.target.value)}
-          style={{ ...inputStyle, padding: "6px 10px", fontSize: 11, cursor: "pointer" }}>
-          <option value="" style={{ background: "#1A1612" }}>재료 선택...</option>
-          {availableIngredients.map((ing) => (
-            <option key={ing.id} value={ing.id} style={{ background: "#1A1612" }}>
-              {ing.name}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-        <div style={{ position: "relative", flex: 1 }}>
-          <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min={1}
-            placeholder="용량"
-            style={{ ...inputStyle, padding: "6px 28px 6px 10px", fontSize: 11, width: "100%" }} />
-          <span style={{
-            position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
-            fontSize: 10, color: "rgba(255,255,255,0.4)", pointerEvents: "none",
-          }}>ml</span>
-        </div>
-        <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="메모 (선택)"
-          style={{ ...inputStyle, flex: 1.2, padding: "6px 10px", fontSize: 11 }} />
-        <button onClick={handleAdd} disabled={adding} style={{
-          padding: "6px 10px",
-          background: adding ? "rgba(255,255,255,0.06)" : "linear-gradient(135deg, #D4A537, #B8860B)",
-          border: "none", borderRadius: 6,
-          color: adding ? "rgba(255,255,255,0.4)" : "#0D0B08",
-          fontSize: 11, fontWeight: 700,
-          cursor: adding ? "default" : "pointer", fontFamily: "inherit",
-        }}>{adding ? "..." : "+"}</button>
-      </div>
-      <div style={{ fontSize: 9, color: "rgba(212,165,55,0.6)", marginTop: 6, lineHeight: 1.5 }}>
-        💡 메모 예시: "채우기" (~120ml), "드랍" (~5ml)
-      </div>
-    </div>
-  );
-}
-
-// ────── 🆕 레시피 섹션 (메뉴 모달 안) ──────
-function RecipeSection({ menuId, storeId }) {
-  const { recipes, loading, addRecipe, updateRecipe, deleteRecipe } = useMenuRecipes(menuId);
-  const { ingredients } = useInventory(storeId);
-
-  const existingIngredientIds = recipes.map((r) => r.ingredient_id);
-
-  return (
-    <div style={{
-      padding: 10,
-      background: "rgba(255,255,255,0.02)",
-      border: "1px solid rgba(255,255,255,0.05)",
-      borderRadius: 9,
-    }}>
-      {loading ? (
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", textAlign: "center", padding: 8 }}>
-          레시피 불러오는 중...
-        </div>
-      ) : recipes.length === 0 ? (
-        <div style={{
-          fontSize: 10, color: "rgba(255,255,255,0.4)",
-          textAlign: "center", padding: "8px 0", marginBottom: 8,
-        }}>
-          아직 레시피가 없어요. 재료를 추가해보세요.
-        </div>
-      ) : (
-        <div style={{ marginBottom: 8 }}>
-          {recipes.map((r) => (
-            <RecipeRow
-              key={r.id}
-              recipe={r}
-              onUpdate={(payload) => updateRecipe(r.id, payload)}
-              onDelete={() => deleteRecipe(r.id)}
-            />
-          ))}
-        </div>
-      )}
-      <AddRecipeForm
-        ingredients={ingredients}
-        existingIngredientIds={existingIngredientIds}
-        onAdd={addRecipe}
-      />
-    </div>
-  );
-}
+// 🚧 레시피 관련 컴포넌트들은 재고 관리 시스템 완성 후 활성화 예정
+// (RecipeRow, AddRecipeForm, RecipeSection은 useMenuRecipes/useInventory가 필요해서 임시 제거)
 
 // ────── 메뉴 모달 ──────
 function MenuModal({ 
@@ -709,8 +472,8 @@ function MenuModal({
           </div>
         )}
 
-        {/* 🆕 레시피 섹션 (기존 메뉴 수정 시만 표시) */}
-        {menu && (
+        {/* 🚧 레시피 섹션은 재고 관리 시스템 완성 후 활성화 예정 */}
+        {/* {menu && (
           <div style={{ marginBottom: 12 }}>
             <label style={{ ...labelStyle, display: "flex", alignItems: "center", gap: 5 }}>
               <Beaker size={11} />
@@ -721,7 +484,7 @@ function MenuModal({
               💡 레시피를 등록하면 손님 주문 시 재료가 자동으로 차감돼요
             </div>
           </div>
-        )}
+        )} */}
 
         {!menu && (
           <div style={{
@@ -731,7 +494,7 @@ function MenuModal({
             borderRadius: 9,
             fontSize: 10, color: "rgba(212,165,55,0.7)", textAlign: "center",
           }}>
-            💡 메뉴 저장 후 옵션(잔/바틀 등)과 레시피를 추가할 수 있어요
+            💡 메뉴 저장 후 옵션(잔/바틀 등)을 추가할 수 있어요
           </div>
         )}
 
