@@ -1,14 +1,28 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Droplets, Shuffle, ShoppingBag, Check, Wifi, Copy } from "lucide-react";
+import { X, Sparkles, Droplets, Shuffle, ShoppingBag, Check, Wifi, Copy, Plus, Minus } from "lucide-react";
 import { enableSound, playOrderSuccess } from "../lib/sounds";
 
-// ────── 메뉴 상세 + 옵션 선택 모달 ──────
-function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, justOrdered }) {
+// ────── 메뉴 상세 + 옵션 선택 + 🆕 수량 선택 모달 ──────
+function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering }) {
   const hasOptions = options && options.length > 0;
   const [selectedOption, setSelectedOption] = useState(hasOptions ? options[0] : null);
+  const [quantity, setQuantity] = useState(1); // 🆕 수량 상태
 
-  const displayPrice = selectedOption ? selectedOption.price : drink.priceNum;
+  const unitPrice = selectedOption ? selectedOption.price : drink.priceNum;
+  const totalPrice = unitPrice * quantity;
+
+  // 옵션 변경 시 수량 초기화 (선택)
+  // setQuantity(1)은 호출 안 함 - 옵션만 바꿀 수도 있으니까
+
+  const handleQuantityChange = (delta) => {
+    setQuantity((q) => Math.max(1, Math.min(10, q + delta)));
+  };
+
+  const handleSubmit = () => {
+    if (ordering) return;
+    onOrder(drink, selectedOption, quantity);
+  };
 
   return (
     <motion.div
@@ -19,7 +33,7 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "20px",
       }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget && !ordering) onClose(); }}
     >
       <motion.div
         initial={{ y: 40, opacity: 0, scale: 0.95 }}
@@ -40,14 +54,16 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
           overflowY: "auto",
         }}
       >
-        <button onClick={onClose} style={{
+        <button onClick={onClose} disabled={ordering} style={{
           position: "absolute", top: 16, right: 16,
           background: "rgba(0,0,0,0.5)",
           backdropFilter: "blur(8px)",
           border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10,
           width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", color: "rgba(255,255,255,0.7)",
+          cursor: ordering ? "not-allowed" : "pointer",
+          color: "rgba(255,255,255,0.7)",
           zIndex: 10,
+          opacity: ordering ? 0.5 : 1,
         }}>
           <X size={14} />
         </button>
@@ -128,15 +144,17 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
                     <button
                       key={opt.id}
                       onClick={() => setSelectedOption(opt)}
+                      disabled={ordering}
                       style={{
                         display: "flex", alignItems: "center", gap: 10,
                         padding: "12px 14px",
                         background: isSelected ? hexToRgba(lineColor, 0.12) : "rgba(255,255,255,0.03)",
                         border: "1px solid " + (isSelected ? lineColor + "60" : "rgba(255,255,255,0.06)"),
                         borderRadius: 10,
-                        cursor: "pointer", fontFamily: "inherit",
+                        cursor: ordering ? "not-allowed" : "pointer", fontFamily: "inherit",
                         transition: "all 0.2s",
                         textAlign: "left",
+                        opacity: ordering ? 0.5 : 1,
                       }}
                     >
                       <div style={{
@@ -174,6 +192,81 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
             </div>
           )}
 
+          {/* 🆕 수량 선택 */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{
+              fontSize: 11, color: "rgba(212,165,55,0.7)",
+              letterSpacing: "0.15em", marginBottom: 10,
+              textAlign: "left",
+            }}>
+              수량
+            </div>
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              gap: 16, padding: 8,
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.05)",
+              borderRadius: 10,
+            }}>
+              <motion.button
+                whileTap={!ordering && quantity > 1 ? { scale: 0.9 } : {}}
+                onClick={() => handleQuantityChange(-1)}
+                disabled={ordering || quantity <= 1}
+                style={{
+                  width: 40, height: 40,
+                  borderRadius: 8,
+                  background: hexToRgba(lineColor, 0.15),
+                  border: "1px solid " + hexToRgba(lineColor, 0.3),
+                  color: lineColor,
+                  cursor: (ordering || quantity <= 1) ? "not-allowed" : "pointer",
+                  opacity: (quantity <= 1 || ordering) ? 0.4 : 1,
+                  fontFamily: "inherit",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <Minus size={16} />
+              </motion.button>
+              <motion.span
+                key={quantity}
+                initial={{ scale: 0.7, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                style={{
+                  fontSize: 22, fontWeight: 600, color: "#F5E6C8",
+                  minWidth: 50, textAlign: "center",
+                  fontFamily: "'Noto Serif KR', serif",
+                }}
+              >
+                {quantity}
+              </motion.span>
+              <motion.button
+                whileTap={!ordering && quantity < 10 ? { scale: 0.9 } : {}}
+                onClick={() => handleQuantityChange(1)}
+                disabled={ordering || quantity >= 10}
+                style={{
+                  width: 40, height: 40,
+                  borderRadius: 8,
+                  background: hexToRgba(lineColor, 0.15),
+                  border: "1px solid " + hexToRgba(lineColor, 0.3),
+                  color: lineColor,
+                  cursor: (ordering || quantity >= 10) ? "not-allowed" : "pointer",
+                  opacity: (quantity >= 10 || ordering) ? 0.4 : 1,
+                  fontFamily: "inherit",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <Plus size={16} />
+              </motion.button>
+            </div>
+            {quantity >= 10 && (
+              <div style={{ fontSize: 9, color: "rgba(255,180,180,0.7)", marginTop: 4, textAlign: "center" }}>
+                한 번에 최대 10잔까지 주문 가능해요
+              </div>
+            )}
+          </div>
+
+          {/* 합계 */}
           <div style={{
             padding: "14px 16px",
             background: "rgba(0,0,0,0.3)",
@@ -182,35 +275,29 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
             display: "flex", justifyContent: "space-between", alignItems: "center",
           }}>
             <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em" }}>
-              {hasOptions ? `${selectedOption?.name} 가격` : "가격"}
+              합계 {quantity > 1 && <span style={{ marginLeft: 4, color: "rgba(255,255,255,0.3)" }}>({unitPrice.toLocaleString()}원 × {quantity})</span>}
             </span>
             <span style={{
               fontSize: 20, fontWeight: 400, color: lineColor,
               fontFamily: "'Noto Serif KR', serif",
             }}>
-              {displayPrice.toLocaleString()}<span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 4 }}>원</span>
+              {totalPrice.toLocaleString()}<span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginLeft: 4 }}>원</span>
             </span>
           </div>
 
           <motion.button
-            whileTap={!ordering && !justOrdered ? { scale: 0.96 } : {}}
-            onClick={() => { 
-              if (!ordering && !justOrdered) {
-                onOrder(drink, selectedOption);
-              }
-            }}
-            disabled={ordering || justOrdered}
+            whileTap={!ordering ? { scale: 0.96 } : {}}
+            onClick={handleSubmit}
+            disabled={ordering}
             style={{
               width: "100%", padding: "14px",
               border: "none", borderRadius: 12,
-              background: justOrdered
-                ? "linear-gradient(135deg, #6AB06A, #4A9A4A)"
-                : ordering
+              background: ordering
                 ? "rgba(255,255,255,0.08)"
                 : `linear-gradient(135deg, ${lineColor}, ${lineColor}aa)`,
-              color: justOrdered ? "#fff" : ordering ? "rgba(255,255,255,0.4)" : "#0D0B08",
+              color: ordering ? "rgba(255,255,255,0.4)" : "#0D0B08",
               fontSize: 14, fontWeight: 600,
-              cursor: ordering || justOrdered ? "default" : "pointer",
+              cursor: ordering ? "not-allowed" : "pointer",
               fontFamily: "inherit",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               transition: "all 0.3s",
@@ -218,14 +305,12 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
               minHeight: 48,
             }}
           >
-            {justOrdered ? (
-              <><Check size={16} />주문 완료!</>
-            ) : ordering ? (
+            {ordering ? (
               "주문 중..."
             ) : (
               <>
                 <ShoppingBag size={16} />
-                {hasOptions ? `${selectedOption?.name}으로 주문` : "주문하기"}
+                {quantity > 1 ? `${quantity}잔 주문하기` : "주문하기"}
               </>
             )}
           </motion.button>
@@ -242,7 +327,152 @@ function DrinkDetail({ drink, lineColor, options, onClose, onOrder, ordering, ju
   );
 }
 
-// ────── 🆕 WiFi 카드 ──────
+// ────── 🆕 주문 완료 모달 ──────
+function OrderCompleteModal({ orderInfo, onClose }) {
+  if (!orderInfo) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "20px",
+      }}
+    >
+      <motion.div
+        initial={{ y: 30, opacity: 0, scale: 0.9 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: 30, opacity: 0, scale: 0.9 }}
+        transition={{ type: "spring", damping: 26, stiffness: 300 }}
+        style={{
+          width: "100%", maxWidth: 340,
+          background: "linear-gradient(135deg, rgba(30,40,30,0.98), rgba(15,25,15,0.98))",
+          backdropFilter: "blur(24px)",
+          borderRadius: 20,
+          border: "1px solid rgba(106,176,106,0.4)",
+          padding: "32px 24px",
+          textAlign: "center",
+          position: "relative",
+        }}
+      >
+        {/* 체크 원 (애니메이션) */}
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", damping: 12, stiffness: 200, delay: 0.1 }}
+          style={{
+            width: 70, height: 70,
+            margin: "0 auto 16px",
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, rgba(106,176,106,0.25), rgba(60,120,60,0.15))",
+            border: "2px solid rgba(106,176,106,0.6)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <Check size={38} style={{ color: "#6AB06A", strokeWidth: 3 }} />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div style={{
+            fontSize: 20, fontFamily: "'Noto Serif KR', serif",
+            color: "#F5E6C8", marginBottom: 6, fontWeight: 500,
+          }}>
+            주문이 완료되었어요!
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 20, lineHeight: 1.5 }}>
+            사장님이 곧 확인하실 거예요
+          </div>
+
+          {/* 주문 내역 */}
+          <div style={{
+            background: "rgba(0,0,0,0.3)",
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 20,
+            textAlign: "left",
+          }}>
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "6px 0", fontSize: 13, color: "rgba(255,255,255,0.85)",
+            }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 18 }}>{orderInfo.icon}</span>
+                <span>{orderInfo.name}</span>
+                {orderInfo.optionName && (
+                  <span style={{
+                    fontSize: 9, padding: "1px 5px", borderRadius: 3,
+                    background: "rgba(212,165,55,0.15)", color: "rgba(212,165,55,0.9)",
+                    fontWeight: 600,
+                  }}>{orderInfo.optionName}</span>
+                )}
+                {orderInfo.quantity > 1 && (
+                  <span style={{
+                    color: "#D4A537", fontWeight: 700, fontSize: 13,
+                  }}>× {orderInfo.quantity}</span>
+                )}
+              </span>
+              <span style={{
+                color: "rgba(212,165,55,0.85)",
+                fontFamily: "'Noto Serif KR', serif",
+              }}>
+                {orderInfo.totalPrice.toLocaleString()}원
+              </span>
+            </div>
+
+            <div style={{
+              marginTop: 10, paddingTop: 10,
+              borderTop: "1px dashed rgba(212,165,55,0.2)",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+            }}>
+              <span style={{ fontSize: 11, color: "rgba(212,165,55,0.7)", fontWeight: 600, letterSpacing: "0.1em" }}>
+                총 주문 금액
+              </span>
+              <span style={{
+                fontSize: 18, color: "#D4A537", fontWeight: 600,
+                fontFamily: "'Noto Serif KR', serif",
+              }}>
+                {orderInfo.totalPrice.toLocaleString()}원
+              </span>
+            </div>
+          </div>
+
+          <div style={{
+            fontSize: 13, color: "#6AB06A",
+            marginBottom: 18,
+            fontFamily: "'Noto Serif KR', serif",
+          }}>
+            🥃 곧 준비해드릴게요
+          </div>
+
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={onClose}
+            style={{
+              width: "100%", padding: 14, border: "none", borderRadius: 12,
+              background: "linear-gradient(135deg, #6AB06A, #3A7A3A)",
+              color: "#fff",
+              fontSize: 13, fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              WebkitTapHighlightColor: "transparent",
+              minHeight: 48,
+            }}
+          >
+            확인
+          </motion.button>
+        </motion.div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ────── WiFi 카드 ──────
 function WifiCard({ ssid, password }) {
   const [copiedField, setCopiedField] = useState(null);
 
@@ -254,7 +484,6 @@ function WifiCard({ ssid, password }) {
       setCopiedField(field);
       setTimeout(() => setCopiedField(null), 1500);
     } catch (err) {
-      // 폴백: textarea로 복사
       const textArea = document.createElement('textarea');
       textArea.value = text;
       textArea.style.position = 'fixed';
@@ -284,53 +513,28 @@ function WifiCard({ ssid, password }) {
         marginBottom: 14,
       }}
     >
-      {/* 헤더 */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 10,
-      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <Wifi size={14} style={{ color: "#60A5FA" }} />
         <span style={{
-          fontSize: 11,
-          color: "rgba(212,165,55,0.7)",
-          fontWeight: 600,
-          letterSpacing: "0.05em",
+          fontSize: 11, color: "rgba(212,165,55,0.7)",
+          fontWeight: 600, letterSpacing: "0.05em",
         }}>
           매장 WiFi
         </span>
       </div>
 
-      {/* SSID 행 */}
       <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "7px 0",
-        fontSize: 12,
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "7px 0", fontSize: 12,
         borderBottom: "1px solid rgba(255,255,255,0.04)",
       }}>
+        <span style={{ color: "rgba(255,255,255,0.4)", width: 32, fontSize: 10, letterSpacing: "0.05em" }}>ID</span>
         <span style={{
-          color: "rgba(255,255,255,0.4)",
-          width: 32,
-          fontSize: 10,
-          letterSpacing: "0.05em",
-        }}>
-          ID
-        </span>
-        <span style={{
-          flex: 1,
-          color: "#F5E6C8",
+          flex: 1, color: "#F5E6C8",
           fontFamily: "'SF Mono', Monaco, monospace",
-          fontWeight: 500,
-          fontSize: 12,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}>
-          {ssid}
-        </span>
+          fontWeight: 500, fontSize: 12,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>{ssid}</span>
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => handleCopy(ssid, "ssid")}
@@ -342,60 +546,32 @@ function WifiCard({ ssid, password }) {
             border: "1px solid " + (copiedField === "ssid" ? "transparent" : "rgba(212,165,55,0.2)"),
             borderRadius: 5,
             color: copiedField === "ssid" ? "#fff" : "#D4A537",
-            fontSize: 10,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            gap: 3,
+            fontSize: 10, fontWeight: 600,
+            cursor: "pointer", fontFamily: "inherit",
+            display: "flex", alignItems: "center", gap: 3,
             WebkitTapHighlightColor: "transparent",
-            minWidth: 50,
-            justifyContent: "center",
+            minWidth: 50, justifyContent: "center",
           }}
         >
           {copiedField === "ssid" ? (
-            <>
-              <Check size={10} />
-              <span>복사됨</span>
-            </>
+            <><Check size={10} /><span>복사됨</span></>
           ) : (
-            <>
-              <Copy size={10} />
-              <span>복사</span>
-            </>
+            <><Copy size={10} /><span>복사</span></>
           )}
         </motion.button>
       </div>
 
-      {/* Password 행 */}
       <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "7px 0",
-        fontSize: 12,
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "7px 0", fontSize: 12,
       }}>
+        <span style={{ color: "rgba(255,255,255,0.4)", width: 32, fontSize: 10, letterSpacing: "0.05em" }}>PW</span>
         <span style={{
-          color: "rgba(255,255,255,0.4)",
-          width: 32,
-          fontSize: 10,
-          letterSpacing: "0.05em",
-        }}>
-          PW
-        </span>
-        <span style={{
-          flex: 1,
-          color: "#F5E6C8",
+          flex: 1, color: "#F5E6C8",
           fontFamily: "'SF Mono', Monaco, monospace",
-          fontWeight: 500,
-          fontSize: 12,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}>
-          {password}
-        </span>
+          fontWeight: 500, fontSize: 12,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        }}>{password}</span>
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={() => handleCopy(password, "password")}
@@ -407,28 +583,17 @@ function WifiCard({ ssid, password }) {
             border: "1px solid " + (copiedField === "password" ? "transparent" : "rgba(212,165,55,0.2)"),
             borderRadius: 5,
             color: copiedField === "password" ? "#fff" : "#D4A537",
-            fontSize: 10,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            display: "flex",
-            alignItems: "center",
-            gap: 3,
+            fontSize: 10, fontWeight: 600,
+            cursor: "pointer", fontFamily: "inherit",
+            display: "flex", alignItems: "center", gap: 3,
             WebkitTapHighlightColor: "transparent",
-            minWidth: 50,
-            justifyContent: "center",
+            minWidth: 50, justifyContent: "center",
           }}
         >
           {copiedField === "password" ? (
-            <>
-              <Check size={10} />
-              <span>복사됨</span>
-            </>
+            <><Check size={10} /><span>복사됨</span></>
           ) : (
-            <>
-              <Copy size={10} />
-              <span>복사</span>
-            </>
+            <><Copy size={10} /><span>복사</span></>
           )}
         </motion.button>
       </div>
@@ -651,14 +816,14 @@ export default function MenuScreen({
   categories = [], menus = [], 
   optionsByMenu = new Map(),
   loading = false,
-  wifiSsid = null,        // 🆕 WiFi SSID
-  wifiPassword = null,    // 🆕 WiFi Password
+  wifiSsid = null,
+  wifiPassword = null,
 }) {
   const [selectedDrink, setSelectedDrink] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedDrinkOptions, setSelectedDrinkOptions] = useState([]);
   const [ordering, setOrdering] = useState(false);
-  const [justOrdered, setJustOrdered] = useState(false);
+  const [orderComplete, setOrderComplete] = useState(null); // 🆕 완료 모달 정보
   const [activeCategoryId, setActiveCategoryId] = useState(null);
   const sectionRefs = useRef({});
 
@@ -788,11 +953,14 @@ export default function MenuScreen({
     }
   };
 
-  const handleOrder = async (drink, selectedOption) => {
+  // 🆕 주문 처리 (수량 추가)
+  const handleOrder = async (drink, selectedOption, quantity = 1) => {
     if (!createOrder) {
       alert("주문 기능을 사용할 수 없습니다");
       return;
     }
+    if (ordering) return; // 중복 방지
+
     enableSound();
     setOrdering(true);
     
@@ -805,17 +973,23 @@ export default function MenuScreen({
       price: finalPrice,
       optionId: selectedOption?.id || null,
       optionName: selectedOption?.name || null,
+      quantity: quantity,
     });
     setOrdering(false);
 
     if (result) {
       playOrderSuccess();
-      setJustOrdered(true);
-      setTimeout(() => {
-        setSelectedDrink(null);
-        setSelectedDrinkOptions([]);
-        setJustOrdered(false);
-      }, 1500);
+      // 🆕 주문 모달 닫고 완료 모달 띄움
+      setSelectedDrink(null);
+      setSelectedDrinkOptions([]);
+      setOrderComplete({
+        name: finalMenuName,
+        icon: drink.icon,
+        optionName: selectedOption?.name || null,
+        quantity: quantity,
+        unitPrice: finalPrice,
+        totalPrice: finalPrice * quantity,
+      });
     } else {
       alert("주문에 실패했어요. 다시 시도해주세요.");
     }
@@ -836,7 +1010,6 @@ export default function MenuScreen({
 
         <MyTabCard orders={orders} totalAmount={totalAmount} seat={mySeat} />
 
-        {/* 🆕 WiFi 카드 */}
         <WifiCard ssid={wifiSsid} password={wifiPassword} />
 
         <RandomPicker allDrinks={allDrinks} />
@@ -844,20 +1017,14 @@ export default function MenuScreen({
 
       {menuSections.length > 0 && (
         <div style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 50,
+          position: "sticky", top: 0, zIndex: 50,
           background: "rgba(13,11,8,0.95)",
           backdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(212,165,55,0.15)",
           padding: "12px clamp(16px, 4vw, 24px)",
           marginBottom: 16,
         }}>
-          <div style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 6,
-          }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {menuSections.map(section => {
               const isActive = activeCategoryId === section.id;
               return (
@@ -1048,6 +1215,7 @@ export default function MenuScreen({
         ))}
       </div>
 
+      {/* 주문 모달 */}
       <AnimatePresence>
         {selectedDrink && (
           <DrinkDetail
@@ -1058,12 +1226,20 @@ export default function MenuScreen({
               if (!ordering) {
                 setSelectedDrink(null);
                 setSelectedDrinkOptions([]);
-                setJustOrdered(false);
               }
             }}
             onOrder={handleOrder}
             ordering={ordering}
-            justOrdered={justOrdered}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 🆕 주문 완료 모달 */}
+      <AnimatePresence>
+        {orderComplete && (
+          <OrderCompleteModal
+            orderInfo={orderComplete}
+            onClose={() => setOrderComplete(null)}
           />
         )}
       </AnimatePresence>

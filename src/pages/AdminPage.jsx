@@ -143,7 +143,7 @@ function SOSCard({ signal, onAccept, onResolve }) {
   );
 }
 
-// ───────── 주문 카드 ─────────
+// ───────── 주문 카드 (제공됨도 취소 가능) ─────────
 function OrderCard({ order, onServed, onCancel }) {
   const [elapsed, setElapsed] = useState(timeAgo(order.created_at));
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -154,6 +154,7 @@ function OrderCard({ order, onServed, onCancel }) {
   }, [order.created_at]);
 
   const isPending = order.status === "pending";
+  const isServed = order.status === "served";
 
   return (
     <motion.div
@@ -232,6 +233,7 @@ function OrderCard({ order, onServed, onCancel }) {
         </div>
       </div>
 
+      {/* 대기 중인 주문 - 기존 버튼들 */}
       {isPending && !confirmCancel && (
         <div style={{ display: "flex", gap: 6 }}>
           <button
@@ -268,7 +270,8 @@ function OrderCard({ order, onServed, onCancel }) {
         </div>
       )}
 
-      {confirmCancel && (
+      {/* 취소 확인 - 대기 중인 주문 */}
+      {isPending && confirmCancel && (
         <motion.div
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
@@ -310,17 +313,95 @@ function OrderCard({ order, onServed, onCancel }) {
         </motion.div>
       )}
 
-      {!isPending && (
+      {/* 🆕 제공된 주문 - 취소 버튼 추가 */}
+      {isServed && !confirmCancel && (
         <div style={{
-          padding: "6px 10px",
-          background: "rgba(106,176,106,0.08)",
-          borderRadius: 7,
-          fontSize: 10,
-          color: "rgba(106,176,106,0.9)",
-          textAlign: "center",
+          display: "flex", gap: 6, alignItems: "center",
         }}>
-          ✓ 제공 완료됨
+          <div style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: "rgba(106,176,106,0.08)",
+            borderRadius: 7,
+            fontSize: 10,
+            color: "rgba(106,176,106,0.9)",
+            textAlign: "center",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+          }}>
+            <Check size={11} /> 제공 완료됨
+          </div>
+          <button
+            onClick={() => setConfirmCancel(true)}
+            style={{
+              padding: "8px 12px", borderRadius: 7,
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "rgba(255,180,180,0.55)",
+              fontSize: 10, fontWeight: 500, cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", gap: 4,
+              whiteSpace: "nowrap",
+            }}
+          >
+            <Trash2 size={11} />
+            주문 취소
+          </button>
         </div>
+      )}
+
+      {/* 🆕 취소 확인 - 제공된 주문 (더 강한 경고) */}
+      {isServed && confirmCancel && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            padding: "10px 12px",
+            background: "rgba(226,75,74,0.12)",
+            border: "1px solid rgba(226,75,74,0.4)",
+            borderRadius: 9,
+          }}
+        >
+          <div style={{
+            display: "flex", alignItems: "center", gap: 5,
+            fontSize: 11, color: "rgba(255,180,180,0.95)", marginBottom: 4,
+            fontWeight: 600,
+          }}>
+            <AlertTriangle size={12} />
+            이미 제공된 주문입니다
+          </div>
+          <div style={{
+            fontSize: 10, color: "rgba(255,180,180,0.75)", marginBottom: 8,
+            lineHeight: 1.5,
+          }}>
+            잘못 들어온 주문이거나 환불이 필요한 경우에만<br/>
+            취소해주세요. 재고 등도 함께 확인이 필요해요.
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => setConfirmCancel(false)}
+              style={{
+                flex: 1, padding: "7px", borderRadius: 7,
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                color: "rgba(255,255,255,0.6)", fontSize: 11, cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              아니요
+            </button>
+            <button
+              onClick={() => onCancel(order.id)}
+              style={{
+                flex: 1.5, padding: "7px", borderRadius: 7,
+                background: "linear-gradient(135deg, #E24B4A, #B03838)",
+                border: "none", color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer",
+                fontFamily: "inherit",
+              }}
+            >
+              네, 취소
+            </button>
+          </div>
+        </motion.div>
       )}
     </motion.div>
   );
@@ -332,22 +413,18 @@ export default function AdminPage() {
   const [managePanel, setManagePanel] = useState(null);
 
   const { signals, loading: sosLoading, acceptSignal, resolveSignal, refetch: refetchSOS } = useSOSAdmin();
-  // 🆕 mergeSession 추가
   const { sessions, todayRevenue, loading: sessionsLoading, closeSession, settleSession, moveSession, mergeSession, refetch: refetchSessions } = useSessionsAdmin();
   const { orders, pendingCount: pendingOrdersCount, loading: ordersLoading, markServed, cancelOrder, refetch: refetchOrders } = useOrdersAdmin();
 
-  // 메뉴 관리
   const storeId = useStoreId();
   const { storeSlug } = useStore();
   const { categories: menuCategories, menus: menuItems, loading: menusLoading, refetch: refetchMenus } = useMenus(storeId);
   const menuAdmin = useMenusAdmin(storeId, refetchMenus);
   const menuOptions = useMenuOptions(storeId);
 
-  // 좌석 행 관리
   const { rows: seatRows, loading: seatRowsLoading, refetch: refetchSeatRows } = useSeatRows(storeId);
   const seatRowsAdmin = useSeatRowsAdmin(storeId, refetchSeatRows);
 
-  // 매출 통계
   const { stats: salesStats, loading: salesStatsLoading } = useSalesStats(storeId);
 
   const [prevSOSCount, setPrevSOSCount] = useState(0);
@@ -408,7 +485,6 @@ export default function AdminPage() {
       </div>
 
       <div style={{ position: "relative", zIndex: 1, padding: "20px" }}>
-        {/* 헤더 */}
         <motion.div
           animate={flashHeader ? {
             boxShadow: flashType === "order"
