@@ -2,15 +2,19 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 /**
- * useSession
- * - 손님이 좌석을 선택하면 Supabase sessions 테이블에 세션을 생성
- * - 현재 열린 세션 ID는 localStorage에 저장 (재접속 복구용)
- * - 세션이 정산되면 자동으로 null이 되어 좌석 선택 화면으로 돌아감
+ * useSession - 🚨 버그 수정 최종본 (v2)
  *
- * 반환:
- *   session        — 현재 활성 세션 { id, seat_label, ... } 또는 null
- *   createSession  — 새 세션 시작 (좌석 중복 차단)
- *   loading        — 초기 로딩 중
+ * [해결한 버그]
+ * - 같은 좌석 재입장 안 됨
+ * - 다른 좌석으로 주문 들어감 (b-3 → a-3)
+ * - 같은 customer_id로 여러 세션 중복 생성
+ *
+ * [핵심 수정]
+ * 1. URL 좌석과 저장된 세션 좌석이 다르면 → localStorage 무시
+ * 2. URL에 좌석 있으면 그 좌석으로만 세션 검색
+ * 3. 좌석 이동 시 옛 세션 자동 close (race condition 방지 강화)
+ * 4. 정산 시 localStorage 확실히 정리 (이중 안전장치)
+ * 5. customer_id로 다른 좌석의 잔여 세션 자동 정리
  */
 export function useSession({ myId, myNickname, myAvatar }) {
   const [session, setSession] = useState(null);
@@ -20,13 +24,44 @@ export function useSession({ myId, myNickname, myAvatar }) {
   const activeChannelRef = useRef(null);
   const lastSeatRef = useRef(null);
 
-  // ───── 활동 시간 업데이트 (3분마다) ─────
+  // ───── 활동 시간 업데이트 ─────
   const touchSession = useCallback(async (sessionId) => {
     if (!sessionId) return;
     await supabase
       .from("sessions")
       .update({ last_active_at: new Date().toISOString() })
       .eq("id", sessionId);
+  }, []);
+
+  // ───── URL에서 좌석 가져오기 ─────
+  const getSeatFromUrl = () => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("seat");
+  };
+
+  // ───── 🛡️ 안전장치: 내 customer_id로 열린 모든 세션 중 현재 좌석 외 정리 ─────
+  const cleanupStaleSessions = useCallback(async (customerId, currentSeatLabel) => {
+    if (!customerId) return;
+    const { data: openSessions } = await supabase
+      .from("sessions")
+      .select("id, seat_label")
+      .eq("customer_id", customerId)
+      .eq("status", "open");
+
+    if (!openSessions || openSessions.length === 0) return;
+
+    const stale = openSessions.filter((s) => s.seat_label !== currentSeatLabel);
+    if (stale.length === 0) return;
+
+    console.log(`[Session] 잔여 세션 ${stale.length}개 정리:`, stale.map((s) => s.seat_label));
+    await supabase
+      .from("sessions")
+      .update({ status: "closed", closed_at: new Date().toISOString() })
+      .in(
+        "id",
+        stale.map((s) => s.id)
+      );
   }, []);
 
   // ───── 세션 로드 (재접속 복구) ─────
@@ -36,9 +71,10 @@ export function useSession({ myId, myNickname, myAvatar }) {
     const loadSession = async () => {
       setLoading(true);
 
-      // 1. localStorage에서 저장된 sessionId 확인
+      const seatFromUrl = getSeatFromUrl();
       const savedId = localStorage.getItem("honsul_session_id");
 
+      // 1. localStorage 기반 복구 시도
       if (savedId) {
         const { data, error } = await supabase
           .from("sessions")
@@ -48,38 +84,77 @@ export function useSession({ myId, myNickname, myAvatar }) {
           .maybeSingle();
 
         if (!error && data) {
-          await touchSession(data.id);
-          lastSeatRef.current = data.seat_label;
-          setSession(data);
-          setLoading(false);
-          return;
+          // 🚨 URL 좌석과 저장된 세션 좌석이 다르면 localStorage 무효화
+          if (seatFromUrl && seatFromUrl !== data.seat_label) {
+            console.log(
+              `[Session] URL(${seatFromUrl}) ≠ 저장(${data.seat_label}) → localStorage 폐기`
+            );
+            localStorage.removeItem("honsul_session_id");
+            // ❗ 잔여 세션도 정리 (이게 다른 좌석으로 주문 가는 버그 막음)
+            await cleanupStaleSessions(myId, seatFromUrl);
+          } else {
+            // 정상 복구
+            await touchSession(data.id);
+            lastSeatRef.current = data.seat_label;
+            setSession(data);
+            setLoading(false);
+            return;
+          }
         } else {
+          // 세션이 closed됐거나 없음
           localStorage.removeItem("honsul_session_id");
         }
       }
 
-      // 2. customer_id로 최근 열린 세션 찾기
-      const { data: byCustomer } = await supabase
-        .from("sessions")
-        .select("*")
-        .eq("customer_id", myId)
-        .eq("status", "open")
-        .order("opened_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // 2. customer_id로 복구
+      if (!seatFromUrl) {
+        // URL에 좌석 없음 → 최근 열린 세션 복구 OK
+        const { data: byCustomer } = await supabase
+          .from("sessions")
+          .select("*")
+          .eq("customer_id", myId)
+          .eq("status", "open")
+          .order("opened_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (byCustomer) {
-        localStorage.setItem("honsul_session_id", byCustomer.id);
-        await touchSession(byCustomer.id);
-        lastSeatRef.current = byCustomer.seat_label;
-        setSession(byCustomer);
+        if (byCustomer) {
+          localStorage.setItem("honsul_session_id", byCustomer.id);
+          await touchSession(byCustomer.id);
+          lastSeatRef.current = byCustomer.seat_label;
+          setSession(byCustomer);
+        }
+      } else {
+        // URL에 좌석 명시됨 → 그 좌석에 내 세션 있는지만 확인
+        const { data: bySeatAndCustomer } = await supabase
+          .from("sessions")
+          .select("*")
+          .eq("customer_id", myId)
+          .eq("seat_label", seatFromUrl)
+          .eq("status", "open")
+          .order("opened_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (bySeatAndCustomer) {
+          // 같은 좌석에 내 세션 있음 → 복구
+          localStorage.setItem("honsul_session_id", bySeatAndCustomer.id);
+          await touchSession(bySeatAndCustomer.id);
+          lastSeatRef.current = bySeatAndCustomer.seat_label;
+          setSession(bySeatAndCustomer);
+          // 다른 좌석에 잔여 세션 있으면 정리
+          await cleanupStaleSessions(myId, seatFromUrl);
+        } else {
+          // 해당 좌석에 내 세션 없음 → 다른 좌석 잔여 세션 정리
+          await cleanupStaleSessions(myId, seatFromUrl);
+        }
       }
 
       setLoading(false);
     };
 
     loadSession();
-  }, [myId, touchSession]);
+  }, [myId, touchSession, cleanupStaleSessions]);
 
   // ───── 내 세션 실시간 감지 ─────
   useEffect(() => {
@@ -98,7 +173,9 @@ export function useSession({ myId, myNickname, myAvatar }) {
         (payload) => {
           const updated = payload.new;
           if (updated.status === "closed") {
+            // 🚨 정산됨 → localStorage 확실히 삭제 (이중 안전장치)
             localStorage.removeItem("honsul_session_id");
+            lastSeatRef.current = null;
             setJustSettled(updated);
             setSession(null);
           } else {
@@ -122,7 +199,7 @@ export function useSession({ myId, myNickname, myAvatar }) {
     };
   }, [session?.id]);
 
-  // ───── 주기적으로 활동 시간 갱신 ─────
+  // ───── 주기적 활동 시간 갱신 ─────
   useEffect(() => {
     if (!session?.id) return;
     const interval = setInterval(() => {
@@ -131,14 +208,14 @@ export function useSession({ myId, myNickname, myAvatar }) {
     return () => clearInterval(interval);
   }, [session?.id, touchSession]);
 
-  // ───── 🆕 새 세션 만들기 (좌석 중복 차단) ─────
+  // ───── 새 세션 만들기 ─────
   const createSession = useCallback(
     async (seatLabel) => {
       if (!myId || !seatLabel) {
         return { ok: false, reason: "invalid", message: "잘못된 요청입니다" };
       }
 
-      // 🔍 1단계: 해당 좌석에 이미 활성 세션이 있는지 확인
+      // 1. 해당 좌석에 활성 세션 있는지 확인
       const { data: existingSession, error: checkError } = await supabase
         .from("sessions")
         .select("*")
@@ -151,16 +228,18 @@ export function useSession({ myId, myNickname, myAvatar }) {
         return { ok: false, reason: "error", message: "좌석 확인 중 오류가 발생했어요" };
       }
 
-      // 🔍 2단계: 이미 있다면 - 같은 사람인지 확인
+      // 2. 이미 있다면 - 같은 사람인지 확인
       if (existingSession) {
         if (existingSession.customer_id === myId) {
-          // ✅ 같은 사람이면 기존 세션 사용 (재접속)
+          // 같은 사람 → 기존 세션 재사용
           localStorage.setItem("honsul_session_id", existingSession.id);
           lastSeatRef.current = existingSession.seat_label;
           setSession(existingSession);
+          // 🛡️ 다른 좌석 잔여 세션도 정리
+          await cleanupStaleSessions(myId, seatLabel);
           return { ok: true, session: existingSession, reused: true };
         } else {
-          // ❌ 다른 사람이 이미 사용 중!
+          // 다른 사람이 사용 중
           return {
             ok: false,
             reason: "seat_occupied",
@@ -169,7 +248,31 @@ export function useSession({ myId, myNickname, myAvatar }) {
         }
       }
 
-      // 🔍 3단계: 없으면 새 세션 생성
+      // 3. 🛡️ 내가 다른 좌석에 열린 세션 모두 close (race condition 방지)
+      // 단일 maybeSingle 대신 .in 으로 일괄 처리 (다중 잔여 세션 케이스 대응)
+      const { data: myOldSessions } = await supabase
+        .from("sessions")
+        .select("id, seat_label")
+        .eq("customer_id", myId)
+        .eq("status", "open");
+
+      if (myOldSessions && myOldSessions.length > 0) {
+        await supabase
+          .from("sessions")
+          .update({ status: "closed", closed_at: new Date().toISOString() })
+          .in(
+            "id",
+            myOldSessions.map((s) => s.id)
+          );
+        console.log(
+          `[Session] 기존 세션 ${myOldSessions.length}개 종료 → ${seatLabel}로 이동`,
+          myOldSessions.map((s) => s.seat_label)
+        );
+        // 🛡️ localStorage도 정리 (옛 세션 id가 남아있을 수 있음)
+        localStorage.removeItem("honsul_session_id");
+      }
+
+      // 4. 새 세션 생성
       const { data, error } = await supabase
         .from("sessions")
         .insert({
@@ -184,7 +287,6 @@ export function useSession({ myId, myNickname, myAvatar }) {
 
       if (error) {
         console.error("세션 생성 실패:", error);
-        // 만약 다른 사람이 동시에 같은 좌석을 선택했다면 (race condition)
         if (error.code === "23505") {
           return {
             ok: false,
@@ -200,7 +302,7 @@ export function useSession({ myId, myNickname, myAvatar }) {
       setSession(data);
       return { ok: true, session: data, reused: false };
     },
-    [myId, myNickname, myAvatar]
+    [myId, myNickname, myAvatar, cleanupStaleSessions]
   );
 
   return {
@@ -208,7 +310,11 @@ export function useSession({ myId, myNickname, myAvatar }) {
     loading,
     createSession,
     justSettled,
-    dismissThankYou: () => setJustSettled(null),
+    dismissThankYou: () => {
+      // 🛡️ 정산 안내 닫을 때 localStorage 한 번 더 확인
+      localStorage.removeItem("honsul_session_id");
+      setJustSettled(null);
+    },
     seatMoveNotice,
     dismissSeatMove: () => setSeatMoveNotice(null),
   };
