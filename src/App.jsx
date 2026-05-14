@@ -16,12 +16,20 @@ import GameCenter from "./components/GameCenter";
 import WhiskyNine from "./components/WhiskyNine";
 import MatchInviteModal from "./components/MatchInviteModal";
 import MyProfileCard from "./components/MyProfileCard";
+// 🆕 플러팅 게임 컴포넌트
+import FlirtingSeatPicker from "./components/FlirtingSeatPicker";
+import FlirtingGameModal from "./components/FlirtingGameModal";
+import IncomingFlirtingModal from "./components/IncomingFlirtingModal";
 import { usePresence } from "./hooks/usePresence";
 import { useMatchmaking } from "./hooks/useMatchmaking";
 import { useSession } from "./hooks/useSession";
 import { useOrders } from "./hooks/useOrders";
 import { useMenus } from "./hooks/useMenus";
 import { useMenuOptionsCustomer } from "./hooks/useMenuOptionsCustomer";
+// 🆕 플러팅 게임 훅
+import { useFlirtingGame } from "./hooks/useFlirtingGame";
+// 🆕 활성 세션 가져오기 (좌석 선택용)
+import { useSessionsAdmin } from "./hooks/useSessionsAdmin";
 import { useStoreId, useStore } from "./lib/StoreContext";
 import { useLocale, pickLocaleField } from "./lib/LocaleContext";
 import LanguageToggle from "./components/LanguageToggle";
@@ -393,7 +401,7 @@ function SOSFAB({ onClick }) {
   );
 }
 
-// 🆕 복구 모달 컴포넌트 - 자연스러운 문구
+// 복구 모달
 function RecoveryModal({ prompt, onRecover, onCancel }) {
   if (!prompt) return null;
   return (
@@ -517,14 +525,12 @@ export default function App() {
     return id;
   });
 
-  // 🆕 takeoverSession 추가로 받음
   const { session, loading: sessionLoading, createSession, takeoverSession, justSettled, seatMoveNotice, dismissSeatMove } = useSession({
     myId,
     myNickname: null,
     myAvatar: null,
   });
 
-  // 🆕 복구 모달 상태
   const [recoveryPrompt, setRecoveryPrompt] = useState(null);
 
   const [settledOrders, setSettledOrders] = useState([]);
@@ -562,6 +568,16 @@ export default function App() {
   });
   const { users, userCount, myNickname, myNicknameJa, myAvatar, myStatus, setMyStatus, rerollNickname } = presence;
 
+  // 🆕 플러팅 게임 훅
+  const flirting = useFlirtingGame(session?.id, mySeat, myNickname, storeId);
+
+  // 🆕 모든 활성 세션 가져오기 (좌석 선택용)
+  const { sessions: allSessions } = useSessionsAdmin();
+
+  // 🆕 좌석 선택 모달 상태
+  const [showFlirtingSeatPicker, setShowFlirtingSeatPicker] = useState(false);
+  const [invitingGame, setInvitingGame] = useState(false);
+
   const [completedQuests, setCompletedQuests] = useState(new Set(["q1"]));
   const [sosOpen, setSosOpen] = useState(false);
 
@@ -580,11 +596,9 @@ export default function App() {
     if (s === "open") completeQuest("q6");
   }, [setMyStatus, completeQuest]);
 
-  // 🆕 좌석 선택 → 세션 생성 (복구 모드 포함)
   const handleSeatSelect = useCallback(async (seatLabel) => {
     const result = await createSession(seatLabel);
     if (!result.ok) {
-      // 🆕 복구 가능한 경우 → 모달로 사용자에게 물어보기
       if (result.recoverable && result.existingSession) {
         setRecoveryPrompt({
           seatLabel,
@@ -598,7 +612,6 @@ export default function App() {
     return true;
   }, [createSession]);
 
-  // 🆕 복구 모달에서 "재입장" 선택 시
   const handleRecoverSession = useCallback(async () => {
     if (!recoveryPrompt) return;
     const result = await takeoverSession(
@@ -611,10 +624,31 @@ export default function App() {
     }
   }, [recoveryPrompt, takeoverSession]);
 
-  // 🆕 복구 모달 취소
   const handleCancelRecovery = useCallback(() => {
     setRecoveryPrompt(null);
   }, []);
+
+  // 🆕 플러팅 게임 신청 시작
+  const handleOpenFlirting = useCallback(() => {
+    setShowFlirtingSeatPicker(true);
+  }, []);
+
+  // 🆕 좌석 선택 후 게임 신청
+  const handleFlirtingSelect = useCallback(async (targetSession) => {
+    setInvitingGame(true);
+    const result = await flirting.inviteGame(targetSession);
+    setInvitingGame(false);
+    if (result.ok) {
+      setShowFlirtingSeatPicker(false);
+    } else {
+      alert(result.error || "신청에 실패했어요. 다시 시도해주세요.");
+    }
+  }, [flirting]);
+
+  const handleCloseFlirtingPicker = useCallback(() => {
+    if (invitingGame) return;
+    setShowFlirtingSeatPicker(false);
+  }, [invitingGame]);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [autoSeatTried, setAutoSeatTried] = useState(false);
@@ -633,7 +667,6 @@ export default function App() {
       return;
     }
 
-    // 자동 입장 시도 (실패하면 좌석 선택 화면이 자동으로 나옴)
     handleSeatSelect(seatFromUrl).then(() => {
       setSearchParams({});
     });
@@ -668,7 +701,6 @@ export default function App() {
     );
   }
 
-  // 🆕 좌석 선택 화면 + 복구 모달
   if (!mySeat) {
     return (
       <>
@@ -768,6 +800,7 @@ export default function App() {
                   onSendInvite={mm.sendInvite}
                   outgoingInvite={mm.outgoingInvite}
                   onCancelOutgoing={mm.cancelOutgoing}
+                  onOpenFlirting={handleOpenFlirting}
                 />
               )}
               {tab === "quest" && <QuestScreen completed={completedQuests} onComplete={completeQuest} />}
@@ -819,7 +852,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 🆕 복구 모달 (메인 화면에서도 띄울 수 있게) */}
+      {/* 복구 모달 */}
       <AnimatePresence>
         {recoveryPrompt && (
           <RecoveryModal
@@ -837,6 +870,49 @@ export default function App() {
         onAccept={mm.acceptInvite}
         onDecline={mm.declineInvite}
       />
+
+      {/* 🆕 플러팅 게임 - 좌석 선택 모달 */}
+      <AnimatePresence>
+        {showFlirtingSeatPicker && (
+          <FlirtingSeatPicker
+            mySessionId={session?.id}
+            mySeatLabel={mySeat}
+            sessions={allSessions}
+            onSelect={handleFlirtingSelect}
+            onCancel={handleCloseFlirtingPicker}
+            loading={invitingGame}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 🆕 플러팅 게임 - 진행 모달 */}
+      <AnimatePresence>
+        {flirting.currentGame && (
+          <FlirtingGameModal
+            game={flirting.currentGame}
+            myChoices={flirting.myChoices}
+            opponentChoices={flirting.opponentChoices}
+            gameResult={flirting.gameResult}
+            isInviter={flirting.isInviter}
+            mySeatLabel={mySeat}
+            onSubmitChoice={flirting.submitChoice}
+            onNextRound={flirting.goToNextRound}
+            onCancelInvite={() => flirting.cancelInvite(flirting.currentGame.id)}
+            onClose={flirting.closeGame}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 🆕 플러팅 게임 - 신청 받음 알림 */}
+      <AnimatePresence>
+        {flirting.incomingGame && !flirting.currentGame && (
+          <IncomingFlirtingModal
+            game={flirting.incomingGame}
+            onAccept={() => flirting.acceptGame(flirting.incomingGame.id)}
+            onDecline={() => flirting.declineGame(flirting.incomingGame.id)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
