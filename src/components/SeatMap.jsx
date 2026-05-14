@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Move, Wallet, Trash2, Plus, Users, Edit3, Save, RotateCcw, AlertTriangle } from "lucide-react";
+import { X, Move, Wallet, Trash2, Plus, Users, Edit3, Save, RotateCcw, AlertTriangle, Loader2 } from "lucide-react";
 import { useSeatRows } from "../hooks/useSeatRows";
 import { useStoreId } from "../lib/StoreContext";
 import { supabase } from "../lib/supabaseClient";
@@ -18,7 +18,6 @@ function elapsedMin(iso) {
 
 // ───── 디테일 팝업 ─────
 function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSettle, onMove, onMerge, onEmpty, onManualOrder, onCancelOrder }) {
-  // 🆕 어떤 주문을 취소할지
   const [cancelingOrderId, setCancelingOrderId] = useState(null);
 
   if (!session) return null;
@@ -127,7 +126,6 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
           </div>
         )}
 
-        {/* 🆕 주문 리스트 (각 주문 옆에 X 버튼 추가) */}
         {sessionOrders.length > 0 && (
           <div style={{
             background: "rgba(0,0,0,0.3)",
@@ -179,7 +177,6 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
                 }}>
                   {o.price.toLocaleString()}원
                 </span>
-                {/* 🆕 X 버튼 - 각 주문 옆 */}
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setCancelingOrderId(o.id)}
@@ -280,7 +277,6 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
           </motion.button>
         )}
 
-        {/* 🆕 개별 주문 취소 확인 모달 */}
         <AnimatePresence>
           {cancelingOrder && (
             <motion.div
@@ -578,7 +574,8 @@ export default function SeatMap({
   const [saving, setSaving] = useState(false);
 
   const storeId = useStoreId();
-  const { rows: seatRows, refetch: refetchRows } = useSeatRows(storeId);
+  // 🆕 loading 상태도 가져옴
+  const { rows: seatRows, loading: seatRowsLoading, refetch: refetchRows } = useSeatRows(storeId);
 
   const sessionMap = new Map();
   sessions.forEach(s => sessionMap.set(s.seat_label, s));
@@ -669,7 +666,6 @@ export default function SeatMap({
     onOrdersRefetch?.();
   };
 
-  // 🆕 개별 주문 취소
   const handleCancelOrder = async (orderId) => {
     if (!orderId) return;
     try {
@@ -684,7 +680,6 @@ export default function SeatMap({
       } else {
         setToast("✓ 주문이 취소되었어요");
         onOrdersRefetch?.();
-        // 선택된 세션 정보 업데이트를 위해 약간 지연 후 sessions에서 가져옴
         setTimeout(() => {
           if (selectedSession) {
             const updated = sessions.find(s => s.id === selectedSession.id);
@@ -699,7 +694,6 @@ export default function SeatMap({
     setTimeout(() => setToast(null), 3000);
   };
 
-  // 편집 모드
   const handleStartEdit = () => {
     setMovingSession(null);
     setMergingSession(null);
@@ -935,7 +929,22 @@ export default function SeatMap({
         </button>
       )}
 
-      {seatRows.length === 0 ? (
+      {/* 🆕 로딩 상태 처리 */}
+      {seatRowsLoading ? (
+        <div style={{
+          textAlign: "center", padding: "60px 0",
+          color: "rgba(255,255,255,0.4)", fontSize: 12,
+        }}>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+            style={{ display: "inline-block", color: "rgba(212,165,55,0.4)", marginBottom: 10 }}
+          >
+            <Loader2 size={28} />
+          </motion.div>
+          <div>좌석을 불러오는 중...</div>
+        </div>
+      ) : seatRows.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 0", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
           좌석이 설정되지 않았어요
         </div>
