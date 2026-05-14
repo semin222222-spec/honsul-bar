@@ -6,36 +6,72 @@ import { supabase } from "../lib/supabaseClient";
  * - 매장의 좌석 행 설정 가져오기 (A줄 20석, B줄 20석 등)
  * - 실시간 변경 감지
  *
+ * v2: 무한 로딩 방지
+ *  - initial fetch만 loading=true, realtime refetch는 silent
+ *  - fetch 실패해도 loading은 무조건 풀림
+ *  - timeout 안전망 (10초 안에 응답 없으면 loading 강제 해제)
+ *
  * @param {string} storeId - 매장 ID
  * @returns {object} { rows, allSeats, loading, error, refetch }
- *   - rows: [{ id, name, seat_count, display_order }, ...]
- *   - allSeats: ['A-1', 'A-2', ..., 'B-1', ...] (편의용)
  */
 export function useSeatRows(storeId) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const channelRef = useRef(null);
+  const initialFetchedRef = useRef(false);
+  const fetchingRef = useRef(false);
 
-  const fetchRows = useCallback(async () => {
+  // 🆕 silent 옵션 추가 - realtime refetch는 loading 안 켜기
+  const fetchRows = useCallback(async (silent = false) => {
     if (!storeId) {
       setLoading(false);
       return;
     }
 
-    const { data, error: err } = await supabase
-      .from("seat_rows")
-      .select("*")
-      .eq("store_id", storeId)
-      .order("display_order");
+    // 동시 fetch 방지
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
 
-    if (err) {
-      setError(err);
-    } else {
-      setError(null);
-      setRows(data || []);
+    // 초기 로드만 loading=true, realtime은 silent
+    if (!silent && !initialFetchedRef.current) {
+      setLoading(true);
     }
-    setLoading(false);
+
+    // 🆕 안전망: 10초 안에 안 끝나면 loading 강제 해제
+    const timeoutId = setTimeout(() => {
+      console.warn("[useSeatRows] fetch 타임아웃 - loading 강제 해제");
+      setLoading(false);
+      fetchingRef.current = false;
+    }, 10000);
+
+    try {
+      const { data, error: err } = await supabase
+        .from("seat_rows")
+        .select("*")
+        .eq("store_id", storeId)
+        .order("display_order");
+
+      clearTimeout(timeoutId);
+
+      if (err) {
+        console.error("[useSeatRows] fetch 실패:", err);
+        setError(err);
+        // 에러여도 기존 데이터 유지 (빈 배열 X)
+      } else {
+        setError(null);
+        setRows(data || []);
+      }
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.error("[useSeatRows] fetch 예외:", err);
+      setError(err);
+    } finally {
+      // 🆕 무조건 loading 풀기
+      setLoading(false);
+      initialFetchedRef.current = true;
+      fetchingRef.current = false;
+    }
   }, [storeId]);
 
   useEffect(() => {
@@ -47,9 +83,9 @@ export function useSeatRows(storeId) {
     let cancelled = false;
 
     // 초기 로드
-    fetchRows();
+    fetchRows(false);
 
-    // 이전 채널이 남아있다면 정리 (StrictMode 안전장치)
+    // 이전 채널 정리 (StrictMode 안전장치)
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
@@ -67,7 +103,8 @@ export function useSeatRows(storeId) {
           filter: `store_id=eq.${storeId}`,
         },
         () => {
-          if (!cancelled) fetchRows();
+          // 🆕 realtime 변경은 silent fetch (로딩 화면 안 띄움)
+          if (!cancelled) fetchRows(true);
         }
       )
       .subscribe();
@@ -89,11 +126,14 @@ export function useSeatRows(storeId) {
     Array.from({ length: row.seat_count }, (_, i) => `${row.name}-${i + 1}`)
   );
 
+  // 🆕 수동 refetch는 silent (UI 깜빡임 방지)
+  const refetch = useCallback(() => fetchRows(true), [fetchRows]);
+
   return {
     rows,
     allSeats,
     loading,
     error,
-    refetch: fetchRows,
+    refetch,
   };
 }
