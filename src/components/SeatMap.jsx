@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Move, Wallet, Trash2 } from "lucide-react";
+import { X, Move, Wallet, Trash2, Plus } from "lucide-react";
 import { useSeatRows } from "../hooks/useSeatRows";
 import { useStoreId } from "../lib/StoreContext";
+import ManualOrderModal from "./ManualOrderModal";
 
 function formatTime(iso) {
   const d = new Date(iso);
@@ -22,10 +23,8 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
   const isInactive = !isEmpty && inactiveMin >= 30;
   const hasOrders = sessionTotal > 0;
 
-  // 색깔 결정
   let style = {};
   if (isMoving) {
-    // 이동 모드: 옮길 본인 자리
     style = {
       background: "linear-gradient(135deg, rgba(100,180,220,0.3), rgba(60,120,180,0.15))",
       border: "2px solid #aac8ff",
@@ -33,7 +32,6 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
       boxShadow: "0 0 16px rgba(100,180,220,0.4)",
     };
   } else if (isMoveTarget) {
-    // 이동 모드: 빈자리 깜빡임
     style = {
       background: "rgba(100,180,220,0.1)",
       border: "1px solid rgba(100,180,220,0.4)",
@@ -41,7 +39,6 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
       cursor: "pointer",
     };
   } else if (isDimmed) {
-    // 이동 모드: 비활성
     style = {
       background: "rgba(255,255,255,0.02)",
       border: "1px solid rgba(255,255,255,0.04)",
@@ -57,7 +54,6 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
       cursor: "default",
     };
   } else if (hasOrders) {
-    // 정산 대기 (빨강 펄스)
     style = {
       background: "linear-gradient(135deg, rgba(226,75,74,0.2), rgba(180,40,40,0.1))",
       border: "1px solid rgba(226,75,74,0.5)",
@@ -65,7 +61,6 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
       cursor: "pointer",
     };
   } else if (isInactive) {
-    // 30분+ 비활성
     style = {
       background: "linear-gradient(135deg, rgba(226,150,75,0.18), rgba(180,100,40,0.1))",
       border: "1px solid rgba(226,150,75,0.45)",
@@ -73,7 +68,6 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
       cursor: "pointer",
     };
   } else {
-    // 일반 활성
     style = {
       background: "linear-gradient(135deg, rgba(106,176,106,0.15), rgba(60,120,60,0.08))",
       border: "1px solid rgba(106,176,106,0.35)",
@@ -133,7 +127,7 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
 }
 
 // ───── 디테일 팝업 ─────
-function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSettle, onMove, onEmpty }) {
+function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSettle, onMove, onEmpty, onManualOrder }) {
   if (!session) return null;
   const inactiveMin = session.last_active_at
     ? Math.floor((Date.now() - new Date(session.last_active_at).getTime()) / 60000)
@@ -159,6 +153,7 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
         transition={{ type: "spring", damping: 26, stiffness: 300 }}
         style={{
           width: "100%", maxWidth: 360,
+          maxHeight: "90vh", overflowY: "auto",
           background: "rgba(20,18,14,0.97)",
           backdropFilter: "blur(24px)",
           borderRadius: 18,
@@ -238,6 +233,21 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
                 <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span>{o.menu_icon}</span>
                   <span>{o.menu_name}</span>
+                  {o.option_name && (
+                    <span style={{
+                      fontSize: 8, padding: "1px 4px", borderRadius: 3,
+                      background: "rgba(212,165,55,0.1)", color: "rgba(212,165,55,0.8)",
+                    }}>
+                      {o.option_name}
+                    </span>
+                  )}
+                  {o.is_manual && (
+                    <span style={{
+                      fontSize: 8, padding: "1px 5px", borderRadius: 3,
+                      background: "rgba(196,122,255,0.15)", color: "#C47AFF",
+                      fontWeight: 600,
+                    }}>사장님</span>
+                  )}
                   {o.status === "served" && (
                     <span style={{
                       fontSize: 8, padding: "1px 5px", borderRadius: 4,
@@ -272,6 +282,27 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
             {sessionTotal.toLocaleString()}<span style={{ fontSize: 11, marginLeft: 3, color: "rgba(255,255,255,0.5)" }}>원</span>
           </span>
         </div>
+
+        {/* 🆕 주문 추가 버튼 */}
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={onManualOrder}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: 10,
+            marginBottom: 8,
+            background: "rgba(212,165,55,0.08)",
+            border: "1px dashed rgba(212,165,55,0.4)",
+            color: "#D4A537",
+            fontSize: 12, fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+          }}
+        >
+          <Plus size={14} /> 주문 추가
+        </motion.button>
 
         {/* 액션 버튼 */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
@@ -420,21 +451,30 @@ function MoveConfirmModal({ fromSeat, toSeat, sessionTotal, orderCount, onConfir
 }
 
 // ───── 메인 SeatMap 컴포넌트 ─────
-export default function SeatMap({ sessions, orders, onClose, onSettle, onMove }) {
+export default function SeatMap({
+  sessions,
+  orders,
+  onClose,
+  onSettle,
+  onMove,
+  // 🆕 수동 주문용 props
+  categories = [],
+  menus = [],
+  optionsByMenu = new Map(),
+  onOrdersRefetch,
+}) {
   const [selectedSession, setSelectedSession] = useState(null);
-  const [movingSession, setMovingSession] = useState(null); // 이동 중인 세션
-  const [pendingMove, setPendingMove] = useState(null); // {sessionId, fromSeat, toSeat}
+  const [movingSession, setMovingSession] = useState(null);
+  const [pendingMove, setPendingMove] = useState(null);
+  const [manualOrderSession, setManualOrderSession] = useState(null); // 🆕 수동주문 대상
   const [toast, setToast] = useState(null);
 
-  // 좌석 행 (DB)
   const storeId = useStoreId();
   const { rows: seatRows } = useSeatRows(storeId);
 
-  // 좌석별 세션 맵
   const sessionMap = new Map();
   sessions.forEach(s => sessionMap.set(s.seat_label, s));
 
-  // 세션별 주문 합계
   const sessionTotals = new Map();
   const sessionOrdersMap = new Map();
   (orders || []).forEach(o => {
@@ -447,13 +487,9 @@ export default function SeatMap({ sessions, orders, onClose, onSettle, onMove })
   });
 
   const handleSeatClick = (seat) => {
-    // 이동 모드일 때
     if (movingSession) {
-      // 본인 자리 클릭은 무시
       if (movingSession.seat_label === seat) return;
-      // 빈자리만 가능
       if (sessionMap.has(seat)) return;
-      // 이동 확인 팝업
       setPendingMove({
         sessionId: movingSession.id,
         fromSeat: movingSession.seat_label,
@@ -462,7 +498,6 @@ export default function SeatMap({ sessions, orders, onClose, onSettle, onMove })
       return;
     }
 
-    // 일반 클릭: 점유된 좌석만 팝업
     const session = sessionMap.get(seat);
     if (session) {
       setSelectedSession(session);
@@ -493,6 +528,20 @@ export default function SeatMap({ sessions, orders, onClose, onSettle, onMove })
     }
     setPendingMove(null);
     setMovingSession(null);
+  };
+
+  // 🆕 수동 주문 시작
+  const handleStartManualOrder = () => {
+    setManualOrderSession(selectedSession);
+    setSelectedSession(null);
+  };
+
+  // 🆕 수동 주문 성공
+  const handleManualOrderSuccess = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
+    // 부모에게 주문 재조회 요청 (있으면)
+    onOrdersRefetch?.();
   };
 
   const renderRow = (seats, label) => {
@@ -618,6 +667,7 @@ export default function SeatMap({ sessions, orders, onClose, onSettle, onMove })
             sessionTotal={sessionTotals.get(selectedSession.id) || 0}
             onClose={() => setSelectedSession(null)}
             onMove={handleStartMove}
+            onManualOrder={handleStartManualOrder}
             onEmpty={() => {
               onClose(selectedSession.id);
               setSelectedSession(null);
@@ -640,6 +690,20 @@ export default function SeatMap({ sessions, orders, onClose, onSettle, onMove })
             orderCount={(sessionOrdersMap.get(pendingMove.sessionId) || []).length}
             onConfirm={handleConfirmMove}
             onCancel={() => setPendingMove(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 🆕 수동 주문 모달 */}
+      <AnimatePresence>
+        {manualOrderSession && (
+          <ManualOrderModal
+            session={manualOrderSession}
+            categories={categories}
+            menus={menus}
+            optionsByMenu={optionsByMenu}
+            onClose={() => setManualOrderSession(null)}
+            onSuccess={handleManualOrderSuccess}
           />
         )}
       </AnimatePresence>

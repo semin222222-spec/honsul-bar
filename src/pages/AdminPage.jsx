@@ -192,12 +192,33 @@ function OrderCard({ order, onServed, onCancel }) {
                   {order.option_name}
                 </span>
               )}
+              {order.is_manual && (
+                <span style={{
+                  fontSize: 10, padding: "1px 6px", marginLeft: 6,
+                  background: "rgba(196,122,255,0.15)", color: "#C47AFF",
+                  borderRadius: 4, fontWeight: 600,
+                }}>
+                  사장님
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3, display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ color: "#D4A537", fontWeight: 500 }}>📍 {order.seat_label}</span>
               <span>·</span>
               <span>{order.session?.nickname || "손님"}</span>
             </div>
+            {order.memo && (
+              <div style={{
+                fontSize: 10, color: "rgba(255,200,130,0.85)",
+                marginTop: 4,
+                padding: "2px 6px",
+                background: "rgba(226,150,75,0.08)",
+                borderRadius: 4,
+                display: "inline-block",
+              }}>
+                📝 {order.memo}
+              </div>
+            )}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
@@ -747,6 +768,10 @@ export default function AdminPage() {
                   onClose={closeSession}
                   onSettle={settleSession}
                   onMove={moveSession}
+                  categories={menuCategories}
+                  menus={menuItems}
+                  optionsByMenu={menuOptions.optionsByMenu}
+                  onOrdersRefetch={refetchOrders}
                 />
               )}
             </motion.div>
