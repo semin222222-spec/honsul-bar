@@ -393,7 +393,7 @@ function SOSFAB({ onClick }) {
   );
 }
 
-// 🆕 복구 모달 컴포넌트
+// 🆕 복구 모달 컴포넌트 - 자연스러운 문구
 function RecoveryModal({ prompt, onRecover, onCancel }) {
   if (!prompt) return null;
   return (
@@ -444,7 +444,7 @@ function RecoveryModal({ prompt, onRecover, onCancel }) {
           </div>
           <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
             <strong style={{ color: "#D4A537" }}>{prompt.seatLabel}</strong> 자리에<br />
-            {prompt.existingSession.minutesSinceActive}분 전 활동이 끊긴 세션이 있어요.
+            조금 전까지 사용 중이던 세션이 있어요.
           </div>
         </div>
 
@@ -458,7 +458,7 @@ function RecoveryModal({ prompt, onRecover, onCancel }) {
           color: "rgba(255,255,255,0.6)",
           lineHeight: 1.5,
         }}>
-          💡 사파리를 완전히 나갔다 다시 들어오신 경우<br />
+          💡 실수로 사이트를 나가셨거나 사파리가 종료됐을 수 있어요.<br />
           본인이라면 <strong style={{ color: "#D4A537" }}>"네, 재입장"</strong>을 눌러주세요.<br />
           본인이 아니라면 사장님께 문의해주세요.
         </div>

@@ -2,25 +2,25 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 /**
- * useSession - 🚨 버그 수정 + 복구 모드 (v3)
+ * useSession - 🚨 버그 수정 + 즉시 복구 (v4)
  *
  * [해결한 버그]
  * - 같은 좌석 재입장 안 됨
  * - 다른 좌석으로 주문 들어감 (b-3 → a-3)
  * - 같은 customer_id로 여러 세션 중복 생성
- * - 사파리 사설모드 등 localStorage 날아간 케이스 → 복구 모드 제공
+ * - 사파리 사설모드/완전종료 등 localStorage 날아간 케이스 → 즉시 복구 가능
  *
  * [핵심 수정]
  * 1. URL 좌석과 저장된 세션 좌석이 다르면 → localStorage 무시
  * 2. URL에 좌석 있으면 그 좌석으로만 세션 검색
  * 3. 좌석 이동 시 옛 세션 자동 close
  * 4. 정산 시 localStorage 확실히 정리
- * 5. 좌석에 옛 세션 있고 활동 끊긴 지 오래된 경우 → 복구 가능 신호
- * 6. takeoverSession 함수 추가 - 손님이 직접 옛 세션 정리
+ * 5. 좌석에 옛 세션 있으면 → 1초 후부터 즉시 복구 모달 표시
+ * 6. takeoverSession 함수 - 손님이 직접 옛 세션 인수
  */
 
-// 활동 끊긴 지 이 시간 이상이면 "버려진 세션"으로 간주 (복구 가능)
-const STALE_SESSION_MINUTES = 10;
+// 활동 끊긴 지 이 시간 이상이면 "복구 가능" (1초 = 사실상 즉시)
+const STALE_SESSION_SECONDS = 1;
 
 export function useSession({ myId, myNickname, myAvatar }) {
   const [session, setSession] = useState(null);
@@ -204,16 +204,13 @@ export function useSession({ myId, myNickname, myAvatar }) {
     return () => clearInterval(interval);
   }, [session?.id, touchSession]);
 
-  // ───── 🆕 takeoverSession: 손님이 직접 옛 세션 인수 ─────
-  // (사파리 사설모드 등으로 localStorage 날아간 경우에 사용)
+  // ───── takeoverSession: 손님이 직접 옛 세션 인수 ─────
   const takeoverSession = useCallback(
     async (oldSessionId, seatLabel) => {
       if (!myId || !oldSessionId || !seatLabel) {
         return { ok: false, reason: "invalid" };
       }
 
-      // 옛 세션의 customer_id를 내 ID로 변경 (인수)
-      // nickname/avatar는 그대로 유지 (주문 기록 보존)
       const { data, error } = await supabase
         .from("sessions")
         .update({
@@ -221,7 +218,7 @@ export function useSession({ myId, myNickname, myAvatar }) {
           last_active_at: new Date().toISOString(),
         })
         .eq("id", oldSessionId)
-        .eq("seat_label", seatLabel) // 안전장치: 좌석 일치 확인
+        .eq("seat_label", seatLabel)
         .eq("status", "open")
         .select()
         .single();
@@ -231,12 +228,10 @@ export function useSession({ myId, myNickname, myAvatar }) {
         return { ok: false, reason: "takeover_failed", message: "재입장에 실패했어요. 다시 시도해주세요." };
       }
 
-      // localStorage 저장 + 내 세션으로 set
       localStorage.setItem("honsul_session_id", data.id);
       lastSeatRef.current = data.seat_label;
       setSession(data);
 
-      // 혹시 내 다른 좌석 세션 잔여물 정리
       await cleanupStaleSessions(myId, seatLabel);
 
       console.log(`[Session] 세션 인수 완료: ${seatLabel} (${oldSessionId})`);
@@ -275,20 +270,18 @@ export function useSession({ myId, myNickname, myAvatar }) {
           await cleanupStaleSessions(myId, seatLabel);
           return { ok: true, session: existingSession, reused: true };
         } else {
-          // 🆕 다른 사람으로 보이지만... 사파리 사설모드 등으로 ID가 바뀐 본인일 수 있음
-          // 마지막 활동 시간 체크
+          // 다른 사람으로 보이지만... 사파리 사설모드/완전종료로 ID 바뀐 본인일 수 있음
           const lastActive = existingSession.last_active_at
             ? new Date(existingSession.last_active_at)
             : new Date(existingSession.opened_at);
-          const minutesSinceActive = (Date.now() - lastActive.getTime()) / 1000 / 60;
+          const secondsSinceActive = (Date.now() - lastActive.getTime()) / 1000;
 
-          // 🚨 핵심: 활동이 오래 끊긴 세션 → 복구 가능 후보
-          const isStale = minutesSinceActive >= STALE_SESSION_MINUTES;
+          // 🚨 핵심: 1초만 지나도 복구 가능 (실수로 나갔다 바로 들어오는 케이스 대응)
+          const isStale = secondsSinceActive >= STALE_SESSION_SECONDS;
 
           return {
             ok: false,
             reason: "seat_occupied",
-            // 🆕 복구 정보 같이 전달
             recoverable: isStale,
             existingSession: isStale ? {
               id: existingSession.id,
@@ -296,10 +289,10 @@ export function useSession({ myId, myNickname, myAvatar }) {
               nickname: existingSession.nickname,
               opened_at: existingSession.opened_at,
               last_active_at: existingSession.last_active_at,
-              minutesSinceActive: Math.floor(minutesSinceActive),
+              secondsSinceActive: Math.floor(secondsSinceActive),
             } : null,
             message: isStale
-              ? `'${seatLabel}' 자리에 ${Math.floor(minutesSinceActive)}분 전 활동이 끊긴 세션이 있어요.`
+              ? `'${seatLabel}' 자리에 조금 전까지 사용 중이던 세션이 있어요.`
               : `'${seatLabel}' 자리는 이미 사용 중이에요.\n다른 자리를 선택하거나 사장님께 문의해주세요.`,
           };
         }
@@ -364,7 +357,7 @@ export function useSession({ myId, myNickname, myAvatar }) {
     session,
     loading,
     createSession,
-    takeoverSession, // 🆕 복구 함수 추가
+    takeoverSession,
     justSettled,
     dismissThankYou: () => {
       localStorage.removeItem("honsul_session_id");
