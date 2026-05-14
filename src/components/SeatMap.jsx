@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Move, Wallet, Trash2, Plus } from "lucide-react";
+import { X, Move, Wallet, Trash2, Plus, Users } from "lucide-react";
 import { useSeatRows } from "../hooks/useSeatRows";
 import { useStoreId } from "../lib/StoreContext";
 import ManualOrderModal from "./ManualOrderModal";
@@ -15,7 +15,7 @@ function elapsedMin(iso) {
 }
 
 // ───── 좌석 셀 ─────
-function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimmed, onClick }) {
+function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isMergeTarget, isMerging, isDimmed, onClick }) {
   const isEmpty = !session;
   const inactiveMin = session?.last_active_at
     ? Math.floor((Date.now() - new Date(session.last_active_at).getTime()) / 60000)
@@ -24,7 +24,7 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
   const hasOrders = sessionTotal > 0;
 
   let style = {};
-  if (isMoving) {
+  if (isMoving || isMerging) {
     style = {
       background: "linear-gradient(135deg, rgba(100,180,220,0.3), rgba(60,120,180,0.15))",
       border: "2px solid #aac8ff",
@@ -36,6 +36,13 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
       background: "rgba(100,180,220,0.1)",
       border: "1px solid rgba(100,180,220,0.4)",
       color: "#aac8ff",
+      cursor: "pointer",
+    };
+  } else if (isMergeTarget) {
+    style = {
+      background: "linear-gradient(135deg, rgba(196,122,255,0.15), rgba(140,80,200,0.08))",
+      border: "1px solid rgba(196,122,255,0.5)",
+      color: "#C47AFF",
       cursor: "pointer",
     };
   } else if (isDimmed) {
@@ -76,20 +83,23 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
     };
   }
 
+  const animateProps = (isMoveTarget || isMergeTarget)
+    ? { scale: [1, 1.04, 1] }
+    : (hasOrders && !isMoving && !isMerging && !isDimmed
+        ? { boxShadow: ["0 0 0 0 rgba(226,75,74,0.4)", "0 0 0 4px rgba(226,75,74,0)"] }
+        : {});
+
+  const transitionProps = (isMoveTarget || isMergeTarget)
+    ? { duration: 1.5, repeat: Infinity }
+    : (hasOrders ? { duration: 2, repeat: Infinity } : {});
+
   return (
     <motion.button
       layout
       onClick={() => onClick && onClick(seat)}
-      animate={hasOrders && !isMoveTarget && !isMoving && !isDimmed ? {
-        boxShadow: [
-          "0 0 0 0 rgba(226,75,74,0.4)",
-          "0 0 0 4px rgba(226,75,74,0)",
-        ],
-      } : isMoveTarget ? {
-        scale: [1, 1.04, 1],
-      } : {}}
-      transition={hasOrders && !isMoveTarget ? { duration: 2, repeat: Infinity } : isMoveTarget ? { duration: 1.5, repeat: Infinity } : {}}
-      whileTap={!isEmpty || isMoveTarget ? { scale: 0.95 } : {}}
+      animate={animateProps}
+      transition={transitionProps}
+      whileTap={(!isEmpty || isMoveTarget || isMergeTarget) ? { scale: 0.95 } : {}}
       style={{
         aspectRatio: "1.1",
         borderRadius: 10,
@@ -127,11 +137,13 @@ function SeatCell({ seat, session, sessionTotal, isMoveTarget, isMoving, isDimme
 }
 
 // ───── 디테일 팝업 ─────
-function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSettle, onMove, onEmpty, onManualOrder }) {
+function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSettle, onMove, onMerge, onEmpty, onManualOrder }) {
   if (!session) return null;
   const inactiveMin = session.last_active_at
     ? Math.floor((Date.now() - new Date(session.last_active_at).getTime()) / 60000)
     : 0;
+
+  const isMerged = session.nickname && (session.nickname.includes("+") || session.nickname.includes("외"));
 
   return (
     <motion.div
@@ -174,14 +186,14 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12,
-            background: "rgba(212,165,55,0.1)",
-            border: "1.5px solid rgba(212,165,55,0.3)",
+            background: isMerged ? "rgba(196,122,255,0.1)" : "rgba(212,165,55,0.1)",
+            border: "1.5px solid " + (isMerged ? "rgba(196,122,255,0.3)" : "rgba(212,165,55,0.3)"),
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 22,
           }}>
-            {session.avatar || "🥃"}
+            {isMerged ? "👥" : (session.avatar || "🥃")}
           </div>
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
               fontSize: 22,
               fontFamily: "'Noto Serif KR', serif",
@@ -190,8 +202,18 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
             }}>
               📍 {session.seat_label}
             </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+            <div style={{
+              fontSize: 11, color: "rgba(255,255,255,0.5)",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
               {session.nickname || "손님"}
+              {isMerged && (
+                <span style={{
+                  marginLeft: 6, padding: "1px 5px",
+                  background: "rgba(196,122,255,0.15)", color: "#C47AFF",
+                  borderRadius: 4, fontSize: 9, fontWeight: 600,
+                }}>합석</span>
+              )}
             </div>
           </div>
         </div>
@@ -283,7 +305,7 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
           </span>
         </div>
 
-        {/* 🆕 주문 추가 버튼 */}
+        {/* 주문 추가 버튼 */}
         <motion.button
           whileTap={{ scale: 0.97 }}
           onClick={onManualOrder}
@@ -304,36 +326,52 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
           <Plus size={14} /> 주문 추가
         </motion.button>
 
-        {/* 액션 버튼 */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 6 }}>
+        {/* 액션 버튼 3개: 비우기 / 자리이동 / 합석 */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 6 }}>
           <button
             onClick={onEmpty}
             style={{
-              padding: "11px 8px", borderRadius: 10,
+              padding: "11px 4px", borderRadius: 10,
               background: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.1)",
               color: "rgba(255,255,255,0.55)",
-              fontSize: 11, fontWeight: 600, cursor: "pointer",
+              fontSize: 10, fontWeight: 600, cursor: "pointer",
               fontFamily: "inherit",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
             }}
           >
-            <Trash2 size={12} /> 비우기
+            <Trash2 size={11} /> 비우기
           </button>
           <motion.button
             whileTap={{ scale: 0.96 }}
             onClick={onMove}
             style={{
-              padding: "11px 8px", borderRadius: 10,
+              padding: "11px 4px", borderRadius: 10,
               background: "linear-gradient(135deg, rgba(100,180,220,0.2), rgba(60,120,180,0.1))",
               border: "1px solid rgba(100,180,220,0.4)",
               color: "#aac8ff",
-              fontSize: 11, fontWeight: 600, cursor: "pointer",
+              fontSize: 10, fontWeight: 600, cursor: "pointer",
               fontFamily: "inherit",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
             }}
           >
-            <Move size={12} /> 자리 옮기기
+            <Move size={11} /> 자리이동
+          </motion.button>
+          {/* 🆕 합석 버튼 */}
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={onMerge}
+            style={{
+              padding: "11px 4px", borderRadius: 10,
+              background: "linear-gradient(135deg, rgba(196,122,255,0.2), rgba(140,80,200,0.1))",
+              border: "1px solid rgba(196,122,255,0.4)",
+              color: "#C47AFF",
+              fontSize: 10, fontWeight: 600, cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
+            }}
+          >
+            <Users size={11} /> 합석
           </motion.button>
         </div>
 
@@ -350,6 +388,7 @@ function SeatDetailPopup({ session, sessionOrders, sessionTotal, onClose, onSett
               fontSize: 13, fontWeight: 700, cursor: "pointer",
               fontFamily: "inherit",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              marginTop: 4,
             }}
           >
             <Wallet size={14} /> 정산 완료 ({sessionTotal.toLocaleString()}원)
@@ -450,14 +489,153 @@ function MoveConfirmModal({ fromSeat, toSeat, sessionTotal, orderCount, onConfir
   );
 }
 
-// ───── 메인 SeatMap 컴포넌트 ─────
+// ───── 🆕 합석 확인 모달 ─────
+function MergeConfirmModal({ fromSession, toSession, fromTotal, toTotal, onConfirm, onCancel }) {
+  const mergedTotal = fromTotal + toTotal;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 300,
+        background: "rgba(0,0,0,0.8)", backdropFilter: "blur(10px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        style={{
+          width: "100%", maxWidth: 340,
+          background: "rgba(20,18,14,0.97)",
+          border: "1px solid rgba(196,122,255,0.4)",
+          borderRadius: 18,
+          padding: 24,
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 40, marginBottom: 14 }}>🤝</div>
+        <div style={{
+          fontSize: 16,
+          color: "#F5E6C8",
+          fontFamily: "'Noto Serif KR', serif",
+          marginBottom: 8,
+        }}>
+          합석하기
+        </div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.6, marginBottom: 16 }}>
+          두 손님과 주문이<br />
+          한 자리로 합쳐져요
+        </div>
+
+        <div style={{
+          background: "rgba(255,255,255,0.03)",
+          borderRadius: 10,
+          padding: 12,
+          marginBottom: 14,
+        }}>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "6px 0",
+            borderBottom: "1px dashed rgba(255,255,255,0.06)",
+          }}>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+              📍 {fromSession.seat_label} <span style={{ color: "rgba(255,255,255,0.4)" }}>· {fromSession.nickname}</span>
+            </span>
+            <span style={{ fontSize: 12, color: "rgba(212,165,55,0.7)", fontFamily: "'Noto Serif KR', serif" }}>
+              {fromTotal.toLocaleString()}원
+            </span>
+          </div>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            padding: "6px 0",
+          }}>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+              📍 {toSession.seat_label} <span style={{ color: "rgba(255,255,255,0.4)" }}>· {toSession.nickname}</span>
+            </span>
+            <span style={{ fontSize: 12, color: "rgba(212,165,55,0.7)", fontFamily: "'Noto Serif KR', serif" }}>
+              {toTotal.toLocaleString()}원
+            </span>
+          </div>
+        </div>
+
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: 10, marginBottom: 12,
+          fontSize: 14,
+          color: "rgba(196,122,255,0.8)",
+        }}>
+          <span>📍 {fromSession.seat_label}</span>
+          <span style={{ fontSize: 12 }}>→</span>
+          <span style={{ color: "#C47AFF", fontWeight: 600 }}>📍 {toSession.seat_label}</span>
+        </div>
+
+        <div style={{
+          padding: 12,
+          background: "linear-gradient(135deg, rgba(196,122,255,0.15), rgba(140,80,200,0.08))",
+          border: "1px solid rgba(196,122,255,0.3)",
+          borderRadius: 10,
+          marginBottom: 18,
+        }}>
+          <div style={{ fontSize: 10, color: "rgba(196,122,255,0.7)", marginBottom: 4, letterSpacing: "0.1em" }}>
+            합쳐진 후 ({toSession.seat_label})
+          </div>
+          <div style={{
+            fontSize: 22,
+            color: "#C47AFF",
+            fontWeight: 600,
+            fontFamily: "'Noto Serif KR', serif",
+          }}>
+            {mergedTotal.toLocaleString()}<span style={{ fontSize: 11, marginLeft: 3, color: "rgba(255,255,255,0.5)" }}>원</span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1, padding: 12, borderRadius: 10,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.6)",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            취소
+          </button>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={onConfirm}
+            style={{
+              flex: 1, padding: 12, borderRadius: 10,
+              background: "linear-gradient(135deg, rgba(196,122,255,0.7), rgba(140,80,200,0.6))",
+              border: "none",
+              color: "#fff",
+              fontSize: 12, fontWeight: 700, cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            합석하기
+          </motion.button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ───── 메인 SeatMap ─────
 export default function SeatMap({
   sessions,
   orders,
   onClose,
   onSettle,
   onMove,
-  // 🆕 수동 주문용 props
+  onMerge,
   categories = [],
   menus = [],
   optionsByMenu = new Map(),
@@ -465,8 +643,10 @@ export default function SeatMap({
 }) {
   const [selectedSession, setSelectedSession] = useState(null);
   const [movingSession, setMovingSession] = useState(null);
+  const [mergingSession, setMergingSession] = useState(null);
   const [pendingMove, setPendingMove] = useState(null);
-  const [manualOrderSession, setManualOrderSession] = useState(null); // 🆕 수동주문 대상
+  const [pendingMerge, setPendingMerge] = useState(null);
+  const [manualOrderSession, setManualOrderSession] = useState(null);
   const [toast, setToast] = useState(null);
 
   const storeId = useStoreId();
@@ -487,6 +667,7 @@ export default function SeatMap({
   });
 
   const handleSeatClick = (seat) => {
+    // 자리 이동 모드
     if (movingSession) {
       if (movingSession.seat_label === seat) return;
       if (sessionMap.has(seat)) return;
@@ -494,6 +675,18 @@ export default function SeatMap({
         sessionId: movingSession.id,
         fromSeat: movingSession.seat_label,
         toSeat: seat,
+      });
+      return;
+    }
+
+    // 🆕 합석 모드
+    if (mergingSession) {
+      if (mergingSession.seat_label === seat) return;
+      const targetSession = sessionMap.get(seat);
+      if (!targetSession) return;
+      setPendingMerge({
+        fromSession: mergingSession,
+        toSession: targetSession,
       });
       return;
     }
@@ -530,17 +723,40 @@ export default function SeatMap({
     setMovingSession(null);
   };
 
-  // 🆕 수동 주문 시작
+  // 🆕 합석
+  const handleStartMerge = () => {
+    setMergingSession(selectedSession);
+    setSelectedSession(null);
+  };
+
+  const handleCancelMerge = () => {
+    setMergingSession(null);
+  };
+
+  const handleConfirmMerge = async () => {
+    if (!pendingMerge || !onMerge) return;
+    const result = await onMerge(pendingMerge.fromSession.id, pendingMerge.toSession.seat_label);
+    if (result?.ok) {
+      setToast(`${result.fromNickname} 손님이 ${result.toSeat}로 합석했어요`);
+      setTimeout(() => setToast(null), 3500);
+      onOrdersRefetch?.();
+    } else {
+      setToast("합석에 실패했어요. 다시 시도해주세요.");
+      setTimeout(() => setToast(null), 3000);
+    }
+    setPendingMerge(null);
+    setMergingSession(null);
+  };
+
+  // 수동 주문
   const handleStartManualOrder = () => {
     setManualOrderSession(selectedSession);
     setSelectedSession(null);
   };
 
-  // 🆕 수동 주문 성공
   const handleManualOrderSuccess = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3500);
-    // 부모에게 주문 재조회 요청 (있으면)
     onOrdersRefetch?.();
   };
 
@@ -566,8 +782,11 @@ export default function SeatMap({
           {seats.map(seat => {
             const session = sessionMap.get(seat);
             const isMoving = movingSession?.seat_label === seat;
+            const isMerging = mergingSession?.seat_label === seat;
             const isMoveTarget = movingSession && !session;
-            const isDimmed = movingSession && session && !isMoving;
+            const isMergeTarget = mergingSession && session && !isMerging;
+            const isDimmed = (movingSession && session && !isMoving) ||
+                             (mergingSession && !session);
             return (
               <SeatCell
                 key={seat}
@@ -576,6 +795,8 @@ export default function SeatMap({
                 sessionTotal={session ? (sessionTotals.get(session.id) || 0) : 0}
                 isMoveTarget={isMoveTarget}
                 isMoving={isMoving}
+                isMergeTarget={isMergeTarget}
+                isMerging={isMerging}
                 isDimmed={isDimmed}
                 onClick={handleSeatClick}
               />
@@ -628,11 +849,56 @@ export default function SeatMap({
                 🔄 자리 이동 모드
               </div>
               <div style={{ fontSize: 11, color: "rgba(200,230,255,0.7)" }}>
-                <strong style={{ color: "#aac8ff" }}>{movingSession.seat_label}</strong>를 어디로 옮길까요?
+                <strong style={{ color: "#aac8ff" }}>{movingSession.seat_label}</strong>를 빈자리로 옮기세요
               </div>
             </div>
             <button
               onClick={handleCancelMove}
+              style={{
+                padding: "6px 12px",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: 8,
+                color: "rgba(255,255,255,0.7)",
+                fontSize: 10, cursor: "pointer", fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              취소
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 🆕 합석 모드 배너 */}
+      <AnimatePresence>
+        {mergingSession && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            style={{
+              background: "linear-gradient(135deg, rgba(196,122,255,0.15), rgba(140,80,200,0.08))",
+              border: "1.5px solid rgba(196,122,255,0.4)",
+              borderRadius: 12,
+              padding: "12px 16px",
+              marginBottom: 12,
+              display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 12, color: "#C47AFF", fontWeight: 600, marginBottom: 2,
+                display: "flex", alignItems: "center", gap: 6,
+              }}>
+                🤝 합석 모드
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(220,200,255,0.7)" }}>
+                <strong style={{ color: "#C47AFF" }}>{mergingSession.seat_label}</strong>을 어느 자리에 합칠까요? (다른 손님 자리 선택)
+              </div>
+            </div>
+            <button
+              onClick={handleCancelMerge}
               style={{
                 padding: "6px 12px",
                 background: "rgba(255,255,255,0.06)",
@@ -667,6 +933,7 @@ export default function SeatMap({
             sessionTotal={sessionTotals.get(selectedSession.id) || 0}
             onClose={() => setSelectedSession(null)}
             onMove={handleStartMove}
+            onMerge={handleStartMerge}
             onManualOrder={handleStartManualOrder}
             onEmpty={() => {
               onClose(selectedSession.id);
@@ -694,7 +961,21 @@ export default function SeatMap({
         )}
       </AnimatePresence>
 
-      {/* 🆕 수동 주문 모달 */}
+      {/* 🆕 합석 확인 */}
+      <AnimatePresence>
+        {pendingMerge && (
+          <MergeConfirmModal
+            fromSession={pendingMerge.fromSession}
+            toSession={pendingMerge.toSession}
+            fromTotal={sessionTotals.get(pendingMerge.fromSession.id) || 0}
+            toTotal={sessionTotals.get(pendingMerge.toSession.id) || 0}
+            onConfirm={handleConfirmMerge}
+            onCancel={() => setPendingMerge(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 수동 주문 모달 */}
       <AnimatePresence>
         {manualOrderSession && (
           <ManualOrderModal

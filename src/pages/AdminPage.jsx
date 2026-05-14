@@ -332,7 +332,8 @@ export default function AdminPage() {
   const [managePanel, setManagePanel] = useState(null);
 
   const { signals, loading: sosLoading, acceptSignal, resolveSignal, refetch: refetchSOS } = useSOSAdmin();
-  const { sessions, todayRevenue, loading: sessionsLoading, closeSession, settleSession, moveSession, refetch: refetchSessions } = useSessionsAdmin();
+  // 🆕 mergeSession 추가
+  const { sessions, todayRevenue, loading: sessionsLoading, closeSession, settleSession, moveSession, mergeSession, refetch: refetchSessions } = useSessionsAdmin();
   const { orders, pendingCount: pendingOrdersCount, loading: ordersLoading, markServed, cancelOrder, refetch: refetchOrders } = useOrdersAdmin();
 
   // 메뉴 관리
@@ -768,6 +769,7 @@ export default function AdminPage() {
                   onClose={closeSession}
                   onSettle={settleSession}
                   onMove={moveSession}
+                  onMerge={mergeSession}
                   categories={menuCategories}
                   menus={menuItems}
                   optionsByMenu={menuOptions.optionsByMenu}

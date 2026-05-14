@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 
 /**
  * useSessionsAdmin
- * - 관리자: 활성 세션 목록 + 강제 해제 + 정산
+ * - 관리자: 활성 세션 목록 + 강제 해제 + 정산 + 자리이동 + 합석
  * - 오늘 매출 계산 (closed 세션의 주문 합산)
  */
 export function useSessionsAdmin() {
@@ -31,7 +31,6 @@ export function useSessionsAdmin() {
 
   // 오늘 매출 계산 — 정산 완료된 세션의 주문 합산
   const fetchTodayRevenue = useCallback(async () => {
-    // 오늘 00:00부터
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -100,14 +99,12 @@ export function useSessionsAdmin() {
 
   // 정산 (세션 닫고 주문 기록 유지)
   const settleSession = useCallback(async (sessionId) => {
-    // 해당 세션의 pending 주문도 전부 served로 처리
     await supabase
       .from("orders")
       .update({ status: "served", served_at: new Date().toISOString() })
       .eq("session_id", sessionId)
       .eq("status", "pending");
 
-    // 세션 종료
     const { error: err } = await supabase
       .from("sessions")
       .update({
@@ -125,7 +122,6 @@ export function useSessionsAdmin() {
 
   // 자리 이동 (세션의 seat_label 변경 + 관련 주문도)
   const moveSession = useCallback(async (sessionId, newSeatLabel) => {
-    // 1) 새 좌석이 이미 점유됐는지 확인
     const { data: existing } = await supabase
       .from("sessions")
       .select("id")
@@ -138,7 +134,6 @@ export function useSessionsAdmin() {
       return { ok: false, reason: "occupied" };
     }
 
-    // 2) 세션 좌석 변경
     const { error: sessErr } = await supabase
       .from("sessions")
       .update({
@@ -152,13 +147,130 @@ export function useSessionsAdmin() {
       return { ok: false, reason: "error" };
     }
 
-    // 3) 해당 세션의 모든 주문도 좌석 갱신
     await supabase
       .from("orders")
       .update({ seat_label: newSeatLabel })
       .eq("session_id", sessionId);
 
     return { ok: true };
+  }, []);
+
+  // 🆕 합석 (fromSession을 toSeat의 세션에 합치기)
+  const mergeSession = useCallback(async (fromSessionId, toSeatLabel) => {
+    if (!fromSessionId || !toSeatLabel) {
+      return { ok: false, reason: "invalid" };
+    }
+
+    // 1) from 세션 가져오기
+    const { data: fromSession, error: fromErr } = await supabase
+      .from("sessions")
+      .select("*")
+      .eq("id", fromSessionId)
+      .eq("status", "open")
+      .maybeSingle();
+
+    if (fromErr || !fromSession) {
+      console.error("합석할 세션을 찾을 수 없음:", fromErr);
+      return { ok: false, reason: "from_not_found" };
+    }
+
+    // 같은 좌석으로 합석 시도하면 거부
+    if (fromSession.seat_label === toSeatLabel) {
+      return { ok: false, reason: "same_seat" };
+    }
+
+    // 2) to 세션(대상 좌석) 가져오기
+    const { data: toSession, error: toErr } = await supabase
+      .from("sessions")
+      .select("*")
+      .eq("seat_label", toSeatLabel)
+      .eq("status", "open")
+      .maybeSingle();
+
+    if (toErr || !toSession) {
+      console.error("합석 대상 좌석에 세션이 없음:", toErr);
+      return { ok: false, reason: "to_not_found" };
+    }
+
+    // 3) 닉네임 합치기 ("기존 + 새로운")
+    const fromNickname = fromSession.nickname || "손님";
+    const toNickname = toSession.nickname || "손님";
+    let mergedNickname = `${toNickname} + ${fromNickname}`;
+
+    // 너무 길어지면 (이미 합석된 자리에 또 합석) "외 N명" 으로
+    if (mergedNickname.length > 20) {
+      const plusCount = (toNickname.match(/\+/g) || []).length;
+      mergedNickname = `${toNickname.split(" + ")[0]} 외 ${plusCount + 1}명`;
+    }
+
+    // 일본어 닉네임도 합치기 (있으면)
+    let mergedNicknameJa = null;
+    if (toSession.nickname_ja || fromSession.nickname_ja) {
+      const fromJa = fromSession.nickname_ja || fromSession.nickname || "ゲスト";
+      const toJa = toSession.nickname_ja || toSession.nickname || "ゲスト";
+      mergedNicknameJa = `${toJa} + ${fromJa}`;
+      if (mergedNicknameJa.length > 25) {
+        const plusCount = (toJa.match(/\+/g) || []).length;
+        mergedNicknameJa = `${toJa.split(" + ")[0]} 外${plusCount + 1}名`;
+      }
+    }
+
+    // 4) from 세션의 모든 주문을 to 세션으로 이전
+    const { error: ordersErr } = await supabase
+      .from("orders")
+      .update({
+        session_id: toSession.id,
+        seat_label: toSeatLabel,
+      })
+      .eq("session_id", fromSessionId);
+
+    if (ordersErr) {
+      console.error("주문 이전 실패:", ordersErr);
+      return { ok: false, reason: "orders_transfer_failed" };
+    }
+
+    // 5) to 세션 닉네임 업데이트 + 활동시간 갱신
+    const updatePayload = {
+      nickname: mergedNickname,
+      last_active_at: new Date().toISOString(),
+    };
+    if (mergedNicknameJa) {
+      updatePayload.nickname_ja = mergedNicknameJa;
+    }
+
+    const { error: updateErr } = await supabase
+      .from("sessions")
+      .update(updatePayload)
+      .eq("id", toSession.id);
+
+    if (updateErr) {
+      console.error("대상 세션 업데이트 실패:", updateErr);
+      // 주문은 이미 이전된 상태라 롤백 어려움 - 일단 진행
+    }
+
+    // 6) from 세션 close 처리
+    const { error: closeErr } = await supabase
+      .from("sessions")
+      .update({
+        status: "closed",
+        closed_at: new Date().toISOString(),
+      })
+      .eq("id", fromSessionId);
+
+    if (closeErr) {
+      console.error("합석 후 원래 세션 종료 실패:", closeErr);
+      return { ok: false, reason: "close_failed" };
+    }
+
+    console.log(`[Merge] ${fromSession.seat_label}(${fromNickname}) → ${toSeatLabel}(${toNickname}) 합석 완료`);
+    return {
+      ok: true,
+      mergedNickname,
+      fromSeat: fromSession.seat_label,
+      toSeat: toSeatLabel,
+      fromNickname,
+      toNickname,
+    };
   }, []);
 
   return {
@@ -169,6 +281,7 @@ export function useSessionsAdmin() {
     closeSession,
     settleSession,
     moveSession,
+    mergeSession, // 🆕
     refetch: fetchSessions,
   };
 }
