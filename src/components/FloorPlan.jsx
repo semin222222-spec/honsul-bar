@@ -6,74 +6,66 @@ import { supabase } from "../lib/supabaseClient";
 /**
  * FloorPlan - 평면도 형태의 좌석 배치
  *
+ * v2: 컨테이너 더 큼 (1.6:1), 좌석 작게(7%) → 6개 한 줄 들어감
+ *
  * 기본값:
  *  - A줄(위): ㄷ자 모양
  *  - B줄(아래): ] 모양 (좌우 반전)
- *
- * 편집 모드:
- *  - 좌석 드래그로 위치 이동
- *  - 모서리 끌어서 크기 조절
- *  - 저장 시 DB의 seat_rows.layout JSONB에 저장
- *
- * Props:
- *  - row: seat_rows 행 (id, name, seat_count, layout)
- *  - rowDirection: "left-open" (ㄷ) or "right-open" (])
- *  - sessionMap: Map<seat_label, session>
- *  - sessionTotals: Map<sessionId, total>
- *  - onSeatClick: (seat) => void
- *  - movingSession, mergingSession 등 모드 props
  */
 
-// 기본 위치 생성 (ㄷ자 or ] 모양)
+const SEAT_SIZE = 7; // 좌석 가로 %, 정사각형
+const STEP = 8.5;    // 좌석 간격 (가로 %)
+const STEP_Y = 16;   // 좌석 세로 간격 (%)
+
+// 기본 위치 생성
 function getDefaultLayout(rowName, seatCount, direction = "left-open") {
   const layout = {};
-  const W = 8.5; // 좌석 가로 (%)
-  const STEP_X = 10; // 가로 간격 (%)
-  const STEP_Y = 19; // 세로 간격 (%) — 18 + 1 정도
+  const W = SEAT_SIZE;
 
   if (direction === "left-open") {
     // ㄷ자: 왼쪽 막힘
     // 위쪽 가로 (12~16) — 5개
     [12, 13, 14, 15, 16].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 14 + i * STEP_X, y: 2, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 12 + i * STEP, y: 3, w: W, h: W };
       }
     });
     // 왼쪽 세로 (11, 10, 9, 8, 7) — 5개
     [11, 10, 9, 8, 7].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 2, y: 2 + i * STEP_Y, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 2, y: 3 + i * STEP_Y, w: W, h: W };
       }
     });
     // 아래쪽 가로 (6, 5, 4, 3, 2, 1) — 6개
     [6, 5, 4, 3, 2, 1].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 14 + i * STEP_X, y: 78, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 12 + i * STEP, y: 80, w: W, h: W };
       }
     });
     // 안쪽 ㄷ자 - 위 (19, 18, 17)
     [19, 18, 17].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 24 + i * STEP_X, y: 23, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 20 + i * STEP, y: 22, w: W, h: W };
       }
     });
     // 안쪽 세로 (20, 21)
     [20, 21].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 24, y: 42 + i * 18, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 20, y: 39 + i * STEP_Y, w: W, h: W };
       }
     });
     // 안쪽 아래 (22, 23, 24, 25)
     [22, 23, 24, 25].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 34 + i * STEP_X, y: 58, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 29 + i * STEP, y: 60, w: W, h: W };
       }
     });
-    // 추가 좌석 (26~30 등 여분)
+    // 추가 좌석 (26~30) - 오른쪽에 정렬
     for (let n = 26; n <= seatCount; n++) {
+      const i = n - 26;
       layout[`${rowName}-${n}`] = {
-        x: 14 + ((n - 26) % 6) * STEP_X,
-        y: 40 + Math.floor((n - 26) / 6) * STEP_Y,
+        x: 88,
+        y: 3 + i * STEP_Y,
         w: W, h: W,
       };
     }
@@ -82,44 +74,45 @@ function getDefaultLayout(rowName, seatCount, direction = "left-open") {
     // 위쪽 가로 (12~16) — 오른쪽 끝부터
     [12, 13, 14, 15, 16].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 79 - i * STEP_X, y: 2, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 81 - i * STEP, y: 3, w: W, h: W };
       }
     });
     // 오른쪽 세로 (11, 10, 9, 8, 7)
     [11, 10, 9, 8, 7].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 90, y: 2 + i * STEP_Y, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 91, y: 3 + i * STEP_Y, w: W, h: W };
       }
     });
-    // 아래쪽 가로 (1, 2, 3, 4, 5, 6)
+    // 아래쪽 가로 (6, 5, 4, 3, 2, 1) — 오른쪽부터
     [6, 5, 4, 3, 2, 1].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 79 - i * STEP_X, y: 78, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 81 - i * STEP, y: 80, w: W, h: W };
       }
     });
-    // 안쪽 ] - 위 (17, 18, 19)
+    // 안쪽 ] - 위 (19, 18, 17)
     [19, 18, 17].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 69 - i * STEP_X, y: 23, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 73 - i * STEP, y: 22, w: W, h: W };
       }
     });
     // 안쪽 세로 (20, 21)
     [20, 21].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 69, y: 42 + i * 18, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 73, y: 39 + i * STEP_Y, w: W, h: W };
       }
     });
     // 안쪽 아래 (22, 23, 24, 25)
     [22, 23, 24, 25].forEach((n, i) => {
       if (n <= seatCount) {
-        layout[`${rowName}-${n}`] = { x: 59 - i * STEP_X, y: 58, w: W, h: W };
+        layout[`${rowName}-${n}`] = { x: 64 - i * STEP, y: 60, w: W, h: W };
       }
     });
-    // 추가 좌석
+    // 추가 좌석 - 왼쪽에 정렬
     for (let n = 26; n <= seatCount; n++) {
+      const i = n - 26;
       layout[`${rowName}-${n}`] = {
-        x: 60 - ((n - 26) % 6) * STEP_X,
-        y: 40 + Math.floor((n - 26) / 6) * STEP_Y,
+        x: 2,
+        y: 3 + i * STEP_Y,
         w: W, h: W,
       };
     }
@@ -145,7 +138,6 @@ function SeatBox({
   const isInactive = !isEmpty && inactiveMin >= 30;
   const hasOrders = sessionTotal > 0;
 
-  // 색상 결정
   let style = {};
   if (isEditMode) {
     style = {
@@ -213,18 +205,15 @@ function SeatBox({
     };
   }
 
-  // 드래그 시작 (편집 모드)
   const dragStartRef = useRef(null);
-  const containerRef = useRef(null);
 
   const handleMouseDown = (e) => {
     if (!isEditMode) return;
-    // 리사이즈 핸들 클릭은 별도 처리
     if (e.target.classList.contains("resize-handle")) return;
     e.preventDefault();
     e.stopPropagation();
 
-    const parent = e.currentTarget.parentElement; // floor-plan
+    const parent = e.currentTarget.parentElement;
     const rect = parent.getBoundingClientRect();
     dragStartRef.current = {
       startX: e.clientX,
@@ -248,24 +237,10 @@ function SeatBox({
       dragStartRef.current = null;
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", handleUp);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleUp);
-    };
-
-    const handleTouchMove = (ev) => {
-      if (!dragStartRef.current || !ev.touches[0]) return;
-      const t = ev.touches[0];
-      const dx = ((t.clientX - dragStartRef.current.startX) / dragStartRef.current.parentW) * 100;
-      const dy = ((t.clientY - dragStartRef.current.startY) / dragStartRef.current.parentH) * 100;
-      const newX = Math.max(0, Math.min(100 - layout.w, dragStartRef.current.origX + dx));
-      const newY = Math.max(0, Math.min(100 - layout.h, dragStartRef.current.origY + dy));
-      onDragMove(seat, { x: newX, y: newY });
     };
 
     window.addEventListener("mousemove", handleMove);
     window.addEventListener("mouseup", handleUp);
-    window.addEventListener("touchmove", handleTouchMove, { passive: false });
-    window.addEventListener("touchend", handleUp);
   };
 
   const handleTouchStart = (e) => {
@@ -307,7 +282,6 @@ function SeatBox({
     window.addEventListener("touchend", handleTouchEnd);
   };
 
-  // 리사이즈 (편집 모드 - 모서리)
   const handleResizeStart = (e) => {
     if (!isEditMode) return;
     e.preventDefault();
@@ -336,8 +310,6 @@ function SeatBox({
 
       const dx = ((cx - start.startX) / start.parentW) * 100;
       const dy = ((cy - start.startY) / start.parentH) * 100;
-
-      // 정사각형 유지: dx와 dy 중 더 큰 변화 적용
       const delta = Math.max(dx, dy);
       const newSize = Math.max(4, Math.min(20, start.origW + delta));
 
@@ -358,7 +330,7 @@ function SeatBox({
   };
 
   const handleClick = (e) => {
-    if (isEditMode) return; // 편집 모드에서는 클릭 무시
+    if (isEditMode) return;
     if (onClick) onClick(seat);
   };
 
@@ -404,7 +376,7 @@ function SeatBox({
       }}
     >
       <span style={{
-        fontSize: layout.w > 9 ? 10 : 9,
+        fontSize: layout.w > 8 ? 10 : 8.5,
         fontWeight: 600,
         fontFamily: "'Noto Serif KR', serif",
         lineHeight: 1,
@@ -429,7 +401,6 @@ function SeatBox({
         </span>
       )}
 
-      {/* 리사이즈 핸들 (편집 모드만, 오른쪽 아래 모서리) */}
       {isEditMode && (
         <div
           className="resize-handle"
@@ -454,31 +425,27 @@ function SeatBox({
 
 // ───── 메인 FloorPlan ─────
 export default function FloorPlan({
-  row,                  // seat_rows 한 행
-  rowDirection,         // "left-open" or "right-open"
+  row,
+  rowDirection,
   sessionMap,
   sessionTotals,
   isEditMode,
   movingSession,
   mergingSession,
   onSeatClick,
-  onLayoutChange,       // 편집 모드 변경 시 호출
+  onLayoutChange,
 }) {
-  // 좌석 리스트 생성
   const seats = Array.from(
     { length: row.seat_count },
     (_, i) => `${row.name}-${i + 1}`
   );
 
-  // 레이아웃 가져오기 (DB → 없으면 기본값)
   const dbLayout = row.layout || {};
   const defaultLayout = getDefaultLayout(row.name, row.seat_count, rowDirection);
   const initialLayout = { ...defaultLayout, ...dbLayout };
 
-  // 편집 중인 로컬 레이아웃 (저장 전)
   const [editingLayout, setEditingLayout] = useState(initialLayout);
 
-  // row.layout이 외부에서 변경되면 동기화
   useEffect(() => {
     if (!isEditMode) {
       setEditingLayout({ ...defaultLayout, ...(row.layout || {}) });
@@ -486,7 +453,6 @@ export default function FloorPlan({
     // eslint-disable-next-line
   }, [row.layout, isEditMode]);
 
-  // 편집모드 진입 시 부모에 알림
   useEffect(() => {
     if (isEditMode && onLayoutChange) {
       onLayoutChange(row.name, editingLayout);
@@ -530,7 +496,7 @@ export default function FloorPlan({
       <div style={{
         position: "relative",
         width: "100%",
-        aspectRatio: "2 / 1",
+        aspectRatio: "1.6 / 1",  /* 🆕 2:1 → 1.6:1 (세로 더 길게) */
         background: isEditMode
           ? "rgba(212,165,55,0.03)"
           : "rgba(255,255,255,0.02)",
@@ -538,7 +504,6 @@ export default function FloorPlan({
         borderRadius: 12,
         overflow: "hidden",
       }}>
-        {/* 편집 모드 안내 */}
         {isEditMode && (
           <div style={{
             position: "absolute",
@@ -567,7 +532,7 @@ export default function FloorPlan({
             <SeatBox
               key={seat}
               seat={seat}
-              layout={editingLayout[seat] || { x: 50, y: 50, w: 8.5, h: 8.5 }}
+              layout={editingLayout[seat] || { x: 50, y: 50, w: SEAT_SIZE, h: SEAT_SIZE }}
               session={session}
               sessionTotal={session ? (sessionTotals.get(session.id) || 0) : 0}
               isEditMode={isEditMode}
@@ -587,7 +552,7 @@ export default function FloorPlan({
   );
 }
 
-// ───── 레이아웃 저장 헬퍼 (외부에서 import) ─────
+// ───── 레이아웃 저장 헬퍼 ─────
 export async function saveLayoutToDB(rowId, layout) {
   const { error } = await supabase
     .from("seat_rows")
