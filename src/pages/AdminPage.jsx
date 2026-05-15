@@ -38,6 +38,11 @@ const STATE_BADGE = {
   accepted: { label: "확인함", bg: "rgba(100,180,100,0.12)", color: "#6AB06A" },
 };
 
+// 🆕 "대기 중" 상태로 취급할 status 목록 (POS 연동 호환)
+// POS 시스템이 'sent_to_pos'로 자동 변경하므로, 어드민 UI에서는 둘 다 동일하게 취급
+const PENDING_STATUSES = ["pending", "sent_to_pos"];
+const isPendingStatus = (status) => PENDING_STATUSES.includes(status);
+
 function formatTime(iso) {
   const d = new Date(iso);
   return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
@@ -143,7 +148,7 @@ function SOSCard({ signal, onAccept, onResolve }) {
   );
 }
 
-// ───────── 주문 카드 (제공됨도 취소 가능) ─────────
+// ───────── 주문 카드 (POS 연동 호환 + 제공됨도 취소 가능) ─────────
 function OrderCard({ order, onServed, onCancel }) {
   const [elapsed, setElapsed] = useState(timeAgo(order.created_at));
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -153,7 +158,8 @@ function OrderCard({ order, onServed, onCancel }) {
     return () => clearInterval(iv);
   }, [order.created_at]);
 
-  const isPending = order.status === "pending";
+  // 🆕 POS 연동 호환: pending OR sent_to_pos = 대기 상태
+  const isPending = isPendingStatus(order.status);
   const isServed = order.status === "served";
 
   return (
@@ -202,6 +208,16 @@ function OrderCard({ order, onServed, onCancel }) {
                   사장님
                 </span>
               )}
+              {/* 🆕 POS 전송됨 배지 (sent_to_pos일 때만) */}
+              {order.status === "sent_to_pos" && (
+                <span style={{
+                  fontSize: 9, padding: "1px 6px", marginLeft: 6,
+                  background: "rgba(100,180,220,0.15)", color: "#64B4DC",
+                  borderRadius: 4, fontWeight: 600,
+                }}>
+                  POS 전송됨
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 3, display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ color: "#D4A537", fontWeight: 500 }}>📍 {order.seat_label}</span>
@@ -233,7 +249,7 @@ function OrderCard({ order, onServed, onCancel }) {
         </div>
       </div>
 
-      {/* 대기 중인 주문 - 기존 버튼들 */}
+      {/* 대기 중인 주문 (pending OR sent_to_pos) - 기존 버튼들 */}
       {isPending && !confirmCancel && (
         <div style={{ display: "flex", gap: 6 }}>
           <button
@@ -313,7 +329,7 @@ function OrderCard({ order, onServed, onCancel }) {
         </motion.div>
       )}
 
-      {/* 🆕 제공된 주문 - 취소 버튼 추가 */}
+      {/* 제공된 주문 - 취소 버튼 추가 */}
       {isServed && !confirmCancel && (
         <div style={{
           display: "flex", gap: 6, alignItems: "center",
@@ -349,7 +365,7 @@ function OrderCard({ order, onServed, onCancel }) {
         </div>
       )}
 
-      {/* 🆕 취소 확인 - 제공된 주문 (더 강한 경고) */}
+      {/* 취소 확인 - 제공된 주문 (더 강한 경고) */}
       {isServed && confirmCancel && (
         <motion.div
           initial={{ opacity: 0, y: -4 }}
@@ -414,7 +430,7 @@ export default function AdminPage() {
 
   const { signals, loading: sosLoading, acceptSignal, resolveSignal, refetch: refetchSOS } = useSOSAdmin();
   const { sessions, todayRevenue, loading: sessionsLoading, closeSession, settleSession, moveSession, mergeSession, refetch: refetchSessions } = useSessionsAdmin();
-  const { orders, pendingCount: pendingOrdersCount, loading: ordersLoading, markServed, cancelOrder, refetch: refetchOrders } = useOrdersAdmin();
+  const { orders, pendingCount: pendingOrdersCountFromHook, loading: ordersLoading, markServed, cancelOrder, refetch: refetchOrders } = useOrdersAdmin();
 
   const storeId = useStoreId();
   const { storeSlug } = useStore();
@@ -433,6 +449,9 @@ export default function AdminPage() {
   const [flashType, setFlashType] = useState(null);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
   const pendingSOSCount = signals.filter((s) => s.state === "pending").length;
+
+  // 🆕 POS 연동 호환: pending + sent_to_pos 둘 다 카운트
+  const pendingOrdersCount = orders.filter(o => isPendingStatus(o.status)).length;
 
   const toggleSound = () => {
     if (soundOn) {
