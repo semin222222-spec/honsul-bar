@@ -128,7 +128,19 @@ export function recoverRealtimeConnection(supabase, options = {}) {
     // 소켓을 bounce하면 supabase-js가 모든 채널을 "errored"로 전환했다가
     // 새 소켓 연결 후 자동 re-join한다. 우리가 forEach로 또 건드리면 race가 나서
     // CLOSED→SUBSCRIBED 루프와 fetch timeout이 발생함. 채널은 건드리지 않는다.
-    notifyRecoverListeners(reason, logger);
+    //
+    // notifyRecoverListeners는 일부러 1.5초 뒤에 발사한다.
+    // - 즉시 발사하면 Chrome HTTP/2 connection pool에 남아있는 stale stream을
+    //   재사용해서 REST fetch가 hang되는 경우가 있음.
+    // - 1.5초 정도면 새 WebSocket handshake + 채널 re-join이 어느 정도 진행되고
+    //   브라우저도 죽은 connection을 정리할 시간이 생긴다.
+    const delayed = new Promise((resolve) => {
+      setTimeout(() => {
+        notifyRecoverListeners(reason, logger);
+        resolve();
+      }, 1500);
+    });
+    result.done = delayed;
     return result;
   }
 

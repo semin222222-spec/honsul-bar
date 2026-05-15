@@ -24,19 +24,24 @@ export function useSeatRows(storeId) {
   const [error, setError] = useState(null);
   const channelRef = useRef(null);
   const initialFetchedRef = useRef(false);
-  const fetchingRef = useRef(false);
+  // 진행 중 fetch의 AbortController를 들고 있다가 새 fetch가 들어오면 abort한다.
+  // 이전엔 fetchingRef boolean으로 새 fetch를 스킵했는데, 첫 fetch가 hang되면
+  // 후속 fetch가 영원히 스킵되어 데이터가 갱신되지 않는 문제가 있었음.
+  const inflightControllerRef = useRef(null);
 
-  // AbortController + 재시도 기반 fetch
-  // 8초 후 abort → 재시도. Chrome 백그라운드 후 stale connection으로 fetch가
-  // hang되는 케이스를 우회한다. 최대 2회 재시도 (총 3 시도).
+  // AbortController + 재시도 + "최신 fetch만 commit" 패턴
+  // - 12초 후 abort → 재시도 (Chrome 백그라운드 후 stale connection으로 hang되는 경우 회피)
+  // - 새 fetchRows가 들어오면 진행 중 fetch는 abort. 최신 호출만 setRows 한다.
+  // - 최대 2회 재시도 (총 3 시도).
   const fetchRows = useCallback(
     async (silent = false) => {
       if (!storeId) {
         setLoading(false);
         return;
       }
-      if (fetchingRef.current) return;
-      fetchingRef.current = true;
+
+      // 직전 fetch가 진행 중이면 abort하고 시작 (hang 우회)
+      inflightControllerRef.current?.abort();
 
       if (!silent && !initialFetchedRef.current) {
         setLoading(true);
@@ -45,10 +50,13 @@ export function useSeatRows(storeId) {
       const MAX_RETRIES = 2;
       let attempt = 0;
       let success = false;
+      let myController = null;
 
       while (attempt <= MAX_RETRIES) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        myController = controller;
+        inflightControllerRef.current = controller;
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
         try {
           const data = await seatRepository.listSeatRows(
@@ -56,12 +64,17 @@ export function useSeatRows(storeId) {
             controller.signal,
           );
           clearTimeout(timeoutId);
+          // 다른 fetch가 시작돼 우리가 더이상 current가 아니면 결과 버린다.
+          if (inflightControllerRef.current !== controller) return;
           setError(null);
           setRows(data);
           success = true;
           break;
         } catch (err) {
           clearTimeout(timeoutId);
+
+          // 다른 fetch가 우리를 abort한 거면 조용히 종료
+          if (inflightControllerRef.current !== controller) return;
 
           const isAbort =
             err?.name === "AbortError" ||
@@ -87,9 +100,12 @@ export function useSeatRows(storeId) {
         }
       }
 
+      // 우리가 여전히 current면 cleanup
+      if (inflightControllerRef.current === myController) {
+        inflightControllerRef.current = null;
+      }
       setLoading(false);
       initialFetchedRef.current = true;
-      fetchingRef.current = false;
       return success;
     },
     [storeId],
