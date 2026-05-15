@@ -4,7 +4,6 @@ import {
   X,
   Sparkles,
   Droplets,
-  Shuffle,
   ShoppingBag,
   Check,
   Wifi,
@@ -967,185 +966,6 @@ function WifiCard({ ssid, password }) {
   );
 }
 
-// ────── 랜덤 픽커 ──────
-function RandomPicker({ allDrinks = [] }) {
-  const [picked, setPicked] = useState(null);
-  const [spinning, setSpinning] = useState(false);
-  const [spinKey, setSpinKey] = useState(0);
-
-  const pickRandom = () => {
-    if (spinning || allDrinks.length === 0) return;
-    setSpinning(true);
-    setPicked(null);
-
-    let count = 0;
-    const total = 12;
-    const interval = setInterval(() => {
-      setPicked(allDrinks[Math.floor(Math.random() * allDrinks.length)]);
-      setSpinKey((prev) => prev + 1);
-      count++;
-      if (count >= total) {
-        clearInterval(interval);
-        const final = allDrinks[Math.floor(Math.random() * allDrinks.length)];
-        setPicked(final);
-        setSpinKey((prev) => prev + 1);
-        setSpinning(false);
-      }
-    }, 120);
-  };
-
-  return (
-    <div
-      style={{
-        background:
-          "linear-gradient(145deg, rgba(212,165,55,0.06), rgba(255,255,255,0.02))",
-        backdropFilter: "blur(16px)",
-        border: "1px solid rgba(212,165,55,0.12)",
-        borderRadius: "clamp(14px, 4vw, 18px)",
-        padding: "clamp(16px, 4.5vw, 22px)",
-        marginBottom: "clamp(20px, 6vw, 28px)",
-        textAlign: "center",
-      }}
-    >
-      <div
-        style={{
-          fontSize: "clamp(11px, 2.8vw, 12px)",
-          color: "rgba(212,165,55,0.6)",
-          fontWeight: 500,
-          marginBottom: 12,
-          letterSpacing: "0.08em",
-        }}
-      >
-        🎰 뭘 마실지 모르겠다면?
-      </div>
-
-      <AnimatePresence mode="wait">
-        {picked ? (
-          <Motion.div
-            key={spinKey}
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: spinning ? 0.08 : 0.4 }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "clamp(10px, 3vw, 14px)",
-              padding: "clamp(12px, 3.5vw, 16px)",
-              background: spinning ? "rgba(255,255,255,0.02)" : picked.lineBg,
-              border:
-                "1px solid " +
-                (spinning ? "rgba(255,255,255,0.06)" : picked.lineBorder),
-              borderRadius: 14,
-              marginBottom: 14,
-              minHeight: 70,
-            }}
-          >
-            {picked.image_url ? (
-              <div
-                style={{
-                  width: "clamp(44px, 11vw, 52px)",
-                  height: "clamp(44px, 11vw, 52px)",
-                  borderRadius: 10,
-                  overflow: "hidden",
-                  flexShrink: 0,
-                }}
-              >
-                <img
-                  src={picked.image_url}
-                  alt={picked.name}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              </div>
-            ) : (
-              <div style={{ fontSize: "clamp(28px, 8vw, 36px)" }}>
-                {picked.icon}
-              </div>
-            )}
-            <div style={{ textAlign: "left" }}>
-              <div
-                style={{
-                  fontSize: "clamp(14px, 3.8vw, 16px)",
-                  fontWeight: 500,
-                  color: "#F5E6C8",
-                }}
-              >
-                {picked.name}
-              </div>
-              <div
-                style={{
-                  fontSize: "clamp(10px, 2.5vw, 11px)",
-                  color: spinning ? "rgba(255,255,255,0.3)" : picked.lineColor,
-                  marginTop: 2,
-                  display: "flex",
-                  gap: 8,
-                  flexWrap: "wrap",
-                }}
-              >
-                {picked.taste && <span>{picked.taste}</span>}
-                {picked.abv && <span>{picked.abv}</span>}
-                <span>{picked.priceDisplay}원</span>
-              </div>
-            </div>
-          </Motion.div>
-        ) : (
-          <Motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            style={{
-              padding: "clamp(16px, 5vw, 24px)",
-              color: "rgba(255,255,255,0.2)",
-              fontSize: "clamp(12px, 3vw, 13px)",
-              marginBottom: 14,
-            }}
-          >
-            버튼을 눌러 오늘의 한 잔을 뽑아보세요!
-          </Motion.div>
-        )}
-      </AnimatePresence>
-
-      <Motion.button
-        whileTap={{ scale: 0.95 }}
-        onClick={pickRandom}
-        disabled={spinning}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          padding: "12px 24px",
-          background: spinning
-            ? "rgba(255,255,255,0.06)"
-            : "linear-gradient(135deg, #D4A537, #B8860B)",
-          border: "none",
-          borderRadius: 12,
-          color: spinning ? "rgba(255,255,255,0.3)" : "#0D0B08",
-          fontSize: "clamp(13px, 3.5vw, 14px)",
-          fontWeight: 600,
-          cursor: spinning ? "default" : "pointer",
-          fontFamily: "inherit",
-          WebkitTapHighlightColor: "transparent",
-          minHeight: 44,
-          transition: "all 0.3s",
-        }}
-      >
-        <Motion.div
-          animate={spinning ? { rotate: 360 } : { rotate: 0 }}
-          transition={
-            spinning
-              ? { duration: 0.6, repeat: Infinity, ease: "linear" }
-              : { duration: 0.3 }
-          }
-        >
-          <Shuffle size={16} />
-        </Motion.div>
-        {spinning ? "뽑는 중..." : picked ? "다시 뽑기" : "오늘의 추천 술 뽑기"}
-      </Motion.button>
-    </div>
-  );
-}
-
 // ────── MY TAB 카드 ──────
 function MyTabCard({ orders, totalAmount, seat }) {
   if (orders.length === 0) return null;
@@ -1428,16 +1248,6 @@ export default function MenuScreen({
     };
   });
 
-  const allDrinks = menuSections.flatMap((section) =>
-    section.items.map((item) => ({
-      ...item,
-      line: section.line,
-      lineColor: section.color,
-      lineBg: section.bg,
-      lineBorder: section.border,
-    })),
-  );
-
   const firstCategoryId = menuSections[0]?.id;
 
   useEffect(() => {
@@ -1555,8 +1365,6 @@ export default function MenuScreen({
         <MyTabCard orders={orders} totalAmount={totalAmount} seat={mySeat} />
 
         <WifiCard ssid={wifiSsid} password={wifiPassword} />
-
-        <RandomPicker allDrinks={allDrinks} />
       </div>
 
       {menuSections.length > 0 && (

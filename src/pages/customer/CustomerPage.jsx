@@ -1,18 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
-import {
-  Home,
-  Wine,
-  Gamepad2,
-  HandMetal,
-  Sparkles,
-  Smile,
-  Moon,
-  ChevronRight,
-  Check,
-  Swords,
-} from "lucide-react";
+import { Home, Wine, Gamepad2 } from "lucide-react";
 import SeatPicker from "@/features/seats/components/SeatPicker";
 import MenuScreen from "@/features/menus/components/MenuScreen";
 import ThankYouScreen from "@/shared/ui/ThankYouScreen";
@@ -39,27 +28,6 @@ import { useStoreId, useStore } from "@/shared/store/StoreContext";
 import { useLocale, pickLocaleField } from "@/shared/i18n/LocaleContext";
 import LanguageToggle from "@/shared/ui/LanguageToggle";
 import { orderRepository } from "@/repositories/orders/orderRepository";
-
-const STATUS_MAP = {
-  open: {
-    label: "대화 환영",
-    labelJa: "話しかけOK",
-    color: "#D4A537",
-    icon: <Smile size={14} />,
-  },
-  hello: {
-    label: "인사만",
-    labelJa: "挨拶のみ",
-    color: "#8B7355",
-    icon: <HandMetal size={14} />,
-  },
-  alone: {
-    label: "혼자이고 싶음",
-    labelJa: "ひとりで",
-    color: "#4A4035",
-    icon: <Moon size={14} />,
-  },
-};
 
 function GlassCard({ children, style, onClick, animate = true, delay = 0 }) {
   const base = {
@@ -88,39 +56,6 @@ function GlassCard({ children, style, onClick, animate = true, delay = 0 }) {
     >
       {children}
     </Motion.div>
-  );
-}
-
-function PulseDot({ color = "#D4A537", size = 8 }) {
-  return (
-    <span
-      style={{
-        position: "relative",
-        display: "inline-flex",
-        width: size,
-        height: size,
-      }}
-    >
-      <Motion.span
-        animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
-        transition={{ duration: 2, repeat: Infinity }}
-        style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: "50%",
-          background: color,
-        }}
-      />
-      <span
-        style={{
-          width: size,
-          height: size,
-          borderRadius: "50%",
-          background: color,
-          position: "relative",
-        }}
-      />
-    </span>
   );
 }
 
@@ -194,9 +129,6 @@ function TabBar({ active, onChange }) {
 
 function HubScreen({
   userCount,
-  myStatus,
-  onGoTo,
-  users,
   mySeat,
   myNickname,
   myNicknameJa,
@@ -220,10 +152,6 @@ function HubScreen({
     );
     return () => clearInterval(iv);
   }, [greetings]);
-  const statusCounts = { open: 0, hello: 0, alone: 0 };
-  users.forEach((u) => {
-    if (statusCounts[u.status] !== undefined) statusCounts[u.status]++;
-  });
 
   const storeName = pickLocaleField(store, "name", locale) || "오늘, 혼술";
 
@@ -318,497 +246,6 @@ function HubScreen({
         loading={chat.loading}
         activeUserCount={userCount}
       />
-
-      <GlassCard
-        delay={0.1}
-        style={{
-          textAlign: "center",
-          padding: "clamp(14px, 4vw, 20px)",
-          marginBottom: "clamp(10px, 3vw, 16px)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            marginBottom: 6,
-          }}
-        >
-          <PulseDot />
-          <span
-            style={{
-              fontSize: "clamp(11px, 3vw, 13px)",
-              color: "rgba(255,255,255,0.5)",
-            }}
-          >
-            {t("home.atBar")}
-          </span>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "center",
-            gap: 6,
-          }}
-        >
-          <Motion.span
-            key={userCount}
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            style={{
-              fontSize: "clamp(36px, 10vw, 48px)",
-              fontWeight: 200,
-              color: "#D4A537",
-              fontFamily: "'Noto Serif KR', serif",
-            }}
-          >
-            {userCount}
-          </Motion.span>
-          <span
-            style={{
-              fontSize: "clamp(12px, 3.5vw, 15px)",
-              color: "rgba(255,255,255,0.4)",
-            }}
-          >
-            {t("home.peopleHere")}
-          </span>
-        </div>
-        <div
-          style={{
-            marginTop: 12,
-            display: "flex",
-            justifyContent: "center",
-            gap: "clamp(10px, 3vw, 16px)",
-            fontSize: 12,
-          }}
-        >
-          {Object.entries(STATUS_MAP).map(([k, v]) => (
-            <span
-              key={k}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                color: v.color,
-              }}
-            >
-              {v.icon} <span>{statusCounts[k]}</span>
-            </span>
-          ))}
-        </div>
-      </GlassCard>
-
-      <GlassCard delay={0.2} style={{ marginBottom: "clamp(10px, 3vw, 16px)" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "rgba(255,255,255,0.35)",
-                marginBottom: 4,
-              }}
-            >
-              {locale === "ja" ? "ステータス" : "나의 시그널"}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  background: STATUS_MAP[myStatus].color,
-                  boxShadow: "0 0 8px " + STATUS_MAP[myStatus].color + "60",
-                }}
-              />
-              <span
-                style={{
-                  color: "#F5E6C8",
-                  fontSize: "clamp(13px, 3.5vw, 15px)",
-                  fontWeight: 500,
-                }}
-              >
-                {locale === "ja"
-                  ? STATUS_MAP[myStatus].labelJa
-                  : STATUS_MAP[myStatus].label}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={() => onGoTo("status")}
-            style={{
-              background: "rgba(212,165,55,0.12)",
-              border: "1px solid rgba(212,165,55,0.2)",
-              borderRadius: 10,
-              padding: "8px 14px",
-              color: "#D4A537",
-              fontSize: 12,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              minHeight: 44,
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            {locale === "ja" ? "変更" : "변경"} <ChevronRight size={14} />
-          </button>
-        </div>
-      </GlassCard>
-
-      <div style={{ marginBottom: "clamp(10px, 3vw, 16px)" }}>
-        {[
-          {
-            label: locale === "ja" ? "対戦申請" : "대결 신청",
-            sub: locale === "ja" ? "ザ・ナイン 1:1" : "더 나인 1:1",
-            icon: <Swords size={20} />,
-            tab: "game",
-            delay: 0.3,
-          },
-        ].map((item) => (
-          <GlassCard
-            key={item.tab}
-            delay={item.delay}
-            onClick={() => onGoTo(item.tab)}
-            style={{
-              cursor: "pointer",
-              padding: "clamp(14px, 4vw, 18px) clamp(14px, 4vw, 18px)",
-              minHeight: 44,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ color: "#D4A537", flexShrink: 0 }}>{item.icon}</div>
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    fontSize: "clamp(13px, 3.5vw, 15px)",
-                    fontWeight: 500,
-                    color: "#F5E6C8",
-                    marginBottom: 2,
-                  }}
-                >
-                  {item.label}
-                </div>
-                <div
-                  style={{
-                    fontSize: "clamp(10px, 2.5vw, 11px)",
-                    color: "rgba(255,255,255,0.35)",
-                  }}
-                >
-                  {item.sub}
-                </div>
-              </div>
-            </div>
-          </GlassCard>
-        ))}
-      </div>
-
-      <GlassCard
-        delay={0.4}
-        style={{
-          background: "rgba(212,165,55,0.04)",
-          borderColor: "rgba(212,165,55,0.1)",
-        }}
-      >
-        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-          <Sparkles
-            size={16}
-            style={{ color: "#D4A537", marginTop: 2, flexShrink: 0 }}
-          />
-          <div>
-            <div
-              style={{
-                fontSize: 12,
-                color: "#D4A537",
-                fontWeight: 500,
-                marginBottom: 4,
-              }}
-            >
-              {locale === "ja" ? "今日のヒント" : "오늘의 팁"}
-            </div>
-            <div
-              style={{
-                fontSize: "clamp(12px, 3vw, 13px)",
-                color: "rgba(255,255,255,0.55)",
-                lineHeight: 1.6,
-              }}
-            >
-              {locale === "ja" ? (
-                <>
-                  バーテンダーに「おまかせ一杯」と言ってみてください。会話のきっかけになります。
-                </>
-              ) : (
-                <>
-                  바텐더에게 "추천 한 잔"이라고 말해보세요. 대화의 시작이
-                  됩니다.
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </GlassCard>
-    </div>
-  );
-}
-
-function StatusScreen({ myStatus, setMyStatus, users, myId }) {
-  const otherUsers = users.filter((u) => u.id !== myId);
-  const { locale } = useLocale();
-  const statusDescs = {
-    open:
-      locale === "ja"
-        ? "誰でもお気軽にお声がけください"
-        : "누구든 편하게 말 걸어주세요",
-    hello: locale === "ja" ? "軽い挨拶程度ならOK" : "가벼운 인사 정도는 OK",
-    alone:
-      locale === "ja" ? "静かに過ごしたいです" : "조용히 시간을 보내고 싶어요",
-  };
-  return (
-    <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
-      <div
-        style={{
-          fontSize: 11,
-          letterSpacing: "0.15em",
-          color: "rgba(212,165,55,0.5)",
-          marginBottom: 6,
-        }}
-      >
-        SOCIAL SIGNAL
-      </div>
-      <div
-        style={{
-          fontSize: "clamp(18px, 5vw, 22px)",
-          fontWeight: 300,
-          color: "#F5E6C8",
-          fontFamily: "'Noto Serif KR', serif",
-          marginBottom: 24,
-        }}
-      >
-        {locale === "ja" ? "ステータス設定" : "나의 시그널 설정"}
-      </div>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          marginBottom: 28,
-        }}
-      >
-        {Object.entries(STATUS_MAP).map(([key, val], i) => {
-          const active = myStatus === key;
-          return (
-            <GlassCard
-              key={key}
-              delay={i * 0.08}
-              onClick={() => setMyStatus(key)}
-              style={{
-                cursor: "pointer",
-                padding: "clamp(12px, 3.5vw, 16px) clamp(14px, 4vw, 18px)",
-                borderColor: active
-                  ? val.color + "50"
-                  : "rgba(255,255,255,0.07)",
-                background: active
-                  ? val.color + "10"
-                  : "rgba(255,255,255,0.04)",
-                minHeight: 44,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "clamp(8px, 2.5vw, 12px)",
-                  }}
-                >
-                  <Motion.div
-                    animate={active ? { scale: [1, 1.2, 1] } : {}}
-                    transition={{ duration: 0.4 }}
-                    style={{
-                      width: "clamp(32px, 8vw, 36px)",
-                      height: "clamp(32px, 8vw, 36px)",
-                      borderRadius: 12,
-                      background: val.color + (active ? "25" : "10"),
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: val.color,
-                    }}
-                  >
-                    {val.icon}
-                  </Motion.div>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "clamp(13px, 3.5vw, 15px)",
-                        fontWeight: 500,
-                        color: active ? val.color : "#F5E6C8",
-                      }}
-                    >
-                      {locale === "ja" ? val.labelJa : val.label}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "clamp(10px, 2.5vw, 11px)",
-                        color: "rgba(255,255,255,0.3)",
-                        marginTop: 2,
-                      }}
-                    >
-                      {statusDescs[key]}
-                    </div>
-                  </div>
-                </div>
-                {active && (
-                  <Motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 400 }}
-                  >
-                    <Check size={18} style={{ color: val.color }} />
-                  </Motion.div>
-                )}
-              </div>
-            </GlassCard>
-          );
-        })}
-      </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 12,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            letterSpacing: "0.15em",
-            color: "rgba(212,165,55,0.5)",
-          }}
-        >
-          {locale === "ja" ? "今このバーにいる人たち" : "지금 바에 있는 사람들"}
-        </span>
-        <span
-          style={{
-            fontSize: 10,
-            color: "rgba(212,165,55,0.4)",
-            background: "rgba(212,165,55,0.08)",
-            padding: "2px 8px",
-            borderRadius: 8,
-          }}
-        >
-          {otherUsers.length}
-          {locale === "ja" ? "名" : "명"}
-        </span>
-      </div>
-      {otherUsers.length === 0 ? (
-        <GlassCard
-          delay={0.3}
-          style={{ textAlign: "center", padding: "30px 16px" }}
-        >
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🌙</div>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }}>
-            {locale === "ja"
-              ? "まだ他のお客様はいません"
-              : "아직 다른 손님이 없어요"}
-          </div>
-        </GlassCard>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {otherUsers.map((u, i) => {
-            const st = STATUS_MAP[u.status] || STATUS_MAP.hello;
-            return (
-              <GlassCard
-                key={u.id}
-                delay={0.3 + i * 0.06}
-                style={{
-                  padding: "clamp(10px, 3vw, 14px) clamp(12px, 3.5vw, 16px)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "clamp(8px, 2.5vw, 12px)",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "clamp(36px, 9vw, 40px)",
-                      height: "clamp(36px, 9vw, 40px)",
-                      borderRadius: 12,
-                      background: "rgba(255,255,255,0.06)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "clamp(16px, 4.5vw, 20px)",
-                      border: "1.5px solid " + st.color + "30",
-                    }}
-                  >
-                    {u.avatar}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "clamp(12px, 3.5vw, 14px)",
-                          fontWeight: 500,
-                          color: "#F5E6C8",
-                        }}
-                      >
-                        {u.nickname}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 9,
-                          padding: "2px 7px",
-                          borderRadius: 6,
-                          background: st.color + "18",
-                          color: st.color,
-                          fontWeight: 500,
-                        }}
-                      >
-                        {st.label}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "clamp(10px, 2.5vw, 11px)",
-                        color: "rgba(255,255,255,0.3)",
-                        marginTop: 3,
-                      }}
-                    >
-                      {u.seat}
-                    </div>
-                  </div>
-                </div>
-              </GlassCard>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -1023,7 +460,6 @@ export default function App() {
     myNicknameJa,
     myAvatar,
     myStatus,
-    setMyStatus,
     rerollNickname,
   } = presence;
 
@@ -1044,13 +480,6 @@ export default function App() {
     }, 0);
     return () => clearTimeout(timer);
   }, [mm.match]);
-
-  const handleStatusChange = useCallback(
-    (s) => {
-      setMyStatus(s);
-    },
-    [setMyStatus],
-  );
 
   const handleSeatSelect = useCallback(
     async (seatLabel) => {
@@ -1330,9 +759,6 @@ export default function App() {
               {tab === "hub" && (
                 <HubScreen
                   userCount={userCount}
-                  myStatus={myStatus}
-                  onGoTo={setTab}
-                  users={users}
                   mySeat={mySeat}
                   myNickname={myNickname}
                   myNicknameJa={myNicknameJa}
@@ -1342,14 +768,6 @@ export default function App() {
                   chat={chat}
                   mySessionId={session?.id}
                   onNicknameClick={handleNicknameClick}
-                />
-              )}
-              {tab === "status" && (
-                <StatusScreen
-                  myStatus={myStatus}
-                  setMyStatus={handleStatusChange}
-                  users={users}
-                  myId={myId}
                 />
               )}
               {tab === "menu" && (
