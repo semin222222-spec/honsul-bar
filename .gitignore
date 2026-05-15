@@ -7,10 +7,17 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
 node_modules
 dist
 dist-ssr
 *.local
+coverage
 
 # Editor directories and files
 .vscode/*
@@ -22,3 +29,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local agent/runtime state
+.abbado/
+.task/state/
