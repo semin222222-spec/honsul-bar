@@ -1121,13 +1121,21 @@ export default function App() {
   const handleSelectFlirting = useCallback(async () => {
     if (!gameSelectTarget) return;
 
-    const targetSession = allSessions.find(
-      (s) => s.id === gameSelectTarget.session_id,
-    ) || {
-      id: gameSelectTarget.session_id,
-      seat_label: gameSelectTarget.seat_label,
-      nickname: gameSelectTarget.nickname,
-    };
+    // 채팅 메시지의 session_id는 상대가 재입장하면 바뀌어 있을 수 있으니
+    // seat_label로도 한 번 더 찾아본다. 못 찾으면 라이브 세션이 없는 것.
+    const targetSession =
+      allSessions.find((s) => s.id === gameSelectTarget.session_id) ||
+      (gameSelectTarget.seat_label
+        ? allSessions.find(
+            (s) => s.seat_label === gameSelectTarget.seat_label,
+          )
+        : null);
+
+    if (!targetSession) {
+      setGameSelectTarget(null);
+      alert("상대방을 찾을 수 없어요. 자리를 비웠을 수도 있어요.");
+      return;
+    }
 
     setGameSelectTarget(null);
     setInvitingGame(true);
