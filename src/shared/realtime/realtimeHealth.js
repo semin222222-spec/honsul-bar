@@ -107,12 +107,12 @@ export function recoverRealtimeConnection(supabase, options = {}) {
   };
 
   const socketOk = isRealtimeSocketConnected(supabase, logger);
+  const shouldBounceSocket = !socketOk || force;
 
   // 1) 소켓 레벨 복구
   // - 소켓이 죽었거나 force=true(장기 백그라운드/online 이벤트)면 명시적으로 bounce
   // - 소켓이 다시 붙으면 supabase-js가 joined 채널들을 자동으로 re-join한다
-  //   → 건강한 채널을 우리가 unsubscribe→subscribe로 건드릴 필요 없음
-  if (!socketOk || force) {
+  if (shouldBounceSocket) {
     try {
       supabase?.realtime?.disconnect?.();
     } catch (err) {
@@ -124,11 +124,15 @@ export function recoverRealtimeConnection(supabase, options = {}) {
     } catch (err) {
       callLogger(logger, "warn", "[Realtime] connect 실패:", err);
     }
+
+    // 소켓을 bounce하면 supabase-js가 모든 채널을 "errored"로 전환했다가
+    // 새 소켓 연결 후 자동 re-join한다. 우리가 forEach로 또 건드리면 race가 나서
+    // CLOSED→SUBSCRIBED 루프와 fetch timeout이 발생함. 채널은 건드리지 않는다.
+    notifyRecoverListeners(reason, logger);
+    return result;
   }
 
-  // 2) 채널 레벨 복구
-  // - 명시적으로 broken(closed/errored)인 채널만 leave+subscribe
-  // - force일 때도 healthy 채널은 절대 건드리지 않음 (불필요한 CLOSED 메시지 + race 방지)
+  // 2) 소켓은 살아있고 force도 아닐 때: 명시적으로 broken인 채널만 수동 복구
   channels.forEach((channel) => {
     if (!isRecoverableChannelState(channel?.state)) return;
     if (typeof channel.subscribe !== "function") return;
