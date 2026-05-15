@@ -2,13 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Home, MessageCircle, Trophy, Wine, Gamepad2,
+  Home, Wine, Gamepad2,
   HandMetal, Bell, Smile, Moon,
   Check,
 } from "lucide-react";
 import SOSModal from "./components/SOSModal";
 import SeatPicker from "./components/SeatPicker";
-import QuestionCardScreen from "./components/QuestionCard";
 import MenuScreen from "./components/MenuScreen";
 import ThankYouScreen from "./components/ThankYouScreen";
 import AmbientBG from "./components/AmbientBG";
@@ -16,7 +15,6 @@ import GameCenter from "./components/GameCenter";
 import WhiskyNine from "./components/WhiskyNine";
 import MatchInviteModal from "./components/MatchInviteModal";
 import MyProfileCard from "./components/MyProfileCard";
-// 플러팅 게임
 import FlirtingSeatPicker from "./components/FlirtingSeatPicker";
 import FlirtingGameModal from "./components/FlirtingGameModal";
 import IncomingFlirtingModal from "./components/IncomingFlirtingModal";
@@ -36,16 +34,6 @@ import { useChatRoom } from "./hooks/useChatRoom";
 import { useStoreId, useStore } from "./lib/StoreContext";
 import { useLocale, pickLocaleField } from "./lib/LocaleContext";
 import LanguageToggle from "./components/LanguageToggle";
-
-const QUESTS = [
-  { id: "q1", title: "바에 안착하기", titleJa: "席に着く", desc: "자리에 앉아 첫 주문을 해보세요", descJa: "お席に座って最初のご注文を", icon: "🪑", xp: 10 },
-  { id: "q2", title: "사장님과 인사하기", titleJa: "オーナーに挨拶", desc: "바텐더에게 가볍게 인사를 건네보세요", descJa: "バーテンダーに気軽にご挨拶を", icon: "👋", xp: 15 },
-  { id: "q3", title: "옆 사람 술 구경하기", titleJa: "隣の人のお酒を見る", desc: "옆 손님이 마시는 술이 뭔지 살짝 확인!", descJa: "隣のお客様が飲んでいるお酒をチラッと確認!", icon: "👀", xp: 10 },
-  { id: "q4", title: "오늘의 발견", titleJa: "今日の発見", desc: "메뉴 5개 이상 둘러보세요", descJa: "メニューを5つ以上見てみましょう", icon: "🍸", xp: 15 },
-  { id: "q5", title: "오늘의 카드", titleJa: "今日のカード", desc: "카드 탭에서 질문 카드를 뽑아보세요", descJa: "カードタブで質問カードを引いてみましょう", icon: "🃏", xp: 15 },
-  { id: "q6", title: "대화 환영 시그널 켜기", titleJa: "話しかけOKシグナル", desc: "상태를 대화 환영으로 바꿔보세요", descJa: "ステータスを「話しかけOK」に変更", icon: "💬", xp: 15 },
-  { id: "q7", title: "단골 인증", titleJa: "常連認証", desc: "모든 퀘스트를 클리어하세요!", descJa: "すべてのクエストをクリア!", icon: "🏆", xp: 30 },
-];
 
 const STATUS_MAP = {
   open: { label: "대화 환영", labelJa: "話しかけOK", color: "#D4A537", icon: <Smile size={14} /> },
@@ -72,14 +60,13 @@ function GlassCard({ children, style, onClick, animate = true, delay = 0 }) {
   );
 }
 
+// 🎯 유지: 3탭 + Pill 스타일 + 큰 아이콘/글자
 function TabBar({ active, onChange }) {
   const { t } = useLocale();
   const tabs = [
     { id: "hub", icon: Home, label: t("tabs.hub") },
     { id: "menu", icon: Wine, label: t("tabs.menu") },
-    { id: "question", icon: MessageCircle, label: t("tabs.question") },
     { id: "game", icon: Gamepad2, label: t("tabs.game") },
-    { id: "quest", icon: Trophy, label: t("tabs.quest") },
   ];
   return (
     <div style={{
@@ -88,39 +75,44 @@ function TabBar({ active, onChange }) {
       WebkitBackdropFilter: "blur(20px)",
       borderTop: "1px solid rgba(255,255,255,0.06)",
       display: "flex", justifyContent: "space-around", alignItems: "center",
-      paddingBottom: "max(8px, env(safe-area-inset-bottom))",
-      paddingTop: 8,
+      paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+      paddingTop: 12,
+      paddingLeft: 8,
+      paddingRight: 8,
     }}>
       {tabs.map(t => {
         const Icon = t.icon;
         const isActive = active === t.id;
         return (
-          <button key={t.id} onClick={() => onChange(t.id)} style={{
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-            background: "none", border: "none", cursor: "pointer",
-            padding: "4px 0", minWidth: 40, minHeight: 44,
-            borderRadius: 10, position: "relative",
-            color: isActive ? "#D4A537" : "rgba(255,255,255,0.35)",
-            transition: "color 0.25s",
-            WebkitTapHighlightColor: "transparent",
-          }}>
-            {isActive && (
-              <motion.div layoutId="tab-glow" style={{
-                position: "absolute", top: -1, left: "50%",
-                width: 20, height: 2, borderRadius: 1, background: "#D4A537",
-                marginLeft: -10,
-              }} />
-            )}
-            <Icon size={18} strokeWidth={isActive ? 2.2 : 1.5} />
-            <span style={{ fontSize: 9, fontWeight: isActive ? 600 : 400 }}>{t.label}</span>
-          </button>
+          <motion.button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            whileTap={{ scale: 0.92 }}
+            style={{
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+              border: "none", cursor: "pointer",
+              padding: "8px 16px",
+              minWidth: 72, minHeight: 62,
+              borderRadius: 14, position: "relative",
+              color: isActive ? "#0D0B08" : "rgba(255,255,255,0.5)",
+              background: isActive 
+                ? "linear-gradient(135deg, #FFD700, #D4A537)" 
+                : "transparent",
+              boxShadow: isActive ? "0 4px 12px rgba(212,165,55,0.3)" : "none",
+              transition: "background 0.3s, color 0.3s, box-shadow 0.3s",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            <Icon size={28} strokeWidth={isActive ? 2.5 : 1.5} />
+            <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500 }}>{t.label}</span>
+          </motion.button>
         );
       })}
     </div>
   );
 }
 
-// 🆕 홈 화면 - 카드들 제거 + 채팅 추가
+// 🆕 홈 화면 - 카드들 정리 + 채팅 추가
 function HubScreen({ mySeat, myNickname, myNicknameJa, myAvatar, onReroll, store, chat, mySessionId, onNicknameClick, activeUserCount }) {
   const { locale, t } = useLocale();
   const greetings = t("home.greetings");
@@ -241,67 +233,10 @@ function StatusScreen({ myStatus, setMyStatus, users, myId }) {
   );
 }
 
-function QuestScreen({ completed, onComplete }) {
-  const { locale } = useLocale();
-  const totalXp = QUESTS.reduce((s, q) => s + q.xp, 0);
-  const earnedXp = QUESTS.filter(q => completed.has(q.id)).reduce((s, q) => s + q.xp, 0);
-  const pct = Math.round((earnedXp / totalXp) * 100);
-  const allDone = completed.size >= QUESTS.length - 1;
-  useEffect(() => { if (allDone && !completed.has("q7")) onComplete("q7"); }, [allDone]);
-
-  return (
-    <div style={{ padding: "0 clamp(16px, 4vw, 24px)", paddingTop: 16 }}>
-      <div style={{ fontSize: 11, letterSpacing: "0.15em", color: "rgba(212,165,55,0.5)", marginBottom: 6 }}>NEWBIE QUEST</div>
-      <div style={{ fontSize: "clamp(18px, 5vw, 22px)", fontWeight: 300, color: "#F5E6C8", fontFamily: "'Noto Serif KR', serif", marginBottom: 20 }}>
-        {locale === "ja" ? "アイスブレイキングクエスト" : "아이스브레이킹 퀘스트"}
-      </div>
-      <GlassCard delay={0.1} style={{ marginBottom: 20, textAlign: "center", padding: "clamp(14px, 4vw, 20px)" }}>
-        <div style={{ position: "relative", width: "clamp(80px, 22vw, 100px)", height: "clamp(80px, 22vw, 100px)", margin: "0 auto 14px" }}>
-          <svg width="100%" height="100%" viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)" }}>
-            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
-            <motion.circle cx="50" cy="50" r="42" fill="none" stroke="#D4A537" strokeWidth="6" strokeLinecap="round" strokeDasharray={2 * Math.PI * 42} initial={{ strokeDashoffset: 2 * Math.PI * 42 }} animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - pct / 100) }} transition={{ duration: 1, ease: "easeOut" }} />
-          </svg>
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: "clamp(18px, 5vw, 24px)", fontWeight: 300, color: "#D4A537", fontFamily: "'Noto Serif KR', serif" }}>{pct}%</span>
-          </div>
-        </div>
-        <div style={{ fontSize: "clamp(11px, 3vw, 13px)", color: "rgba(255,255,255,0.5)" }}>{earnedXp} / {totalXp} XP</div>
-        {pct === 100 && (<motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 300, delay: 0.3 }} style={{ marginTop: 10, fontSize: 14, color: "#D4A537", fontWeight: 500 }}>
-          {locale === "ja" ? "🎉 常連認証完了!" : "🎉 단골 인증 완료!"}
-        </motion.div>)}
-      </GlassCard>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {QUESTS.map((q, i) => {
-          const done = completed.has(q.id);
-          return (
-            <GlassCard key={q.id} delay={0.2 + i * 0.05} style={{ padding: "clamp(10px, 3vw, 14px) clamp(12px, 3.5vw, 16px)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 2.5vw, 12px)" }}>
-                <motion.div whileTap={!done && q.id !== "q7" ? { scale: 0.9 } : {}} onClick={() => { if (!done && q.id !== "q7") onComplete(q.id); }}
-                  style={{ width: "clamp(36px, 9vw, 42px)", height: "clamp(36px, 9vw, 42px)", borderRadius: 12, flexShrink: 0, background: done ? "rgba(212,165,55,0.15)" : "rgba(255,255,255,0.04)", border: "1.5px solid " + (done ? "rgba(212,165,55,0.3)" : "rgba(255,255,255,0.08)"), display: "flex", alignItems: "center", justifyContent: "center", fontSize: "clamp(14px, 4vw, 18px)", cursor: done || q.id === "q7" ? "default" : "pointer" }}>
-                  {done ? <Check size={18} style={{ color: "#D4A537" }} /> : q.icon}
-                </motion.div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "clamp(12px, 3.5vw, 14px)", fontWeight: 500, color: done ? "rgba(212,165,55,0.7)" : "#F5E6C8", textDecoration: done ? "line-through" : "none" }}>
-                    {locale === "ja" ? q.titleJa : q.title}
-                  </div>
-                  <div style={{ fontSize: "clamp(10px, 2.5vw, 11px)", color: "rgba(255,255,255,0.3)", marginTop: 2 }}>
-                    {locale === "ja" ? q.descJa : q.desc}
-                  </div>
-                </div>
-                <span style={{ fontSize: 11, color: done ? "#D4A537" : "rgba(255,255,255,0.2)", fontWeight: 600, flexShrink: 0 }}>+{q.xp}</span>
-              </div>
-            </GlassCard>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function SOSFAB({ onClick }) {
   return (
     <motion.button onClick={onClick} whileTap={{ scale: 0.9 }} style={{
-      position: "fixed", bottom: "calc(68px + max(8px, env(safe-area-inset-bottom)))", right: "clamp(12px, 4vw, 20px)", zIndex: 40,
+      position: "fixed", bottom: "calc(80px + max(8px, env(safe-area-inset-bottom)))", right: "clamp(12px, 4vw, 20px)", zIndex: 40,
       width: "clamp(46px, 12vw, 52px)", height: "clamp(46px, 12vw, 52px)", borderRadius: 16,
       background: "rgba(212,165,55,0.1)", backdropFilter: "blur(12px)", border: "1px solid rgba(212,165,55,0.2)",
       display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#D4A537",
@@ -312,7 +247,6 @@ function SOSFAB({ onClick }) {
   );
 }
 
-// 복구 모달
 function RecoveryModal({ prompt, onRecover, onCancel }) {
   if (!prompt) return null;
   return (
@@ -479,23 +413,19 @@ export default function App() {
   });
   const { users, userCount, myNickname, myNicknameJa, myAvatar, myStatus, setMyStatus, rerollNickname } = presence;
 
-  // 플러팅 게임 훅
   const flirting = useFlirtingGame(session?.id, mySeat, myNickname, storeId);
 
-  // 모든 활성 세션 (좌석 선택용)
   const { sessions: allSessions } = useSessionsAdmin();
 
   // 🆕 익명 채팅 훅
   const chat = useChatRoom(storeId, session?.id, mySeat, myNickname, myAvatar);
 
-  // 모달 상태
   const [showFlirtingSeatPicker, setShowFlirtingSeatPicker] = useState(false);
   const [invitingGame, setInvitingGame] = useState(false);
-  
+
   // 🆕 닉네임 클릭 시 게임 선택 모달
   const [gameSelectTarget, setGameSelectTarget] = useState(null);
 
-  const [completedQuests, setCompletedQuests] = useState(new Set(["q1"]));
   const [sosOpen, setSosOpen] = useState(false);
 
   const mm = useMatchmaking({ myId, myNickname, myAvatar, mySeat });
@@ -504,14 +434,9 @@ export default function App() {
     setInMatchState(!!mm.match);
   }, [mm.match]);
 
-  const completeQuest = useCallback((qid) => {
-    setCompletedQuests(prev => { const next = new Set(prev); next.add(qid); return next; });
-  }, []);
-
   const handleStatusChange = useCallback((s) => {
     setMyStatus(s);
-    if (s === "open") completeQuest("q6");
-  }, [setMyStatus, completeQuest]);
+  }, [setMyStatus]);
 
   const handleSeatSelect = useCallback(async (seatLabel) => {
     const result = await createSession(seatLabel);
@@ -545,7 +470,6 @@ export default function App() {
     setRecoveryPrompt(null);
   }, []);
 
-  // 플러팅 게임 신청 시작 (게임 탭에서)
   const handleOpenFlirting = useCallback(() => {
     setShowFlirtingSeatPicker(true);
   }, []);
@@ -568,7 +492,6 @@ export default function App() {
 
   // 🆕 채팅에서 닉네임 클릭 시
   const handleNicknameClick = useCallback((message) => {
-    // 자기 자신은 무시
     if (message.session_id === session?.id) return;
     setGameSelectTarget(message);
   }, [session?.id]);
@@ -577,7 +500,6 @@ export default function App() {
   const handleSelectFlirting = useCallback(async () => {
     if (!gameSelectTarget) return;
     
-    // 대상 세션 찾기 (allSessions에서)
     const targetSession = allSessions.find(s => s.id === gameSelectTarget.session_id) || {
       id: gameSelectTarget.session_id,
       seat_label: gameSelectTarget.seat_label,
@@ -598,8 +520,6 @@ export default function App() {
   const handleSelectNine = useCallback(() => {
     if (!gameSelectTarget) return;
     
-    // 더 나인은 myId 기반인데 채팅은 session_id니까
-    // allSessions에서 매칭되는 user 찾아야 함
     const targetSession = allSessions.find(s => s.id === gameSelectTarget.session_id);
     
     if (!targetSession) {
@@ -608,7 +528,6 @@ export default function App() {
       return;
     }
 
-    // presence users에서 customer_id 찾기 (mm.sendInvite는 customer_id 필요)
     const targetUser = users.find(u => u.seat === targetSession.seat_label);
     
     if (!targetUser) {
@@ -704,7 +623,7 @@ export default function App() {
       <div style={{
         position: "relative", zIndex: 1,
         paddingTop: "max(16px, env(safe-area-inset-top))",
-        paddingBottom: "calc(70px + max(8px, env(safe-area-inset-bottom)))",
+        paddingBottom: "calc(82px + max(8px, env(safe-area-inset-bottom)))",
       }}>
         {inMatch ? (
           <WhiskyNine
@@ -729,7 +648,7 @@ export default function App() {
               dragElastic={0.2}
               onDragEnd={(e, info) => {
                 const swipeThreshold = 80;
-                const tabOrder = ["hub", "menu", "question", "game", "quest"];
+                const tabOrder = ["hub", "menu", "game"];
                 const currentIdx = tabOrder.indexOf(tab);
                 if (currentIdx === -1) return;
 
@@ -756,7 +675,6 @@ export default function App() {
                 />
               )}
               {tab === "status" && <StatusScreen myStatus={myStatus} setMyStatus={handleStatusChange} users={users} myId={myId} />}
-              {tab === "question" && <QuestionCardScreen />}
               {tab === "menu" && <MenuScreen createOrder={createOrder} orders={orders} totalAmount={totalAmount} mySeat={mySeat} categories={menuCategories} menus={menuItems} optionsByMenu={optionsByMenu} loading={menusLoading} wifiSsid={store?.wifi_ssid} wifiPassword={store?.wifi_password} />}
               {tab === "game" && (
                 <GameCenter
@@ -774,7 +692,6 @@ export default function App() {
                   onOpenFlirting={handleOpenFlirting}
                 />
               )}
-              {tab === "quest" && <QuestScreen completed={completedQuests} onComplete={completeQuest} />}
             </motion.div>
           </AnimatePresence>
         )}
@@ -823,7 +740,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 복구 모달 */}
       <AnimatePresence>
         {recoveryPrompt && (
           <RecoveryModal
@@ -842,7 +758,6 @@ export default function App() {
         onDecline={mm.declineInvite}
       />
 
-      {/* 플러팅 게임 - 좌석 선택 모달 */}
       <AnimatePresence>
         {showFlirtingSeatPicker && (
           <FlirtingSeatPicker
@@ -856,7 +771,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 플러팅 게임 - 진행 모달 */}
       <AnimatePresence>
         {flirting.currentGame && (
           <FlirtingGameModal
@@ -874,7 +788,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* 플러팅 게임 - 신청 받음 알림 */}
       <AnimatePresence>
         {flirting.incomingGame && !flirting.currentGame && (
           <IncomingFlirtingModal
