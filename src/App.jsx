@@ -696,8 +696,10 @@ export default function App() {
           </AnimatePresence>
         )}
       </div>
-{!inMatch && <SOSFAB onClick={() => setSosOpen(true)} />}
+      {/* 🚫 SOS 임시 비활성화 - 필요 시 주석 해제
+      {!inMatch && <SOSFAB onClick={() => setSosOpen(true)} />}
       <SOSModal open={sosOpen} onClose={() => setSosOpen(false)} seatLabel={mySeat} />
+      */}
 
       <AnimatePresence>
         {seatMoveNotice && (
