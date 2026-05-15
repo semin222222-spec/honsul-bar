@@ -5,14 +5,16 @@ import { Send, Loader2 } from "lucide-react";
 /**
  * ChatRoom - 익명 라운지 채팅 UI
  *
+ * v2: 반응형 높이 (clamp 220-320px)
+ *
  * Props:
  *  - messages: 메시지 배열
  *  - sending: 전송 중 여부
  *  - mySessionId: 내 세션 ID (내 메시지 구분용)
  *  - onSendMessage: (content) => Promise<{ok, error}>
- *  - onNicknameClick: (message) => void  // 닉네임/아바타 클릭 시 호출
+ *  - onNicknameClick: (message) => void
  *  - loading: 초기 로딩
- *  - activeUserCount: 현재 활성 손님 수 (헤더 표시용)
+ *  - activeUserCount: 현재 활성 손님 수
  */
 export default function ChatRoom({
   messages = [],
@@ -29,7 +31,6 @@ export default function ChatRoom({
   const inputRef = useRef(null);
   const prevMessagesLengthRef = useRef(0);
 
-  // 새 메시지 오면 스크롤 자동 내리기
   useEffect(() => {
     if (messages.length > prevMessagesLengthRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -37,7 +38,6 @@ export default function ChatRoom({
     prevMessagesLengthRef.current = messages.length;
   }, [messages.length]);
 
-  // 에러 메시지 자동 사라지기
   useEffect(() => {
     if (!errorMsg) return;
     const timer = setTimeout(() => setErrorMsg(""), 2500);
@@ -102,14 +102,14 @@ export default function ChatRoom({
     <div style={{
       background: "linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))",
       border: "1px solid rgba(212,165,55,0.15)",
-      borderRadius: 18,
+      borderRadius: 16,
       overflow: "hidden",
-      marginBottom: 16,
+      marginBottom: 14,
       boxShadow: "0 8px 30px rgba(0,0,0,0.4)",
     }}>
       {/* 헤더 */}
       <div style={{
-        padding: "14px 16px",
+        padding: "11px 14px",
         background: "linear-gradient(135deg, rgba(212,165,55,0.12), rgba(180,120,30,0.06))",
         borderBottom: "1px solid rgba(212,165,55,0.15)",
         display: "flex",
@@ -121,7 +121,7 @@ export default function ChatRoom({
             animate={{ opacity: [1, 0.5, 1], scale: [1, 0.85, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
             style={{
-              width: 8, height: 8,
+              width: 7, height: 7,
               borderRadius: "50%",
               background: "#6AB06A",
               boxShadow: "0 0 6px #6AB06A",
@@ -129,7 +129,7 @@ export default function ChatRoom({
           />
           <span style={{
             fontFamily: "'Noto Serif KR', serif",
-            fontSize: 16,
+            fontSize: 15,
             color: "#D4A537",
             fontWeight: 600,
           }}>
@@ -138,10 +138,10 @@ export default function ChatRoom({
         </div>
         {activeUserCount > 0 && (
           <span style={{
-            fontSize: 11,
+            fontSize: 10,
             color: "rgba(212,165,55,0.8)",
             background: "rgba(212,165,55,0.12)",
-            padding: "3px 9px",
+            padding: "2px 8px",
             borderRadius: 100,
             fontWeight: 600,
           }}>
@@ -150,23 +150,23 @@ export default function ChatRoom({
         )}
       </div>
 
-      {/* 안내 */}
+      {/* 안내 - 살짝 축약 */}
       <div style={{
-        padding: "7px 14px",
+        padding: "6px 12px",
         background: "rgba(212,165,55,0.04)",
         borderBottom: "1px solid rgba(255,255,255,0.04)",
         fontSize: 10,
         color: "rgba(212,165,55,0.65)",
         textAlign: "center",
       }}>
-        🍷 12시간 후 사라져요 · 100자 이내 · 닉네임 클릭 → 게임 신청
+        🍷 12시간 후 사라져요 · 100자 이내
       </div>
 
-      {/* 메시지 영역 */}
+      {/* 🆕 반응형 메시지 영역 */}
       <div
         ref={scrollRef}
         style={{
-          height: 380,
+          height: "clamp(220px, 38vh, 320px)",
           overflowY: "auto",
           padding: "12px 14px",
           display: "flex",
@@ -202,11 +202,11 @@ export default function ChatRoom({
             textAlign: "center",
             padding: "0 20px",
           }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>💬</div>
-            <div style={{ fontSize: 13, marginBottom: 4, fontFamily: "'Noto Serif KR', serif" }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
+            <div style={{ fontSize: 12, marginBottom: 4, fontFamily: "'Noto Serif KR', serif" }}>
               아직 대화가 없어요
             </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", lineHeight: 1.5 }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", lineHeight: 1.5 }}>
               첫 메시지를 남겨보세요!<br/>
               혼자만의 시간을 함께 나눠요 🥃
             </div>
@@ -247,7 +247,7 @@ export default function ChatRoom({
 
       {/* 입력 영역 */}
       <div style={{
-        padding: "12px 14px",
+        padding: "10px 12px",
         background: "rgba(255,255,255,0.02)",
         borderTop: "1px solid rgba(212,165,55,0.1)",
         position: "relative",
@@ -261,8 +261,8 @@ export default function ChatRoom({
               style={{
                 position: "absolute",
                 top: -32,
-                left: 14,
-                right: 14,
+                left: 12,
+                right: 12,
                 padding: "6px 12px",
                 background: "rgba(226,75,74,0.15)",
                 border: "1px solid rgba(226,75,74,0.3)",
@@ -292,15 +292,15 @@ export default function ChatRoom({
               flex: 1,
               background: "rgba(0,0,0,0.4)",
               border: "1px solid " + (inputLength >= 90 ? "rgba(226,75,74,0.4)" : "rgba(255,255,255,0.08)"),
-              borderRadius: 18,
-              padding: "10px 14px",
+              borderRadius: 16,
+              padding: "9px 13px",
               color: "#F5E6C8",
               fontSize: 13,
               fontFamily: "inherit",
               outline: "none",
               resize: "none",
-              minHeight: 38,
-              maxHeight: 80,
+              minHeight: 36,
+              maxHeight: 76,
               lineHeight: 1.4,
               WebkitAppearance: "none",
             }}
@@ -310,7 +310,7 @@ export default function ChatRoom({
             onClick={handleSend}
             disabled={sending || !input.trim()}
             style={{
-              width: 38, height: 38,
+              width: 36, height: 36,
               background: sending || !input.trim()
                 ? "rgba(255,255,255,0.08)"
                 : "linear-gradient(135deg, #D4A537, #B8860B)",
@@ -332,10 +332,10 @@ export default function ChatRoom({
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
               >
-                <Loader2 size={15} />
+                <Loader2 size={14} />
               </motion.div>
             ) : (
-              <Send size={14} style={{ marginLeft: 2 }} />
+              <Send size={13} style={{ marginLeft: 2 }} />
             )}
           </motion.button>
         </div>
@@ -344,7 +344,7 @@ export default function ChatRoom({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginTop: 6,
+          marginTop: 5,
           padding: "0 4px",
           fontSize: 9,
           color: "rgba(255,255,255,0.3)",
@@ -362,9 +362,7 @@ export default function ChatRoom({
   );
 }
 
-// ─────────────────────────────────────────
-// 메시지 버블 컴포넌트
-// ─────────────────────────────────────────
+// 메시지 버블
 function MessageBubble({ message, isMine, onNicknameClick }) {
   const formatTime = (iso) => {
     const d = new Date(iso);
