@@ -44,6 +44,7 @@ import {
   playOrderNotification,
   playSOSNotification,
 } from "@/shared/lib/sounds";
+import { isPendingOrderStatus } from "@/services/orders/orderService";
 
 const TYPE_MAP = {
   join_chat: {
@@ -263,7 +264,7 @@ function OrderCard({ order, onServed, onCancel }) {
     return () => clearInterval(iv);
   }, [order.created_at]);
 
-  const isPending = order.status === "pending";
+  const isPending = isPendingOrderStatus(order.status);
   const isServed = order.status === "served";
 
   return (

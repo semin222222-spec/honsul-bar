@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import {
   createCustomerOrder,
   createManualOrder,
+  countPendingOrders,
   getOrdersTotal,
+  isPendingOrderStatus,
   normalizeOrderQuantity,
 } from "../src/services/orders/orderService.js";
 
@@ -168,6 +170,20 @@ describe("orderService", () => {
     assert.equal(
       getOrdersTotal([{ price: 9000 }, { price: null }, { price: 12000 }]),
       21000,
+    );
+  });
+
+  it("pending과 sent_to_pos 상태를 모두 대기 주문으로 본다", () => {
+    assert.equal(isPendingOrderStatus("pending"), true);
+    assert.equal(isPendingOrderStatus("sent_to_pos"), true);
+    assert.equal(isPendingOrderStatus("served"), false);
+    assert.equal(
+      countPendingOrders([
+        { status: "pending" },
+        { status: "sent_to_pos" },
+        { status: "served" },
+      ]),
+      2,
     );
   });
 });

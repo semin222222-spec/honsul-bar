@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { orderRepository } from "@/repositories/orders/orderRepository";
 import {
   cancelOrder as cancelOrderService,
+  countPendingOrders,
   createServedOrderPatch,
   markOrderServed,
 } from "@/services/orders/orderService";
@@ -148,9 +149,7 @@ export function useOrdersAdmin(storeId) {
   );
 
   const scopedOrders = hasActiveScope ? orders : [];
-  const pendingCount = scopedOrders.filter(
-    (o) => o.status === "pending",
-  ).length;
+  const pendingCount = countPendingOrders(scopedOrders);
 
   return {
     orders: scopedOrders,

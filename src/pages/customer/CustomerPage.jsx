@@ -6,7 +6,6 @@ import {
   Wine,
   Gamepad2,
   HandMetal,
-  Bell,
   Sparkles,
   Smile,
   Moon,
@@ -14,15 +13,16 @@ import {
   Check,
   Swords,
 } from "lucide-react";
-import SOSModal from "@/features/sos/components/SOSModal";
 import SeatPicker from "@/features/seats/components/SeatPicker";
 import MenuScreen from "@/features/menus/components/MenuScreen";
 import ThankYouScreen from "@/shared/ui/ThankYouScreen";
 import AmbientBG from "@/shared/ui/AmbientBG";
 import GameCenter from "@/features/games/components/GameCenter";
+import GameSelectModal from "@/features/games/components/GameSelectModal";
 import WhiskyNine from "@/features/games/whisky-nine/components/WhiskyNine";
 import MatchInviteModal from "@/features/games/whisky-nine/components/MatchInviteModal";
 import MyProfileCard from "@/features/presence/components/MyProfileCard";
+import ChatRoom from "@/features/messages/components/ChatRoom";
 import FlirtingSeatPicker from "@/features/games/flirting/components/FlirtingSeatPicker";
 import FlirtingGameModal from "@/features/games/flirting/components/FlirtingGameModal";
 import IncomingFlirtingModal from "@/features/games/flirting/components/IncomingFlirtingModal";
@@ -32,6 +32,7 @@ import { useSession } from "@/features/sessions/hooks/useSession";
 import { useOrders } from "@/features/orders/hooks/useOrders";
 import { useMenus } from "@/features/menus/hooks/useMenus";
 import { useMenuOptionsCustomer } from "@/features/menus/hooks/useMenuOptionsCustomer";
+import { useChatRoom } from "@/features/messages/hooks/useChatRoom";
 import { useFlirtingGame } from "@/features/games/flirting/hooks/useFlirtingGame";
 import { useStoreSessions } from "@/features/sessions/hooks/useStoreSessions";
 import { useStoreId, useStore } from "@/shared/store/StoreContext";
@@ -202,6 +203,9 @@ function HubScreen({
   myAvatar,
   onReroll,
   store,
+  chat,
+  mySessionId,
+  onNicknameClick,
 }) {
   const { locale, t } = useLocale();
   const greetings = t("home.greetings");
@@ -303,6 +307,16 @@ function HubScreen({
         seat={mySeat}
         onReroll={onReroll}
         delay={0.05}
+      />
+
+      <ChatRoom
+        messages={chat.messages}
+        sending={chat.sending}
+        mySessionId={mySessionId}
+        onSendMessage={chat.sendMessage}
+        onNicknameClick={onNicknameClick}
+        loading={chat.loading}
+        activeUserCount={userCount}
       />
 
       <GlassCard
@@ -799,41 +813,6 @@ function StatusScreen({ myStatus, setMyStatus, users, myId }) {
   );
 }
 
-function SOSFAB({ onClick }) {
-  return (
-    <Motion.button
-      onClick={onClick}
-      whileTap={{ scale: 0.9 }}
-      style={{
-        position: "fixed",
-        bottom: "calc(80px + max(8px, env(safe-area-inset-bottom)))",
-        right: "clamp(12px, 4vw, 20px)",
-        zIndex: 40,
-        width: "clamp(46px, 12vw, 52px)",
-        height: "clamp(46px, 12vw, 52px)",
-        borderRadius: 16,
-        background: "rgba(212,165,55,0.1)",
-        backdropFilter: "blur(12px)",
-        border: "1px solid rgba(212,165,55,0.2)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer",
-        color: "#D4A537",
-        boxShadow: "0 4px 24px rgba(212,165,55,0.1)",
-        WebkitTapHighlightColor: "transparent",
-      }}
-    >
-      <Motion.div
-        animate={{ opacity: [0.6, 1, 0.6] }}
-        transition={{ duration: 3, repeat: Infinity }}
-      >
-        <Bell size={22} />
-      </Motion.div>
-    </Motion.button>
-  );
-}
-
 function RecoveryModal({ prompt, onRecover, onCancel }) {
   if (!prompt) return null;
   return (
@@ -1051,11 +1030,11 @@ export default function App() {
   const flirting = useFlirtingGame(session?.id, mySeat, myNickname, storeId);
 
   const { sessions: allSessions } = useStoreSessions(storeId);
+  const chat = useChatRoom(storeId, session?.id, mySeat, myNickname, myAvatar);
 
   const [showFlirtingSeatPicker, setShowFlirtingSeatPicker] = useState(false);
   const [invitingGame, setInvitingGame] = useState(false);
-
-  const [sosOpen, setSosOpen] = useState(false);
+  const [gameSelectTarget, setGameSelectTarget] = useState(null);
 
   const mm = useMatchmaking({ myId, myNickname, myAvatar, mySeat });
 
@@ -1130,6 +1109,60 @@ export default function App() {
     if (invitingGame) return;
     setShowFlirtingSeatPicker(false);
   }, [invitingGame]);
+
+  const handleNicknameClick = useCallback(
+    (message) => {
+      if (message.session_id === session?.id) return;
+      setGameSelectTarget(message);
+    },
+    [session?.id],
+  );
+
+  const handleSelectFlirting = useCallback(async () => {
+    if (!gameSelectTarget) return;
+
+    const targetSession = allSessions.find(
+      (s) => s.id === gameSelectTarget.session_id,
+    ) || {
+      id: gameSelectTarget.session_id,
+      seat_label: gameSelectTarget.seat_label,
+      nickname: gameSelectTarget.nickname,
+    };
+
+    setGameSelectTarget(null);
+    setInvitingGame(true);
+    const result = await flirting.inviteGame(targetSession);
+    setInvitingGame(false);
+
+    if (!result.ok) {
+      alert(result.error || "신청에 실패했어요");
+    }
+  }, [gameSelectTarget, allSessions, flirting]);
+
+  const handleSelectNine = useCallback(() => {
+    if (!gameSelectTarget) return;
+
+    const targetSession = allSessions.find(
+      (s) => s.id === gameSelectTarget.session_id,
+    );
+
+    if (!targetSession) {
+      alert("상대방을 찾을 수 없어요. 자리를 비웠을 수도 있어요.");
+      setGameSelectTarget(null);
+      return;
+    }
+
+    const targetUser = users.find((u) => u.seat === targetSession.seat_label);
+
+    if (!targetUser) {
+      alert("상대방이 게임을 받을 수 없는 상태예요.");
+      setGameSelectTarget(null);
+      return;
+    }
+
+    setGameSelectTarget(null);
+    mm.sendInvite(targetUser);
+  }, [gameSelectTarget, allSessions, users, mm]);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [autoSeatTried, setAutoSeatTried] = useState(false);
@@ -1298,6 +1331,9 @@ export default function App() {
                   myAvatar={myAvatar}
                   onReroll={rerollNickname}
                   store={store}
+                  chat={chat}
+                  mySessionId={session?.id}
+                  onNicknameClick={handleNicknameClick}
                 />
               )}
               {tab === "status" && (
@@ -1342,13 +1378,7 @@ export default function App() {
           </AnimatePresence>
         )}
       </div>
-      {!inMatch && <SOSFAB onClick={() => setSosOpen(true)} />}
-      <SOSModal
-        open={sosOpen}
-        onClose={() => setSosOpen(false)}
-        seatLabel={mySeat}
-        storeId={storeId}
-      />
+      {/* SOS 요청은 운영 안정화 전까지 임시 비활성화한다. */}
 
       <AnimatePresence>
         {seatMoveNotice && (
@@ -1456,6 +1486,17 @@ export default function App() {
             game={flirting.incomingGame}
             onAccept={() => flirting.acceptGame(flirting.incomingGame.id)}
             onDecline={() => flirting.declineGame(flirting.incomingGame.id)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {gameSelectTarget && (
+          <GameSelectModal
+            target={gameSelectTarget}
+            onSelectFlirting={handleSelectFlirting}
+            onSelectNine={handleSelectNine}
+            onClose={() => setGameSelectTarget(null)}
           />
         )}
       </AnimatePresence>

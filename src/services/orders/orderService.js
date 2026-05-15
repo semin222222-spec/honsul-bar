@@ -1,6 +1,7 @@
 import { hasStoreScope } from "../../shared/lib/storeScope.js";
 
 const MAX_ORDER_QUANTITY = 10;
+const PENDING_ORDER_STATUSES = new Set(["pending", "sent_to_pos"]);
 
 function normalizePrice(price) {
   const parsed = Number.parseInt(price, 10);
@@ -27,6 +28,15 @@ export function getOrdersTotal(orders) {
   return (orders || []).reduce((sum, order) => {
     return sum + normalizePrice(order?.price);
   }, 0);
+}
+
+export function isPendingOrderStatus(status) {
+  return PENDING_ORDER_STATUSES.has(status);
+}
+
+export function countPendingOrders(orders) {
+  return (orders || []).filter((order) => isPendingOrderStatus(order?.status))
+    .length;
 }
 
 export function buildCustomerOrderRows({
