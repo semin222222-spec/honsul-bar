@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import { installRealtimeRecovery } from "@/shared/realtime/realtimeHealth";
+import {
+  recoverSharedRealtimeChannels,
+  setSharedRealtimeClient,
+} from "@/shared/realtime/sharedChannel";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -79,10 +83,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+setSharedRealtimeClient(supabase);
+
 // Realtime recovery는 데이터 client에만 설치 (인증 client는 realtime 안 씀)
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   window.__honsulRealtimeRecovery?.stop?.();
   window.__honsulRealtimeRecovery = installRealtimeRecovery(supabase, {
     checkIntervalMs: 30000,
+    recoverSharedChannels: recoverSharedRealtimeChannels,
   });
 }

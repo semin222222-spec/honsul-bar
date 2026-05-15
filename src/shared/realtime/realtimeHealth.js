@@ -93,7 +93,12 @@ function notifyRecoverListeners(reason, logger) {
 // 본 함수는 호출되면 항상 즉시 작업을 수행 (테스트성/플러그인 외부 사용 용이)
 // ============================================================
 export function recoverRealtimeConnection(supabase, options = {}) {
-  const { logger = console, reason = "manual", force = false } = options;
+  const {
+    logger = console,
+    reason = "manual",
+    force = false,
+    recoverSharedChannels,
+  } = options;
 
   const channels = getRealtimeChannels(supabase, logger);
   const recoveryTasks = [];
@@ -101,9 +106,25 @@ export function recoverRealtimeConnection(supabase, options = {}) {
     reason,
     channelCount: channels.length,
     resubscribed: 0,
+    sharedRecovered: 0,
     socketReconnected: false,
     pendingRecoveries: 0,
     done: Promise.resolve([]),
+  };
+
+  const recoverShared = (sharedForce = force) => {
+    if (typeof recoverSharedChannels !== "function") return;
+
+    try {
+      const sharedResult = recoverSharedChannels({
+        reason,
+        force: sharedForce,
+        logger,
+      });
+      result.sharedRecovered = sharedResult?.recovered ?? 0;
+    } catch (err) {
+      callLogger(logger, "warn", "[Realtime] 공유 채널 복구 실패:", err);
+    }
   };
 
   const socketOk = isRealtimeSocketConnected(supabase, logger);
@@ -136,6 +157,7 @@ export function recoverRealtimeConnection(supabase, options = {}) {
     //   브라우저도 죽은 connection을 정리할 시간이 생긴다.
     const delayed = new Promise((resolve) => {
       setTimeout(() => {
+        recoverShared(true);
         notifyRecoverListeners(reason, logger);
         resolve();
       }, 1500);
@@ -181,11 +203,17 @@ export function recoverRealtimeConnection(supabase, options = {}) {
     }
   });
 
-  if (result.resubscribed > 0 || result.socketReconnected) {
+  recoverShared(false);
+
+  if (
+    result.resubscribed > 0 ||
+    result.sharedRecovered > 0 ||
+    result.socketReconnected
+  ) {
     callLogger(
       logger,
       "log",
-      `[Realtime] 복구 실행 (${reason}) - 채널 ${result.resubscribed}개, socket ${result.socketReconnected ? "재연결" : "유지"}`,
+      `[Realtime] 복구 실행 (${reason}) - 채널 ${result.resubscribed}개, 공유 ${result.sharedRecovered}개, socket ${result.socketReconnected ? "재연결" : "유지"}`,
     );
   }
 
@@ -268,6 +296,7 @@ export function installRealtimeRecovery(supabase, options = {}) {
       logger,
       reason,
       force,
+      recoverSharedChannels: options.recoverSharedChannels,
     });
     Promise.resolve(result.done).finally(() => {
       inFlight = false;
@@ -311,9 +340,7 @@ export function installRealtimeRecovery(supabase, options = {}) {
     // 주기 점검은 가벼운 헬스체크: 소켓이 죽었거나 broken 채널이 있을 때만 복구
     const socketOk = isRealtimeSocketConnected(supabase, logger);
     const channels = getRealtimeChannels(supabase, logger);
-    const hasBroken = channels.some((c) =>
-      isRecoverableChannelState(c?.state),
-    );
+    const hasBroken = channels.some((c) => isRecoverableChannelState(c?.state));
     if (!socketOk || hasBroken) {
       callLogger(
         logger,
