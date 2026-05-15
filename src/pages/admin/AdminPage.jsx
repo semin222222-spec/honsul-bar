@@ -45,6 +45,10 @@ import {
   playSOSNotification,
 } from "@/shared/lib/sounds";
 import { isPendingOrderStatus } from "@/services/orders/orderService";
+import {
+  installKeepAliveOnFirstGesture,
+  startTabKeepAlive,
+} from "@/shared/keepAlive/tabKeepAlive";
 
 const TYPE_MAP = {
   join_chat: {
@@ -717,8 +721,17 @@ export default function AdminPage() {
     } else {
       enableSound();
       setSoundOn(true);
+      // 사운드 켤 때 동시에 keep-alive도 활성화 (이 시점에 user gesture가 살아있음)
+      startTabKeepAlive();
     }
   };
+
+  // 어드민 페이지: 첫 사용자 제스처에서 백그라운드 throttle 회피 자동 활성화
+  // (POS에서 다른 앱에 가려져도 fetch/timer가 멈추지 않게)
+  useEffect(() => {
+    const cleanup = installKeepAliveOnFirstGesture();
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     const prevSOSCount = prevSOSCountRef.current;
