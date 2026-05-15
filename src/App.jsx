@@ -106,7 +106,7 @@ function TabBar({ active, onChange }) {
           <button key={t.id} onClick={() => onChange(t.id)} style={{
             display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
             background: "none", border: "none", cursor: "pointer",
-            padding: "4px 0", minWidth: 40, minHeight: 44,
+            padding: "6px 0", minWidth: 48, minHeight: 52,
             borderRadius: 10, position: "relative",
             color: isActive ? "#D4A537" : "rgba(255,255,255,0.35)",
             transition: "color 0.25s",
@@ -119,8 +119,8 @@ function TabBar({ active, onChange }) {
                 marginLeft: -10,
               }} />
             )}
-            <Icon size={18} strokeWidth={isActive ? 2.2 : 1.5} />
-            <span style={{ fontSize: 9, fontWeight: isActive ? 600 : 400 }}>{t.label}</span>
+            <Icon size={24} strokeWidth={isActive ? 2.2 : 1.5} />
+            <span style={{ fontSize: 11, fontWeight: isActive ? 600 : 400 }}>{t.label}</span>
           </button>
         );
       })}
