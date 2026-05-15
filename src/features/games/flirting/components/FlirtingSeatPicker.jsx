@@ -16,15 +16,13 @@ import { getDefaultLayout } from "@/features/seats/components/FloorPlan";
  * - 나 자신은 신청 불가
  *
  * Props:
- *  - mySessionId: 내 세션 ID
- *  - mySeatLabel: 내 좌석
+ *  - mySeatLabel: 내 좌석 (이걸로 내 자리를 식별)
  *  - sessions: 매장 전체 세션 리스트
  *  - onSelect: (targetSession) => void
  *  - onCancel: () => void
  *  - loading: 신청 중 (스피너 표시)
  */
 export default function FlirtingSeatPicker({
-  mySessionId,
   mySeatLabel,
   sessions = [],
   onSelect,
@@ -44,9 +42,9 @@ export default function FlirtingSeatPicker({
 
   const handleSeatClick = (seat) => {
     if (loading) return;
+    if (seat === mySeatLabel) return; // 내 자리
     const session = sessionMap.get(seat);
     if (!session) return; // 빈 자리
-    if (session.id === mySessionId) return; // 내 자리
     setConfirmTarget(session);
   };
 
@@ -55,8 +53,10 @@ export default function FlirtingSeatPicker({
     onSelect(confirmTarget);
   };
 
-  // 신청 가능한 상대 수
-  const availableTargets = sessions.filter((s) => s.id !== mySessionId).length;
+  // 신청 가능한 상대 수 (내 자리 제외)
+  const availableTargets = sessions.filter(
+    (s) => s.seat_label !== mySeatLabel,
+  ).length;
 
   return (
     <Motion.div
@@ -202,7 +202,7 @@ export default function FlirtingSeatPicker({
                 row={row}
                 rowDirection={idx === 0 ? "left-open" : "right-open"}
                 sessionMap={sessionMap}
-                mySessionId={mySessionId}
+                mySeatLabel={mySeatLabel}
                 onSeatClick={handleSeatClick}
               />
             ))}
@@ -409,7 +409,7 @@ function SeatPickerRow({
   row,
   rowDirection,
   sessionMap,
-  mySessionId,
+  mySeatLabel,
   onSeatClick,
 }) {
   const seats = Array.from(
@@ -452,9 +452,9 @@ function SeatPickerRow({
         {seats.map((seat) => {
           const session = sessionMap.get(seat);
           const pos = layout[seat] || { x: 50, y: 50, w: 7, h: 7 };
-          const isMe = session?.id === mySessionId;
+          const isMe = !!mySeatLabel && seat === mySeatLabel;
           const isAvailable = !!session && !isMe;
-          const isEmpty = !session;
+          const isEmpty = !session && !isMe;
 
           return (
             <SeatBox
@@ -475,39 +475,16 @@ function SeatPickerRow({
 
 function SeatBox({ seat, pos, isMe, isAvailable, isEmpty, onClick }) {
   let style = {};
-  let content = null;
 
   if (isMe) {
     style = {
       background:
-        "linear-gradient(135deg, rgba(255,107,157,0.5), rgba(196,122,255,0.25))",
+        "linear-gradient(135deg, rgba(255,107,157,0.85), rgba(196,122,255,0.55))",
       border: "2px solid #FF6B9D",
       color: "#fff",
-      boxShadow: "0 0 15px rgba(255,107,157,0.6)",
+      boxShadow: "0 0 18px rgba(255,107,157,0.8)",
       cursor: "default",
     };
-    content = (
-      <Motion.div
-        initial={{ opacity: 0, y: -5 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={{
-          position: "absolute",
-          top: -20,
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "#FF6B9D",
-          color: "#fff",
-          fontSize: 8,
-          fontWeight: 700,
-          padding: "2px 6px",
-          borderRadius: 100,
-          whiteSpace: "nowrap",
-          zIndex: 10,
-        }}
-      >
-        내 자리 ✨
-      </Motion.div>
-    );
   } else if (isAvailable) {
     style = {
       background:
@@ -561,8 +538,20 @@ function SeatBox({ seat, pos, isMe, isAvailable, isEmpty, onClick }) {
         ...style,
       }}
     >
-      {content}
       <span style={{ pointerEvents: "none" }}>{seat}</span>
+      {isMe && (
+        <span
+          style={{
+            position: "absolute",
+            top: 1,
+            right: 2,
+            fontSize: 9,
+            pointerEvents: "none",
+          }}
+        >
+          📍
+        </span>
+      )}
       {isAvailable && (
         <span
           style={{

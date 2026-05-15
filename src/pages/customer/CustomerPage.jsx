@@ -1459,7 +1459,6 @@ export default function App() {
       <AnimatePresence>
         {showFlirtingSeatPicker && (
           <FlirtingSeatPicker
-            mySessionId={session?.id}
             mySeatLabel={mySeat}
             sessions={allSessions}
             onSelect={handleFlirtingSelect}
