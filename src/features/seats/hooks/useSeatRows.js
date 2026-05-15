@@ -26,46 +26,71 @@ export function useSeatRows(storeId) {
   const initialFetchedRef = useRef(false);
   const fetchingRef = useRef(false);
 
-  // 🆕 silent 옵션 추가 - realtime refetch는 loading 안 켜기
+  // AbortController + 재시도 기반 fetch
+  // 8초 후 abort → 재시도. Chrome 백그라운드 후 stale connection으로 fetch가
+  // hang되는 케이스를 우회한다. 최대 2회 재시도 (총 3 시도).
   const fetchRows = useCallback(
     async (silent = false) => {
       if (!storeId) {
         setLoading(false);
         return;
       }
-
-      // 동시 fetch 방지
       if (fetchingRef.current) return;
       fetchingRef.current = true;
 
-      // 초기 로드만 loading=true, realtime은 silent
       if (!silent && !initialFetchedRef.current) {
         setLoading(true);
       }
 
-      // 🆕 안전망: 10초 안에 안 끝나면 loading 강제 해제
-      const timeoutId = setTimeout(() => {
-        console.warn("[useSeatRows] fetch 타임아웃 - loading 강제 해제");
-        setLoading(false);
-        fetchingRef.current = false;
-      }, 10000);
+      const MAX_RETRIES = 2;
+      let attempt = 0;
+      let success = false;
 
-      try {
-        const data = await seatRepository.listSeatRows(storeId);
+      while (attempt <= MAX_RETRIES) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        clearTimeout(timeoutId);
-        setError(null);
-        setRows(data);
-      } catch (err) {
-        clearTimeout(timeoutId);
-        console.error("[useSeatRows] fetch 예외:", err);
-        setError(err);
-      } finally {
-        // 🆕 무조건 loading 풀기
-        setLoading(false);
-        initialFetchedRef.current = true;
-        fetchingRef.current = false;
+        try {
+          const data = await seatRepository.listSeatRows(
+            storeId,
+            controller.signal,
+          );
+          clearTimeout(timeoutId);
+          setError(null);
+          setRows(data);
+          success = true;
+          break;
+        } catch (err) {
+          clearTimeout(timeoutId);
+
+          const isAbort =
+            err?.name === "AbortError" ||
+            /abort/i.test(err?.message ?? "") ||
+            controller.signal.aborted;
+
+          if (isAbort && attempt < MAX_RETRIES) {
+            console.warn(
+              `[useSeatRows] fetch 타임아웃(abort) - 재시도 ${attempt + 1}/${MAX_RETRIES}`,
+            );
+            attempt += 1;
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            continue;
+          }
+
+          if (isAbort) {
+            console.warn("[useSeatRows] fetch 최종 실패 (재시도 소진)");
+          } else {
+            console.error("[useSeatRows] fetch 예외:", err);
+            setError(err);
+          }
+          break;
+        }
       }
+
+      setLoading(false);
+      initialFetchedRef.current = true;
+      fetchingRef.current = false;
+      return success;
     },
     [storeId],
   );

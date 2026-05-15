@@ -5,13 +5,16 @@ function throwIfError(error) {
   if (error) throw error;
 }
 
-export async function listSeatRows(storeId) {
-  const { data, error } = await supabase
+export async function listSeatRows(storeId, signal) {
+  let query = supabase
     .from("seat_rows")
     .select("*")
     .eq("store_id", storeId)
     .order("display_order");
 
+  if (signal) query = query.abortSignal(signal);
+
+  const { data, error } = await query;
   throwIfError(error);
   return data || [];
 }

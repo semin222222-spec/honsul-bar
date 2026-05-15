@@ -64,19 +64,11 @@ export function subscribeShared({ topic, bindings, listeners }) {
 
   entry.subs.add(listeners);
 
-  // 늦게 들어온 listener: 채널이 이미 joined면 SUBSCRIBED를 합성해서 한 번 흘려보낸다.
-  // (그래야 listener의 initial refetch / 재구독 콜백이 동작)
-  const channelState = entry.channel?.state;
-  if (channelState === "joined" && typeof listeners.onStatus === "function") {
-    queueMicrotask(() => {
-      if (!entry.subs.has(listeners)) return; // 사이에 unsubscribe됐을 수 있음
-      try {
-        listeners.onStatus("SUBSCRIBED");
-      } catch (err) {
-        console.warn(`[sharedChannel:${topic}] late onStatus 예외`, err);
-      }
-    });
-  }
+  // 합성 SUBSCRIBED은 일부러 던지지 않는다.
+  // 각 hook이 useEffect mount 시 자체 초기 fetch를 돌리므로 데이터는 따로 받는다.
+  // 합성을 던지면 mount마다 SUBSCRIBED 로그 + onSubscribed→fetchRows가 누적되어
+  // 동시 REST 요청 폭증 → fetch hang/timeout으로 이어진다.
+  // 진짜 채널 재구독 시점의 SUBSCRIBED는 supabase-js의 콜백이 sub들에 fan-out한다.
 
   return () => {
     if (!entry) return;
