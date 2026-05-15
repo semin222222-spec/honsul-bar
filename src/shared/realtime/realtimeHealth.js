@@ -108,8 +108,11 @@ export function recoverRealtimeConnection(supabase, options = {}) {
 
   const socketOk = isRealtimeSocketConnected(supabase, logger);
 
-  // 1) 소켓 먼저 (race 방지 - 채널 재구독 전에 소켓 보장)
-  if (!socketOk) {
+  // 1) 소켓 레벨 복구
+  // - 소켓이 죽었거나 force=true(장기 백그라운드/online 이벤트)면 명시적으로 bounce
+  // - 소켓이 다시 붙으면 supabase-js가 joined 채널들을 자동으로 re-join한다
+  //   → 건강한 채널을 우리가 unsubscribe→subscribe로 건드릴 필요 없음
+  if (!socketOk || force) {
     try {
       supabase?.realtime?.disconnect?.();
     } catch (err) {
@@ -123,13 +126,11 @@ export function recoverRealtimeConnection(supabase, options = {}) {
     }
   }
 
-  // 2) 채널 재구독
-  // - 채널 state가 broken이거나, force=true(장기 백그라운드/online 이벤트 등)인 경우만 재구독
-  // - 단순히 소켓이 죽은 것만으로는 재구독하지 않음 (supabase-js가 socket 재연결 후 자동 re-join 수행)
+  // 2) 채널 레벨 복구
+  // - 명시적으로 broken(closed/errored)인 채널만 leave+subscribe
+  // - force일 때도 healthy 채널은 절대 건드리지 않음 (불필요한 CLOSED 메시지 + race 방지)
   channels.forEach((channel) => {
-    const channelBroken = isRecoverableChannelState(channel?.state);
-    const shouldRecover = channelBroken || force;
-    if (!shouldRecover) return;
+    if (!isRecoverableChannelState(channel?.state)) return;
     if (typeof channel.subscribe !== "function") return;
 
     result.resubscribed += 1;
@@ -146,13 +147,6 @@ export function recoverRealtimeConnection(supabase, options = {}) {
         .catch((err) => {
           callLogger(logger, "warn", "[Realtime] 채널 leave 실패:", err);
         })
-        .then(
-          () =>
-            new Promise((resolve) => {
-              // 소켓 핸드셰이크 안정화 대기
-              setTimeout(resolve, socketOk ? 0 : 600);
-            }),
-        )
         .then(() => {
           try {
             channel.subscribe();
