@@ -158,6 +158,20 @@ export default function WhiskyNine({
   const [showUpset, setShowUpset] = useState(false);
   const [savedRank, setSavedRank] = useState(false);
   const resolvingRef = useRef(false);
+  // 다음 라운드/upset 타이머는 effect cleanup이 만져선 안 된다.
+  // resolveTimer 콜백 안에서 setPhase("reveal")을 호출하는 순간 deps가 바뀌어
+  // 이전 effect의 cleanup이 즉시 실행되며 방금 예약한 nextRoundTimer를 지워버린다.
+  // → "공개 중..."에서 영구 정지. unmount 때만 정리되도록 ref로 빼둔다.
+  const upsetTimerRef = useRef(null);
+  const nextRoundTimerRef = useRef(null);
+
+  // unmount 시에만 라운드 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (upsetTimerRef.current) clearTimeout(upsetTimerRef.current);
+      if (nextRoundTimerRef.current) clearTimeout(nextRoundTimerRef.current);
+    };
+  }, []);
 
   // ───── 라운드 결과 처리 (양쪽 다 카드를 낸 시점에만) ─────
   useEffect(() => {
@@ -174,8 +188,6 @@ export default function WhiskyNine({
     const outcome = judge(myPick, oppPick);
     const upset = isUpset(myPick, oppPick);
 
-    let upsetTimer;
-    let nextRoundTimer;
     const resolveTimer = setTimeout(() => {
       setResults((prev) => [...prev, outcome]);
       setUsedMy((prev) => new Set(prev).add(myPick));
@@ -188,12 +200,15 @@ export default function WhiskyNine({
       setPhase("reveal");
       if (upset) {
         setShowUpset(true);
-        upsetTimer = setTimeout(() => setShowUpset(false), 900);
+        upsetTimerRef.current = setTimeout(() => {
+          setShowUpset(false);
+          upsetTimerRef.current = null;
+        }, 900);
       }
 
       // 다음 라운드 or 종료
       const delay = upset ? 3400 : 2800;
-      nextRoundTimer = setTimeout(() => {
+      nextRoundTimerRef.current = setTimeout(() => {
         if (round >= 9) {
           setPhase("gameover");
         } else {
@@ -203,14 +218,14 @@ export default function WhiskyNine({
           setPhase("selecting");
         }
         resolvingRef.current = false;
+        nextRoundTimerRef.current = null;
       }, delay);
     }, 0);
 
     return () => {
+      // resolveTimer만 cleanup. nextRoundTimer/upsetTimer는 ref로 분리되어
+      // effect 재실행과 무관하게 살아남아야 다음 라운드로 넘어간다.
       clearTimeout(resolveTimer);
-      clearTimeout(upsetTimer);
-      clearTimeout(nextRoundTimer);
-      resolvingRef.current = false;
     };
   }, [phase, opponentMove, myCommittedCard, round]);
 
