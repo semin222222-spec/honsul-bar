@@ -696,7 +696,7 @@ export default function App() {
           </AnimatePresence>
         )}
       </div>
-      {!inMatch && <SOSFAB onClick={() => setSosOpen(true)} />}
+{!inMatch && <SOSFAB onClick={() => setSosOpen(true)} />}
       <SOSModal open={sosOpen} onClose={() => setSosOpen(false)} seatLabel={mySeat} />
 
       <AnimatePresence>

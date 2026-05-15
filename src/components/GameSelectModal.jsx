@@ -4,13 +4,7 @@ import { X } from "lucide-react";
 /**
  * GameSelectModal
  *
- * 채팅에서 다른 손님 닉네임 클릭 시 표시되는 게임 선택 모달
- *
- * Props:
- *  - target: 선택된 메시지 객체 { session_id, seat_label, nickname, avatar }
- *  - onSelectFlirting: () => void  (플러팅 게임 선택)
- *  - onSelectNine: () => void      (더 나인 선택)
- *  - onClose: () => void
+ * v2: 완전 익명 (자리 표시 제거)
  */
 export default function GameSelectModal({
   target,
@@ -80,7 +74,7 @@ export default function GameSelectModal({
           <X size={14} />
         </button>
 
-        {/* 대상 정보 */}
+        {/* 대상 정보 - 자리 표시 제거 */}
         <div style={{
           textAlign: "center",
           marginBottom: 18,
@@ -113,18 +107,10 @@ export default function GameSelectModal({
             color: "#F5E6C8",
             fontFamily: "'Noto Serif KR', serif",
             fontWeight: 600,
-            marginBottom: 3,
           }}>
             {target.nickname || "익명 손님"}
           </div>
-          {target.seat_label && (
-            <div style={{
-              fontSize: 11,
-              color: "rgba(212,165,55,0.7)",
-            }}>
-              📍 {target.seat_label}
-            </div>
-          )}
+          {/* 🔒 자리 표시 제거 (완전 익명) */}
         </div>
 
         {/* 타이틀 */}

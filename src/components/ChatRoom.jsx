@@ -5,16 +5,7 @@ import { Send, Loader2 } from "lucide-react";
 /**
  * ChatRoom - 익명 라운지 채팅 UI
  *
- * v2: 반응형 높이 (clamp 220-320px)
- *
- * Props:
- *  - messages: 메시지 배열
- *  - sending: 전송 중 여부
- *  - mySessionId: 내 세션 ID (내 메시지 구분용)
- *  - onSendMessage: (content) => Promise<{ok, error}>
- *  - onNicknameClick: (message) => void
- *  - loading: 초기 로딩
- *  - activeUserCount: 현재 활성 손님 수
+ * v3: 완전 익명 (자리 표시 제거)
  */
 export default function ChatRoom({
   messages = [],
@@ -150,7 +141,7 @@ export default function ChatRoom({
         )}
       </div>
 
-      {/* 안내 - 살짝 축약 */}
+      {/* 안내 - 자리 안내 제거 */}
       <div style={{
         padding: "6px 12px",
         background: "rgba(212,165,55,0.04)",
@@ -159,10 +150,10 @@ export default function ChatRoom({
         color: "rgba(212,165,55,0.65)",
         textAlign: "center",
       }}>
-        🍷 12시간 후 사라져요 · 100자 이내
+        🍷 12시간 후 사라져요 · 100자 이내 · 닉네임 클릭 → 게임 신청
       </div>
 
-      {/* 🆕 반응형 메시지 영역 */}
+      {/* 반응형 메시지 영역 */}
       <div
         ref={scrollRef}
         style={{
@@ -340,6 +331,7 @@ export default function ChatRoom({
           </motion.button>
         </div>
 
+        {/* 안내 - "자리는 보여요" 제거 */}
         <div style={{
           display: "flex",
           justifyContent: "space-between",
@@ -349,7 +341,7 @@ export default function ChatRoom({
           fontSize: 9,
           color: "rgba(255,255,255,0.3)",
         }}>
-          <span>🤫 자리는 다른 손님께 보여요</span>
+          <span>🤫 완전 익명 채팅</span>
           <span style={{
             color: inputLength >= 90 ? "rgba(255,150,150,0.9)" : "rgba(212,165,55,0.5)",
             fontWeight: inputLength >= 90 ? 600 : 400,
@@ -362,7 +354,7 @@ export default function ChatRoom({
   );
 }
 
-// 메시지 버블
+// 메시지 버블 - 자리 표시 제거
 function MessageBubble({ message, isMine, onNicknameClick }) {
   const formatTime = (iso) => {
     const d = new Date(iso);
@@ -445,17 +437,7 @@ function MessageBubble({ message, isMine, onNicknameClick }) {
               >
                 {message.nickname || "익명"}
               </span>
-              {message.seat_label && (
-                <span style={{
-                  color: "rgba(212,165,55,0.6)",
-                  background: "rgba(212,165,55,0.1)",
-                  padding: "1px 5px",
-                  borderRadius: 4,
-                  fontSize: 8,
-                }}>
-                  📍{message.seat_label}
-                </span>
-              )}
+              {/* 🔒 자리 표시 제거 (완전 익명) */}
               <span style={{ color: "rgba(255,255,255,0.3)" }}>{formatTime(message.created_at)}</span>
             </>
           )}
