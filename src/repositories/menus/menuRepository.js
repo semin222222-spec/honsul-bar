@@ -1,4 +1,5 @@
 import { supabase } from "@/shared/api/supabaseClient";
+import { subscribeShared } from "@/shared/realtime/sharedChannel";
 
 function throwIfError(error) {
   if (error) throw error;
@@ -176,48 +177,38 @@ export async function deleteOption({ optionId, storeMenuIds }) {
 }
 
 export function subscribeToMenus({ storeId, onChange, onStatus }) {
-  const channel = supabase
-    .channel(`menus-${storeId}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `menus-${storeId}`,
+    bindings: [
       {
         event: "*",
         schema: "public",
         table: "menus",
         filter: `store_id=eq.${storeId}`,
       },
-      onChange,
-    )
-    .on(
-      "postgres_changes",
       {
         event: "*",
         schema: "public",
         table: "menu_categories",
         filter: `store_id=eq.${storeId}`,
       },
-      onChange,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onChange, onStatus },
+  });
 }
 
 export function subscribeToMenuOptions({ storeId, onChange, onStatus }) {
-  const channel = supabase
-    .channel(`menu_options-${storeId}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `menu_options-${storeId}`,
+    bindings: [
       {
         event: "*",
         schema: "public",
         table: "menu_options",
       },
-      onChange,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onChange, onStatus },
+  });
 }
 
 export const menuRepository = {

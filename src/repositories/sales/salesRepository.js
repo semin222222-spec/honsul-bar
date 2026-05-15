@@ -1,4 +1,5 @@
 import { supabase } from "@/shared/api/supabaseClient";
+import { subscribeShared } from "@/shared/realtime/sharedChannel";
 
 function throwIfError(error) {
   if (error) throw error;
@@ -56,21 +57,18 @@ export async function listSessionsSince({ storeId, since, columns }) {
 }
 
 export function subscribeToSalesStats({ storeId, onChange, onStatus }) {
-  const channel = supabase
-    .channel(`sales-stats-${storeId}-${Date.now()}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `sales-stats-${storeId}`,
+    bindings: [
       {
         event: "*",
         schema: "public",
         table: "orders",
         filter: `store_id=eq.${storeId}`,
       },
-      onChange,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onChange, onStatus },
+  });
 }
 
 export const salesRepository = {

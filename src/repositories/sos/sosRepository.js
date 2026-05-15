@@ -1,4 +1,5 @@
 import { supabase } from "@/shared/api/supabaseClient";
+import { subscribeShared } from "@/shared/realtime/sharedChannel";
 
 function throwIfError(error) {
   if (error) throw error;
@@ -42,31 +43,18 @@ export function subscribeToSOSSignals({
   onUpdate,
   onStatus,
 }) {
-  const channel = supabase
-    .channel(`sos-admin-realtime-${storeId}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `sos-admin-realtime-${storeId}`,
+    bindings: [
       {
-        event: "INSERT",
+        event: "*",
         schema: "public",
         table: "sos_signals",
         filter: `store_id=eq.${storeId}`,
       },
-      onInsert,
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "sos_signals",
-        filter: `store_id=eq.${storeId}`,
-      },
-      onUpdate,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onInsert, onUpdate, onStatus },
+  });
 }
 
 export const sosRepository = {

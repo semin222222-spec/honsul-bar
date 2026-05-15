@@ -1,4 +1,5 @@
 import { supabase } from "@/shared/api/supabaseClient";
+import { subscribeShared } from "@/shared/realtime/sharedChannel";
 
 function throwIfError(error) {
   if (error) throw error;
@@ -280,21 +281,18 @@ export async function updateSession({ storeId, sessionId, updates }) {
 }
 
 export function subscribeToSession({ storeId, sessionId, onUpdate, onStatus }) {
-  const channel = supabase
-    .channel(`session-${storeId}-${sessionId}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `session-${storeId}-${sessionId}`,
+    bindings: [
       {
         event: "UPDATE",
         schema: "public",
         table: "sessions",
         filter: `id=eq.${sessionId}`,
       },
-      onUpdate,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onUpdate, onStatus },
+  });
 }
 
 export function subscribeToSessionsAdmin({
@@ -303,49 +301,41 @@ export function subscribeToSessionsAdmin({
   onOrdersChange,
   onStatus,
 }) {
-  const channel = supabase
-    .channel(`sessions-admin-${storeId}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `sessions-admin-${storeId}`,
+    bindings: [
       {
         event: "*",
         schema: "public",
         table: "sessions",
         filter: `store_id=eq.${storeId}`,
+        route: "onSessionsChange",
       },
-      onSessionsChange,
-    )
-    .on(
-      "postgres_changes",
       {
         event: "*",
         schema: "public",
         table: "orders",
         filter: `store_id=eq.${storeId}`,
+        route: "onOrdersChange",
       },
-      onOrdersChange,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onSessionsChange, onOrdersChange, onStatus },
+  });
 }
 
 export function subscribeToStoreSessions({ storeId, onChange, onStatus }) {
-  const channel = supabase
-    .channel(`store-sessions-${storeId}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `store-sessions-${storeId}`,
+    bindings: [
       {
         event: "*",
         schema: "public",
         table: "sessions",
         filter: `store_id=eq.${storeId}`,
       },
-      onChange,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onChange, onStatus },
+  });
 }
 
 export const sessionRepository = {

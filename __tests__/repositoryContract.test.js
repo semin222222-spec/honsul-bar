@@ -68,9 +68,13 @@ describe("repository contract", () => {
     for (const file of files) {
       const source = await readFile(file, "utf8");
       if (!source.includes("subscribeTo")) continue;
-      if (
-        !/return\s+\(\)\s*=>\s*supabase\.removeChannel\(channel\)/.test(source)
-      ) {
+      // 허용 패턴:
+      //   1) 직접 채널 생성 후 cleanup 반환: return () => supabase.removeChannel(channel)
+      //   2) 공유 채널 헬퍼 사용(헬퍼 내부에서 ref-count cleanup 반환): return subscribeShared(
+      const hasDirectCleanup =
+        /return\s+\(\)\s*=>\s*supabase\.removeChannel\(channel\)/.test(source);
+      const usesSharedHelper = /return\s+subscribeShared\(/.test(source);
+      if (!hasDirectCleanup && !usesSharedHelper) {
         violations.push(toRelative(file));
       }
     }

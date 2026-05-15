@@ -1,4 +1,5 @@
 import { supabase } from "@/shared/api/supabaseClient";
+import { subscribeShared } from "@/shared/realtime/sharedChannel";
 
 const OPEN_ORDER_SELECT = `
   *,
@@ -98,21 +99,18 @@ export function subscribeToSessionOrders({
   onChange,
   onStatus,
 }) {
-  const channel = supabase
-    .channel(`orders-${storeId}-${sessionId}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `orders-${storeId}-${sessionId}`,
+    bindings: [
       {
         event: "*",
         schema: "public",
         table: "orders",
         filter: `session_id=eq.${sessionId}`,
       },
-      onChange,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onChange, onStatus },
+  });
 }
 
 export function subscribeToStoreOrders({
@@ -122,41 +120,18 @@ export function subscribeToStoreOrders({
   onDelete,
   onStatus,
 }) {
-  const channel = supabase
-    .channel(`orders-admin-realtime-${storeId}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `orders-admin-realtime-${storeId}`,
+    bindings: [
       {
-        event: "INSERT",
+        event: "*",
         schema: "public",
         table: "orders",
         filter: `store_id=eq.${storeId}`,
       },
-      onInsert,
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "UPDATE",
-        schema: "public",
-        table: "orders",
-        filter: `store_id=eq.${storeId}`,
-      },
-      onUpdate,
-    )
-    .on(
-      "postgres_changes",
-      {
-        event: "DELETE",
-        schema: "public",
-        table: "orders",
-        filter: `store_id=eq.${storeId}`,
-      },
-      onDelete,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onInsert, onUpdate, onDelete, onStatus },
+  });
 }
 
 export const orderRepository = {

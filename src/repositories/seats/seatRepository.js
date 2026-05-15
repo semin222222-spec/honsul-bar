@@ -1,4 +1,5 @@
 import { supabase } from "@/shared/api/supabaseClient";
+import { subscribeShared } from "@/shared/realtime/sharedChannel";
 
 function throwIfError(error) {
   if (error) throw error;
@@ -90,39 +91,33 @@ export async function resetSeatLayout({ storeId, rowId }) {
 }
 
 export function subscribeToSeatRows({ storeId, onChange, onStatus }) {
-  const channel = supabase
-    .channel(`seat-rows-${storeId}-${Date.now()}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `seat-rows-${storeId}`,
+    bindings: [
       {
         event: "*",
         schema: "public",
         table: "seat_rows",
         filter: `store_id=eq.${storeId}`,
       },
-      onChange,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onChange, onStatus },
+  });
 }
 
 export function subscribeToSeatOccupancy({ storeId, onChange, onStatus }) {
-  const channel = supabase
-    .channel(`seat-occupancy-${storeId}`)
-    .on(
-      "postgres_changes",
+  return subscribeShared({
+    topic: `seat-occupancy-${storeId}`,
+    bindings: [
       {
         event: "*",
         schema: "public",
         table: "sessions",
         filter: `store_id=eq.${storeId}`,
       },
-      onChange,
-    )
-    .subscribe(onStatus);
-
-  return () => supabase.removeChannel(channel);
+    ],
+    listeners: { onChange, onStatus },
+  });
 }
 
 export const seatRepository = {
