@@ -1,0 +1,37 @@
+@import "@fontsource/noto-serif-kr/korean-300.css";
+@import "@fontsource/noto-serif-kr/korean-400.css";
+@import "@fontsource/noto-serif-kr/korean-500.css";
+@import "@fontsource/noto-serif-kr/korean-600.css";
+@import "@fontsource/noto-serif-kr/korean-700.css";
+
+@font-face {
+  font-family: "Pretendard Variable";
+  src: url("/fonts/PretendardVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("/fonts/PretendardVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-sans:
+    "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont,
+    system-ui, sans-serif;
+  --font-serif: "Noto Serif KR", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+}
+
+body,
+input,
+textarea,
+button,
+select {
+  font-family: var(--font-sans);
+}
