@@ -96,32 +96,37 @@ function TabBar({ active, onChange }) {
       WebkitBackdropFilter: "blur(20px)",
       borderTop: "1px solid rgba(255,255,255,0.06)",
       display: "flex", justifyContent: "space-around", alignItems: "center",
-      paddingBottom: "max(8px, env(safe-area-inset-bottom))",
-      paddingTop: 8,
+      paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+      paddingTop: 12,
+      paddingLeft: 8,
+      paddingRight: 8,
     }}>
       {tabs.map(t => {
         const Icon = t.icon;
         const isActive = active === t.id;
         return (
-          <button key={t.id} onClick={() => onChange(t.id)} style={{
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-            background: "none", border: "none", cursor: "pointer",
-            padding: "6px 0", minWidth: 48, minHeight: 52,
-            borderRadius: 10, position: "relative",
-            color: isActive ? "#D4A537" : "rgba(255,255,255,0.35)",
-            transition: "color 0.25s",
-            WebkitTapHighlightColor: "transparent",
-          }}>
-            {isActive && (
-              <motion.div layoutId="tab-glow" style={{
-                position: "absolute", top: -1, left: "50%",
-                width: 20, height: 2, borderRadius: 1, background: "#D4A537",
-                marginLeft: -10,
-              }} />
-            )}
-            <Icon size={24} strokeWidth={isActive ? 2.2 : 1.5} />
-            <span style={{ fontSize: 11, fontWeight: isActive ? 600 : 400 }}>{t.label}</span>
-          </button>
+          <motion.button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            whileTap={{ scale: 0.92 }}
+            style={{
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
+              border: "none", cursor: "pointer",
+              padding: "8px 12px",
+              minWidth: 58, minHeight: 62,
+              borderRadius: 14, position: "relative",
+              color: isActive ? "#0D0B08" : "rgba(255,255,255,0.5)",
+              background: isActive 
+                ? "linear-gradient(135deg, #FFD700, #D4A537)" 
+                : "transparent",
+              boxShadow: isActive ? "0 4px 12px rgba(212,165,55,0.3)" : "none",
+              transition: "background 0.3s, color 0.3s, box-shadow 0.3s",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            <Icon size={28} strokeWidth={isActive ? 2.5 : 1.5} />
+            <span style={{ fontSize: 13, fontWeight: isActive ? 700 : 500 }}>{t.label}</span>
+          </motion.button>
         );
       })}
     </div>
@@ -390,7 +395,7 @@ function QuestScreen({ completed, onComplete }) {
 function SOSFAB({ onClick }) {
   return (
     <motion.button onClick={onClick} whileTap={{ scale: 0.9 }} style={{
-      position: "fixed", bottom: "calc(68px + max(8px, env(safe-area-inset-bottom)))", right: "clamp(12px, 4vw, 20px)", zIndex: 40,
+      position: "fixed", bottom: "calc(80px + max(8px, env(safe-area-inset-bottom)))", right: "clamp(12px, 4vw, 20px)", zIndex: 40,
       width: "clamp(46px, 12vw, 52px)", height: "clamp(46px, 12vw, 52px)", borderRadius: 16,
       background: "rgba(212,165,55,0.1)", backdropFilter: "blur(12px)", border: "1px solid rgba(212,165,55,0.2)",
       display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#D4A537",
@@ -733,7 +738,7 @@ export default function App() {
       <div style={{
         position: "relative", zIndex: 1,
         paddingTop: "max(16px, env(safe-area-inset-top))",
-        paddingBottom: "calc(70px + max(8px, env(safe-area-inset-bottom)))",
+        paddingBottom: "calc(82px + max(8px, env(safe-area-inset-bottom)))",
       }}>
         {inMatch ? (
           <WhiskyNine
