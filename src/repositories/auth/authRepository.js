@@ -1,11 +1,15 @@
-import { supabase } from "@/shared/api/supabaseClient";
+import { supabase, supabaseAuth } from "@/shared/api/supabaseClient";
+
+// supabaseAuth: .auth.* 호출 전용. 로그인/세션 관리.
+// supabase: REST 쿼리 전용. accessToken 옵션으로 auth lock 우회.
+//   (한 client에서 둘 다 하면 visibilitychange 후 auth lock deadlock 발생)
 
 function throwIfError(error) {
   if (error) throw error;
 }
 
 export async function getAuthSession() {
-  const { data, error } = await supabase.auth.getSession();
+  const { data, error } = await supabaseAuth.auth.getSession();
   throwIfError(error);
   return data.session;
 }
@@ -13,7 +17,7 @@ export async function getAuthSession() {
 export function onAuthStateChange(callback) {
   const {
     data: { subscription },
-  } = supabase.auth.onAuthStateChange(callback);
+  } = supabaseAuth.auth.onAuthStateChange(callback);
 
   return () => subscription.unsubscribe();
 }
@@ -41,7 +45,7 @@ export async function getStoreByOwnerId(ownerId) {
 }
 
 export async function signUpWithEmail({ email, password }) {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabaseAuth.auth.signUp({ email, password });
   throwIfError(error);
   return data;
 }
@@ -73,7 +77,7 @@ export async function createStore({ slug, name, ownerId }) {
 }
 
 export async function signInWithPassword({ email, password }) {
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabaseAuth.auth.signInWithPassword({
     email,
     password,
   });
@@ -83,7 +87,7 @@ export async function signInWithPassword({ email, password }) {
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
+  const { error } = await supabaseAuth.auth.signOut();
   throwIfError(error);
 }
 
