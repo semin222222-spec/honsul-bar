@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { sessionRepository } from "@/repositories/sessions/sessionRepository";
-import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
+import {
+  handleRealtimeSubscribeStatus,
+  onRealtimeRecover,
+} from "@/shared/realtime/realtimeHealth";
 import { hasStoreScope } from "@/shared/lib/storeScope";
 
 export function useStoreSessions(storeId) {
@@ -41,8 +44,11 @@ export function useStoreSessions(storeId) {
       },
     });
 
+    const offRecover = onRealtimeRecover(() => fetchSessions());
+
     return () => {
       clearTimeout(fetchTimer);
+      offRecover();
       unsubscribe();
     };
   }, [storeId, hasActiveScope, fetchSessions]);

@@ -5,6 +5,12 @@ const RECOVERABLE_SUBSCRIBE_STATUSES = new Set([
   "CLOSED",
 ]);
 
+// 백그라운드가 이 시간 이상이면 "장기 휴면" 으로 보고 강제 복구
+const LONG_BACKGROUND_MS = 60 * 1000;
+
+// 직전 복구 후 이 간격 안에 들어온 트리거는 무시 (race 방지)
+const RECOVER_COOLDOWN_MS = 2000;
+
 export function isRecoverableChannelState(state) {
   return RECOVERABLE_CHANNEL_STATES.has(state);
 }
@@ -53,8 +59,42 @@ function isRealtimeSocketConnected(supabase, logger) {
   }
 }
 
+// ============================================================
+// REST refetch pub/sub
+// 채널이 "joined" 상태이면서도 메시지를 못 받는 경우가 있어,
+// 복구 시점에 명시적으로 REST refetch 트리거가 필요한 hook 들이 구독한다.
+// ============================================================
+const recoverListeners = new Set();
+
+export function onRealtimeRecover(callback) {
+  if (typeof callback !== "function") return () => {};
+  recoverListeners.add(callback);
+  return () => recoverListeners.delete(callback);
+}
+
+function notifyRecoverListeners(reason, logger) {
+  recoverListeners.forEach((cb) => {
+    try {
+      const result = cb(reason);
+      if (result && typeof result.catch === "function") {
+        result.catch((err) => {
+          callLogger(logger, "warn", "[Realtime] refetch 리스너 실패:", err);
+        });
+      }
+    } catch (err) {
+      callLogger(logger, "warn", "[Realtime] refetch 리스너 예외:", err);
+    }
+  });
+}
+
+// ============================================================
+// 핵심 복구 함수
+// race/cooldown 가드는 installRealtimeRecovery 클로저에서 처리.
+// 본 함수는 호출되면 항상 즉시 작업을 수행 (테스트성/플러그인 외부 사용 용이)
+// ============================================================
 export function recoverRealtimeConnection(supabase, options = {}) {
-  const { logger = console, reason = "manual" } = options;
+  const { logger = console, reason = "manual", force = false } = options;
+
   const channels = getRealtimeChannels(supabase, logger);
   const recoveryTasks = [];
   const result = {
@@ -66,16 +106,35 @@ export function recoverRealtimeConnection(supabase, options = {}) {
     done: Promise.resolve([]),
   };
 
+  const socketOk = isRealtimeSocketConnected(supabase, logger);
+
+  // 1) 소켓 먼저 (race 방지 - 채널 재구독 전에 소켓 보장)
+  if (!socketOk) {
+    try {
+      supabase?.realtime?.disconnect?.();
+    } catch (err) {
+      callLogger(logger, "warn", "[Realtime] disconnect 실패:", err);
+    }
+    try {
+      supabase?.realtime?.connect?.();
+      result.socketReconnected = true;
+    } catch (err) {
+      callLogger(logger, "warn", "[Realtime] connect 실패:", err);
+    }
+  }
+
+  // 2) 채널 재구독
+  // - 채널 state가 broken이거나, force=true(장기 백그라운드/online 이벤트 등)인 경우만 재구독
+  // - 단순히 소켓이 죽은 것만으로는 재구독하지 않음 (supabase-js가 socket 재연결 후 자동 re-join 수행)
   channels.forEach((channel) => {
-    if (!isRecoverableChannelState(channel?.state)) return;
+    const channelBroken = isRecoverableChannelState(channel?.state);
+    const shouldRecover = channelBroken || force;
+    if (!shouldRecover) return;
     if (typeof channel.subscribe !== "function") return;
 
     result.resubscribed += 1;
 
-    if (
-      channel.state === "errored" &&
-      typeof channel.unsubscribe === "function"
-    ) {
+    if (typeof channel.unsubscribe === "function") {
       let leaveResult;
       try {
         leaveResult = channel.unsubscribe();
@@ -87,6 +146,13 @@ export function recoverRealtimeConnection(supabase, options = {}) {
         .catch((err) => {
           callLogger(logger, "warn", "[Realtime] 채널 leave 실패:", err);
         })
+        .then(
+          () =>
+            new Promise((resolve) => {
+              // 소켓 핸드셰이크 안정화 대기
+              setTimeout(resolve, socketOk ? 0 : 600);
+            }),
+        )
         .then(() => {
           try {
             channel.subscribe();
@@ -105,15 +171,6 @@ export function recoverRealtimeConnection(supabase, options = {}) {
     }
   });
 
-  if (!isRealtimeSocketConnected(supabase, logger)) {
-    try {
-      supabase?.realtime?.connect?.();
-      result.socketReconnected = true;
-    } catch (err) {
-      callLogger(logger, "warn", "[Realtime] WebSocket 재연결 실패:", err);
-    }
-  }
-
   if (result.resubscribed > 0 || result.socketReconnected) {
     callLogger(
       logger,
@@ -124,6 +181,9 @@ export function recoverRealtimeConnection(supabase, options = {}) {
 
   result.pendingRecoveries = recoveryTasks.length;
   result.done = Promise.allSettled(recoveryTasks);
+
+  // REST refetch 리스너 호출 (복구 시점마다)
+  notifyRecoverListeners(reason, logger);
 
   return result;
 }
@@ -160,34 +220,76 @@ export function installRealtimeRecovery(supabase, options = {}) {
     checkIntervalMs = 30000,
   } = options;
 
-  let lastVisibilityChangeTime = Date.now();
+  let lastVisibleAt = Date.now();
   let reconnectTimeout = null;
+  let inFlight = false;
+  let lastRecoverAt = 0;
 
-  const recover = (reason) =>
-    recoverRealtimeConnection(supabase, { logger, reason });
+  const recover = (reason, { force = false } = {}) => {
+    // race 방지: 진행 중이면 스킵
+    if (inFlight) {
+      callLogger(logger, "log", `[Realtime] 복구 진행 중 - 스킵 (${reason})`);
+      return {
+        reason,
+        channelCount: 0,
+        resubscribed: 0,
+        socketReconnected: false,
+        pendingRecoveries: 0,
+        skipped: "in_flight",
+        done: Promise.resolve([]),
+      };
+    }
+    // cooldown: 직전 복구 후 너무 짧은 간격은 스킵
+    const now = Date.now();
+    if (now - lastRecoverAt < RECOVER_COOLDOWN_MS) {
+      return {
+        reason,
+        channelCount: 0,
+        resubscribed: 0,
+        socketReconnected: false,
+        pendingRecoveries: 0,
+        skipped: "cooldown",
+        done: Promise.resolve([]),
+      };
+    }
+    inFlight = true;
+    lastRecoverAt = now;
+    const result = recoverRealtimeConnection(supabase, {
+      logger,
+      reason,
+      force,
+    });
+    Promise.resolve(result.done).finally(() => {
+      inFlight = false;
+    });
+    return result;
+  };
 
-  const scheduleRecover = (reason) => {
+  const scheduleRecover = (reason, opts) => {
     if (reconnectTimeout) targetWindow.clearTimeout(reconnectTimeout);
     reconnectTimeout = targetWindow.setTimeout(() => {
       reconnectTimeout = null;
-      recover(reason);
+      recover(reason, opts);
     }, debounceMs);
   };
 
   const handleVisibilityChange = () => {
     if (targetDocument.visibilityState === "visible") {
-      const elapsed = Date.now() - lastVisibilityChangeTime;
+      const elapsed = Date.now() - lastVisibleAt;
       callLogger(
         logger,
         "log",
         `[Realtime] 탭 활성화 (백그라운드 ${Math.round(elapsed / 1000)}초)`,
       );
-      scheduleRecover("visible");
+      // 장기 백그라운드면 채널 상태와 무관하게 강제 재구독
+      const force = elapsed >= LONG_BACKGROUND_MS;
+      scheduleRecover(force ? "visible-long" : "visible", { force });
+    } else {
+      lastVisibleAt = Date.now();
     }
-    lastVisibilityChangeTime = Date.now();
   };
 
-  const handleOnline = () => scheduleRecover("online");
+  const handleOnline = () => scheduleRecover("online", { force: true });
   const handleFocus = () => scheduleRecover("focus");
 
   targetDocument.addEventListener("visibilitychange", handleVisibilityChange);
@@ -195,8 +297,20 @@ export function installRealtimeRecovery(supabase, options = {}) {
   targetWindow.addEventListener("focus", handleFocus);
 
   const intervalId = targetWindow.setInterval(() => {
-    if (targetDocument.visibilityState === "visible") {
-      recover("interval");
+    if (targetDocument.visibilityState !== "visible") return;
+    // 주기 점검은 가벼운 헬스체크: 소켓이 죽었거나 broken 채널이 있을 때만 복구
+    const socketOk = isRealtimeSocketConnected(supabase, logger);
+    const channels = getRealtimeChannels(supabase, logger);
+    const hasBroken = channels.some((c) =>
+      isRecoverableChannelState(c?.state),
+    );
+    if (!socketOk || hasBroken) {
+      callLogger(
+        logger,
+        "warn",
+        `[Realtime] 헬스체크 이상 socket=${socketOk} broken=${hasBroken}`,
+      );
+      scheduleRecover("interval", { force: !socketOk });
     }
   }, checkIntervalMs);
 

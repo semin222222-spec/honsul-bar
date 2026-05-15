@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { sessionRepository } from "@/repositories/sessions/sessionRepository";
-import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
+import {
+  handleRealtimeSubscribeStatus,
+  onRealtimeRecover,
+} from "@/shared/realtime/realtimeHealth";
 import { hasStoreScope } from "@/shared/lib/storeScope";
 
 /**
@@ -96,8 +99,14 @@ export function useSessionsAdmin(storeId) {
       },
     });
 
+    const offRecover = onRealtimeRecover(() => {
+      fetchSessions(true);
+      fetchTodayRevenue();
+    });
+
     return () => {
       clearTimeout(fetchTimer);
+      offRecover();
       unsubscribe();
     };
   }, [storeId, hasActiveScope, fetchSessions, fetchTodayRevenue]);

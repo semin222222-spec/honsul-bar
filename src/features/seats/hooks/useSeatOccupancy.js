@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { seatRepository } from "@/repositories/seats/seatRepository";
-import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
+import {
+  handleRealtimeSubscribeStatus,
+  onRealtimeRecover,
+} from "@/shared/realtime/realtimeHealth";
 import { hasStoreScope } from "@/shared/lib/storeScope";
 
 /**
@@ -57,8 +60,11 @@ export function useSeatOccupancy(storeId) {
       },
     });
 
+    const offRecover = onRealtimeRecover(() => refresh());
+
     return () => {
       clearTimeout(refreshTimer);
+      offRecover();
       unsubscribe();
     };
   }, [storeId, hasActiveScope, refresh]);

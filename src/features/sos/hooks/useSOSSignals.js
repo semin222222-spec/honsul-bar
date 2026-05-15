@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { sosRepository } from "@/repositories/sos/sosRepository";
-import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
+import {
+  handleRealtimeSubscribeStatus,
+  onRealtimeRecover,
+} from "@/shared/realtime/realtimeHealth";
 import { hasStoreScope } from "@/shared/lib/storeScope";
 
 function isWithin24Hours(isoString) {
@@ -109,6 +112,8 @@ export function useSOSAdmin(storeId) {
 
     channelRef.current = unsubscribe;
 
+    const offRecover = onRealtimeRecover(() => fetchSignals(true));
+
     const cleanupTimer = setInterval(
       () => {
         setSignals((prev) => prev.filter((s) => isWithin24Hours(s.created_at)));
@@ -118,6 +123,7 @@ export function useSOSAdmin(storeId) {
 
     return () => {
       clearTimeout(fetchTimer);
+      offRecover();
       if (channelRef.current) {
         channelRef.current();
         channelRef.current = null;

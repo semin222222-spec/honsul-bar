@@ -6,7 +6,10 @@ import {
   createServedOrderPatch,
   markOrderServed,
 } from "@/services/orders/orderService";
-import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
+import {
+  handleRealtimeSubscribeStatus,
+  onRealtimeRecover,
+} from "@/shared/realtime/realtimeHealth";
 import { hasStoreScope } from "@/shared/lib/storeScope";
 
 export function useOrdersAdmin(storeId) {
@@ -92,8 +95,12 @@ export function useOrdersAdmin(storeId) {
       },
     });
 
+    // 전역 복구 이벤트에서도 직접 refetch (채널 state가 joined여도 메시지 손실 가능)
+    const offRecover = onRealtimeRecover(() => fetchOrders(true));
+
     return () => {
       clearTimeout(fetchTimer);
+      offRecover();
       unsubscribe();
     };
   }, [storeId, hasActiveScope, fetchOrders, fetchSingleOrder]);

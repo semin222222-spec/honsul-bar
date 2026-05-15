@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { seatRepository } from "@/repositories/seats/seatRepository";
-import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
+import {
+  handleRealtimeSubscribeStatus,
+  onRealtimeRecover,
+} from "@/shared/realtime/realtimeHealth";
 
 /**
  * useSeatRows
@@ -110,9 +113,16 @@ export function useSeatRows(storeId) {
 
     channelRef.current = unsubscribe;
 
+    // 채널 state가 "joined" 상태로 남아있는 동안에도 메시지를 못 받는
+    // 케이스를 대비해, 전역 복구 이벤트에 직접 refetch를 건다.
+    const offRecover = onRealtimeRecover(() => {
+      if (!cancelled) fetchRows(true);
+    });
+
     return () => {
       cancelled = true;
       clearTimeout(fetchTimer);
+      offRecover();
       if (channelRef.current) {
         channelRef.current();
         channelRef.current = null;

@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { salesRepository } from "@/repositories/sales/salesRepository";
-import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
+import {
+  handleRealtimeSubscribeStatus,
+  onRealtimeRecover,
+} from "@/shared/realtime/realtimeHealth";
 
 /**
  * useSalesStats
@@ -306,8 +309,11 @@ export function useSalesStats(storeId) {
       },
     });
 
+    const offRecover = onRealtimeRecover(() => fetchStats());
+
     return () => {
       clearTimeout(fetchTimer);
+      offRecover();
       unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
