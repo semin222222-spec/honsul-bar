@@ -605,7 +605,7 @@ export default function App() {
   const [autoSeatTried, setAutoSeatTried] = useState(false);
 
   useEffect(() => {
-    if (sessionLoading || session || autoSeatTried) return;
+    if (sessionLoading || session || autoSeatTried || !storeId) return;
 
     const seatFromUrl = searchParams.get("seat");
     if (!seatFromUrl) return;
@@ -628,6 +628,7 @@ export default function App() {
     sessionLoading,
     session,
     autoSeatTried,
+    storeId,
     searchParams,
     setSearchParams,
     handleSeatSelect,
