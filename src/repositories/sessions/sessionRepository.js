@@ -280,6 +280,21 @@ export async function updateSession({ storeId, sessionId, updates }) {
   throwIfError(error);
 }
 
+export async function updateSessionOnboarding({
+  storeId,
+  sessionId,
+  mbti,
+  mood,
+}) {
+  const { error } = await supabase
+    .from("sessions")
+    .update({ mbti, mood })
+    .eq("id", sessionId)
+    .eq("store_id", storeId);
+
+  throwIfError(error);
+}
+
 export function subscribeToSession({ storeId, sessionId, onUpdate, onStatus }) {
   return subscribeShared({
     topic: `session-${storeId}-${sessionId}`,
@@ -358,6 +373,7 @@ export const sessionRepository = {
   updateOrderSeatLabel,
   transferOrdersToSession,
   updateSession,
+  updateSessionOnboarding,
   subscribeToSession,
   subscribeToSessionsAdmin,
   subscribeToStoreSessions,

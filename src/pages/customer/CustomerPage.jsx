@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Home, Wine, Gamepad2 } from "lucide-react";
 import SeatPicker from "@/features/seats/components/SeatPicker";
+import CustomerOnboarding from "@/features/sessions/components/CustomerOnboarding";
 import MenuScreen from "@/features/menus/components/MenuScreen";
 import ThankYouScreen from "@/shared/ui/ThankYouScreen";
 import AmbientBG from "@/shared/ui/AmbientBG";
@@ -435,6 +436,32 @@ export default function App() {
 
   const mySeat = session?.seat_label || null;
 
+  const [onboardingDismissedFor, setOnboardingDismissedFor] = useState(null);
+  const sessionHasOnboarding = !!(session?.mbti || session?.mood);
+  const onboardingMarker = session?.id
+    ? `honsul_onboarded_${session.id}`
+    : null;
+  const onboardingPreviouslyMarked =
+    onboardingMarker && typeof window !== "undefined"
+      ? !!localStorage.getItem(onboardingMarker)
+      : false;
+  const needsOnboarding =
+    !!session?.id &&
+    !sessionHasOnboarding &&
+    !onboardingPreviouslyMarked &&
+    onboardingDismissedFor !== session.id;
+
+  const handleOnboardingComplete = useCallback(() => {
+    if (session?.id && typeof window !== "undefined") {
+      try {
+        localStorage.setItem(`honsul_onboarded_${session.id}`, "1");
+      } catch (e) {
+        console.error("[Onboarding] marker save failed:", e);
+      }
+    }
+    setOnboardingDismissedFor(session?.id || null);
+  }, [session?.id]);
+
   const { orders, totalAmount, createOrder } = useOrders(
     session?.id,
     mySeat,
@@ -702,6 +729,17 @@ export default function App() {
           )}
         </AnimatePresence>
       </>
+    );
+  }
+
+  if (needsOnboarding) {
+    return (
+      <CustomerOnboarding
+        storeId={storeId}
+        sessionId={session.id}
+        seatLabel={mySeat}
+        onComplete={handleOnboardingComplete}
+      />
     );
   }
 

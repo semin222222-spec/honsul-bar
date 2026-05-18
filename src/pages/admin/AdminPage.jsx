@@ -32,6 +32,7 @@ import { useSeatRowsAdmin } from "@/features/seats/hooks/useSeatRowsAdmin";
 import { useSalesStats } from "@/features/sales/hooks/useSalesStats";
 import { useStoreId, useStore } from "@/shared/store/StoreContext";
 import SeatMap from "@/features/seats/components/SeatMap";
+import CustomerInsights from "@/features/sos/components/CustomerInsights";
 import MenuAdminPanel from "@/features/menus/components/MenuAdminPanel";
 import SeatRowsAdminPanel from "@/features/seats/components/SeatRowsAdminPanel";
 import SalesStatsPanel from "@/features/sales/components/SalesStatsPanel";
@@ -1299,6 +1300,10 @@ export default function AdminPage() {
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.25 }}
             >
+              <CustomerInsights
+                sessions={sessions}
+                loading={sessionsLoading}
+              />
               {sosLoading ? (
                 <div style={{ textAlign: "center", padding: "60px 0" }}>
                   <Motion.div

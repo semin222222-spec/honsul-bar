@@ -178,6 +178,27 @@ export const translations = {
       newOrder: "새 주문이 들어왔어요",
       settled: "정산이 완료되었어요",
     },
+
+    // ─── 손님 온보딩 (MBTI / 무드) ───
+    onboarding: {
+      heroTitle: "어서오세요",
+      heroSubtitle: "혼술바 소셜 가이드",
+      welcomeLine1: "오늘 당신에 대해 알려주세요",
+      welcomeLine2: "매장에서 더 좋은 경험을 드리기 위함이에요",
+      selectedSeat: "선택한 좌석",
+      moodLabel: "오늘의 기분",
+      moodQuietTitle: "조용히 한 잔 하고 싶어요",
+      moodQuietSub: "차분한 분위기, 혼자만의 시간",
+      moodPartyTitle: "재미있는 밤이 필요해요",
+      moodPartySub: "활기찬 분위기, 새로운 만남",
+      mbtiLabel: "MBTI · 선택 사항",
+      mbtiHelp: "알고 있다면 선택해 주세요",
+      mbtiUnknown: "잘 모르겠어요",
+      skip: "건너뛰기",
+      enter: "입장하기",
+      entering: "입장 중...",
+      privacyNote: "입력하신 정보는 매장 운영에만 사용돼요",
+    },
   },
 
   ja: {
@@ -351,6 +372,27 @@ export const translations = {
       seatChanged: "お席が変更されました",
       newOrder: "新しいご注文が入りました",
       settled: "お会計が完了しました",
+    },
+
+    // ─── お客様オンボーディング (MBTI / 気分) ───
+    onboarding: {
+      heroTitle: "いらっしゃいませ",
+      heroSubtitle: "ひとり酒バー ソーシャルガイド",
+      welcomeLine1: "今日のあなたについて教えてください",
+      welcomeLine2: "より良いひとときをお届けするためです",
+      selectedSeat: "選択した席",
+      moodLabel: "今夜の気分",
+      moodQuietTitle: "静かに一杯飲みたい",
+      moodQuietSub: "落ち着いた雰囲気、ひとりの時間",
+      moodPartyTitle: "楽しい夜にしたい",
+      moodPartySub: "賑やかな雰囲気、新しい出会い",
+      mbtiLabel: "MBTI · 任意",
+      mbtiHelp: "ご存知でしたらお選びください",
+      mbtiUnknown: "わからない",
+      skip: "スキップ",
+      enter: "入店する",
+      entering: "入店中...",
+      privacyNote: "入力された情報は店舗運営にのみ利用されます",
     },
   },
 };
