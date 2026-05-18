@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useCatchmindRoom } from "../hooks/useCatchmindRoom";
@@ -44,26 +44,50 @@ export default function CatchmindModal({
     return () => window.removeEventListener("keydown", handler);
   }, [open, room.myRoom, onClose]);
 
-  if (!open) return null;
+  // 모달 unmount 시 자동 leave (유령 방 방지)
+  // 부모가 X 누르거나 다른 탭으로 넘어가면 modal이 unmount되며 cleanup 실행 →
+  // 방에 들어가 있었다면 정리.
+  const leaveRoomRef = useRef(room.leaveRoom);
+  const myRoomRef = useRef(room.myRoom);
+  useEffect(() => {
+    leaveRoomRef.current = room.leaveRoom;
+    myRoomRef.current = room.myRoom;
+  });
+  useEffect(() => {
+    return () => {
+      if (myRoomRef.current) {
+        leaveRoomRef.current?.();
+      }
+    };
+  }, []);
 
-  const handleCreate = async () => {
+  const handleCreate = useCallback(async () => {
     const res = await room.createRoom();
     if (!res.ok) alert(res.error || "방을 만들지 못했어요");
-  };
+  }, [room]);
 
-  const handleJoin = async (roomId) => {
-    const res = await room.joinRoom(roomId);
-    if (!res.ok) alert(res.error || "입장에 실패했어요");
-  };
+  const handleJoin = useCallback(
+    async (roomId) => {
+      const res = await room.joinRoom(roomId);
+      if (!res.ok) alert(res.error || "입장에 실패했어요");
+    },
+    [room],
+  );
 
-  const handleLeaveToLobby = async () => {
+  // ⚠️ 로비로 나가기는 무슨 일이 있어도 즉시 로비로. leaveRoom 내부에서
+  // 한 번 더 setMyRoom(null)을 호출하지만, 여기서도 setRoomDirect로
+  // 명시적으로 강제 — 어떤 race도 끼어들지 못하게.
+  const handleLeaveToLobby = useCallback(async () => {
+    room.setRoomDirect(null);
     await room.leaveRoom();
-  };
+  }, [room]);
 
-  const handleStart = async () => {
+  const handleStart = useCallback(async () => {
     const res = await room.startGame();
     if (!res.ok) alert(res.error || "시작에 실패했어요");
-  };
+  }, [room]);
+
+  if (!open) return null;
 
   // 화면 결정
   const r = room.myRoom;

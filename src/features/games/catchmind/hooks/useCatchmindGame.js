@@ -278,6 +278,13 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
     }
   }, [messages, isPlaying, room, finalizeRound]);
 
+  // room의 최신값을 ref로 추적. 콜백들이 매 render마다 재생성되지 않게
+  // 의존성에 room 객체를 넣지 않고 ref를 통해 최신값 읽기.
+  const roomRef = useRef(room);
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
+
   // ─────────────────────────────────────────
   // 카운트다운(countdown) → playing 전이
   //  - 모두가 보고 있지만 first-writer-wins
@@ -286,12 +293,13 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
   const startingRef = useRef(false);
 
   const startFirstRound = useCallback(async () => {
-    if (!room || startingRef.current) return;
-    if (room.status !== "countdown") return;
+    const r = roomRef.current;
+    if (!r || startingRef.current) return;
+    if (r.status !== "countdown") return;
     startingRef.current = true;
 
     try {
-      const players = room.players || [];
+      const players = r.players || [];
       if (players.length < 2) {
         startingRef.current = false;
         return;
@@ -300,7 +308,7 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
       const firstDrawer = players[0];
 
       await catchmindRepository.updateRoom({
-        roomId: room.id,
+        roomId: r.id,
         updates: {
           status: "playing",
           current_round: 1,
@@ -320,11 +328,15 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
         startingRef.current = false;
       }, 1000);
     }
-  }, [room]);
+  }, []);
 
+  // ⚠️ deps는 room.started_at(string)만. room 객체 자체를 deps에 넣으면
+  // Realtime 재구독/load 등으로 room ref가 바뀔 때마다 타이머가 리셋돼서
+  // 카운트다운이 영영 안 끝남.
+  const countdownStartedAt = room?.status === "countdown" ? room?.started_at : null;
   useEffect(() => {
-    if (!room || room.status !== "countdown" || !room.started_at) return;
-    const startTime = new Date(room.started_at).getTime();
+    if (!countdownStartedAt) return;
+    const startTime = new Date(countdownStartedAt).getTime();
     const delay = startTime + COUNTDOWN_SECONDS * 1000 - Date.now();
     if (delay <= 0) {
       startFirstRound();
@@ -332,7 +344,7 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
     }
     const id = setTimeout(startFirstRound, delay + 50);
     return () => clearTimeout(id);
-  }, [room, startFirstRound]);
+  }, [countdownStartedAt, startFirstRound]);
 
   // ─────────────────────────────────────────
   // transition → 다음 라운드 시작 / 게임 종료
@@ -340,20 +352,21 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
   const advancingRef = useRef(false);
 
   const advanceFromTransition = useCallback(async () => {
-    if (!room || advancingRef.current) return;
-    if (room.status !== "transition") return;
+    const r = roomRef.current;
+    if (!r || advancingRef.current) return;
+    if (r.status !== "transition") return;
     advancingRef.current = true;
 
     try {
-      const players = room.players || [];
-      const nextRound = (room.current_round || 0) + 1;
-      const totalRounds = room.total_rounds || players.length;
-      const usedWords = room.last_round_result?.used_words || [];
+      const players = r.players || [];
+      const nextRound = (r.current_round || 0) + 1;
+      const totalRounds = r.total_rounds || players.length;
+      const usedWords = r.last_round_result?.used_words || [];
 
       if (nextRound > totalRounds) {
         // 게임 종료
         await catchmindRepository.updateRoom({
-          roomId: room.id,
+          roomId: r.id,
           updates: {
             status: "finished",
             finished_at: new Date().toISOString(),
@@ -367,7 +380,7 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
         const { word } = pickRandomWord(usedWords);
 
         await catchmindRepository.updateRoom({
-          roomId: room.id,
+          roomId: r.id,
           updates: {
             status: "playing",
             current_round: nextRound,
@@ -378,7 +391,7 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
               used_words: usedWords,
             },
           },
-          guard: { status: "transition", current_round: room.current_round },
+          guard: { status: "transition", current_round: r.current_round },
           returning: false,
         });
       }
@@ -389,13 +402,17 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
         advancingRef.current = false;
       }, 1000);
     }
-  }, [room]);
+  }, []);
 
+  // ⚠️ status/current_round만 deps. room 객체 자체를 deps에 넣으면 매번
+  // Realtime 이벤트마다 4초 타이머가 리셋돼서 다음 라운드로 영영 안 넘어감.
+  const isTransition = room?.status === "transition";
+  const transitionRound = isTransition ? room?.current_round : null;
   useEffect(() => {
-    if (!room || room.status !== "transition") return;
+    if (!isTransition) return;
     const id = setTimeout(advanceFromTransition, TRANSITION_SECONDS * 1000);
     return () => clearTimeout(id);
-  }, [room, advanceFromTransition]);
+  }, [isTransition, transitionRound, advanceFromTransition]);
 
   // ─────────────────────────────────────────
   // 출제자 액션: stroke INSERT

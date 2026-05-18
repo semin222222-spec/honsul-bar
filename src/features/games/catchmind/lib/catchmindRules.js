@@ -11,7 +11,7 @@ const ENV_ROUND_SECONDS = Number(
 export const ROUND_SECONDS =
   Number.isFinite(ENV_ROUND_SECONDS) && ENV_ROUND_SECONDS > 0
     ? ENV_ROUND_SECONDS
-    : 80;
+    : 50;
 
 export const COUNTDOWN_SECONDS = 3; // "3 → 2 → 1 → 시작!"
 export const TRANSITION_SECONDS = 4; // 라운드 종료 후 결과 표시
@@ -21,11 +21,11 @@ export const MAX_PLAYERS = 8;
 export const PASS_PENALTY = -30;
 export const DRAWER_BONUS_PER_CORRECT = 20;
 
-// 힌트 공개 시점 (남은 초 기준)
+// 힌트 공개 시점 (남은 초 기준) — 50초 라운드 기준 비례 분배
 export const HINT_REVEAL_THRESHOLDS = [
-  { secondsLeft: 40, slot: "first" },
-  { secondsLeft: 25, slot: "last" },
-  { secondsLeft: 10, slot: "middle" },
+  { secondsLeft: 25, slot: "first" },
+  { secondsLeft: 15, slot: "last" },
+  { secondsLeft: 6, slot: "middle" },
 ];
 
 /**
@@ -41,10 +41,10 @@ export function getHintReveals(word, secondsLeft) {
   if (maxReveals <= 0) return [];
 
   const revealed = [];
-  if (secondsLeft <= 40 && maxReveals >= 1) revealed.push(0);
-  if (secondsLeft <= 25 && maxReveals >= 2)
+  if (secondsLeft <= 25 && maxReveals >= 1) revealed.push(0);
+  if (secondsLeft <= 15 && maxReveals >= 2)
     revealed.push(word.length - 1);
-  if (secondsLeft <= 10 && maxReveals >= 3)
+  if (secondsLeft <= 6 && maxReveals >= 3)
     revealed.push(Math.floor(word.length / 2));
 
   // 중복 제거 (length가 1인 단어 같은 경계)
