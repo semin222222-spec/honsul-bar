@@ -1,145 +1,47 @@
-import { useEffect, useRef, useCallback } from "react";
-import { motion as Motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
-import { useShieldRoom } from "../hooks/useShieldRoom";
-import { useShieldGame } from "../hooks/useShieldGame";
-import ShieldLobby from "./ShieldLobby";
-import ShieldWaitingRoom from "./ShieldWaitingRoom";
-import ShieldGame from "./ShieldGame";
-import ShieldResult from "./ShieldResult";
+import { useState, useEffect, useCallback } from "react";
+import { motion as Motion } from "framer-motion";
+import { ChevronLeft } from "lucide-react";
+import { generateRandomInitials } from "../lib/shieldInitials";
+
+const COLORS = {
+  bgBase: "#0F0E0D",
+  bgCard: "#1A1816",
+  ink: "#F0E8D8",
+  gold: "#C9A66B",
+  danger: "#E5443C",
+  dangerBright: "#FF5C52",
+};
 
 /**
- * ShieldModal — 5초 쉴드 게임 전체 단계 wrapping 풀스크린 모달
+ * ShieldModal — 초성 게임 (로컬 단일 화면)
  *
- * room.status: waiting → playing → finished
- * room이 없으면 lobby.
+ * 핸드폰 한 대를 술자리에서 돌려가며 사용. PASS 누르면 새 초성.
+ * DB·실시간·타이머 없음. 인터페이스는 기존과 동일하게 두되 props는 무시.
  */
-export default function ShieldModal({
-  open,
-  onClose,
-  sessionId,
-  seatLabel,
-  storeId,
-}) {
-  const room = useShieldRoom({ sessionId, seatLabel, storeId });
+// eslint-disable-next-line no-unused-vars
+export default function ShieldModal({ open, onClose, sessionId, seatLabel, storeId }) {
+  const [initials, setInitials] = useState(() => generateRandomInitials());
 
-  // 결과 화면 자동 만료 → leaveRoom
-  const handleAutoDismiss = useCallback(() => {
-    room.setRoomDirect(null);
-    room.leaveRoom();
-  }, [room]);
-
-  const game = useShieldGame({
-    room: room.myRoom,
-    sessionId,
-    onRoomUpdate: room.setRoomDirect,
-    onLeaveAfterFinish: handleAutoDismiss,
-  });
-
-  // ESC로 닫기 (lobby에서만)
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      if (e.key === "Escape" && !room.myRoom) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, room.myRoom, onClose]);
-
-  // 모달 unmount 시 자동 leave (유령 방 방지)
-  const leaveRoomRef = useRef(room.leaveRoom);
-  const myRoomRef = useRef(room.myRoom);
-  useEffect(() => {
-    leaveRoomRef.current = room.leaveRoom;
-    myRoomRef.current = room.myRoom;
-  });
-  useEffect(() => {
-    return () => {
-      if (myRoomRef.current) {
-        leaveRoomRef.current?.();
-      }
-    };
+  const handlePass = useCallback(() => {
+    setInitials(generateRandomInitials());
   }, []);
 
-  const handleCreate = useCallback(async () => {
-    const res = await room.createRoom();
-    if (!res.ok) alert(res.error || "방을 만들지 못했어요");
-  }, [room]);
-
-  const handleJoin = useCallback(
-    async (roomId) => {
-      const res = await room.joinRoom(roomId);
-      if (!res.ok) alert(res.error || "입장에 실패했어요");
-    },
-    [room],
-  );
-
-  // 즉시 로비로 (race 방지)
-  const handleLeaveToLobby = useCallback(async () => {
-    room.setRoomDirect(null);
-    await room.leaveRoom();
-  }, [room]);
-
-  const handleStart = useCallback(async () => {
-    const res = await room.startGame();
-    if (!res.ok) alert(res.error || "시작에 실패했어요");
-  }, [room]);
-
-  const handleRestart = useCallback(async () => {
-    const res = await game.restartRoom();
-    if (!res?.ok && res?.error) alert(res.error);
-  }, [game]);
+  // 스페이스/엔터로도 PASS, ESC로 닫기
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        onClose?.();
+      } else if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        handlePass();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose, handlePass]);
 
   if (!open) return null;
-
-  const r = room.myRoom;
-  let content = null;
-
-  if (!r) {
-    content = (
-      <ShieldLobby
-        rooms={room.rooms}
-        loading={room.loading}
-        onCreate={handleCreate}
-        onJoin={handleJoin}
-        onCloseGame={onClose}
-        mySeat={seatLabel}
-      />
-    );
-  } else if (r.status === "waiting") {
-    content = (
-      <ShieldWaitingRoom
-        room={r}
-        isHost={room.isHost}
-        sessionId={sessionId}
-        onLeave={handleLeaveToLobby}
-        onStart={handleStart}
-      />
-    );
-  } else if (r.status === "playing") {
-    content = (
-      <ShieldGame
-        room={r}
-        sessionId={sessionId}
-        secondsLeft={game.secondsLeft}
-        onPass={game.handlePass}
-        onLeave={handleLeaveToLobby}
-      />
-    );
-  } else if (r.status === "finished") {
-    content = (
-      <ShieldResult
-        room={r}
-        sessionId={sessionId}
-        isHost={room.isHost}
-        onRestart={handleRestart}
-        onLeave={handleLeaveToLobby}
-        dismissLeftMs={game.dismissLeftMs}
-      />
-    );
-  }
 
   return (
     <Motion.div
@@ -149,29 +51,37 @@ export default function ShieldModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "#0F0E0D",
+        background: COLORS.bgBase,
         zIndex: 450,
-        overflow: "auto",
-        WebkitOverflowScrolling: "touch",
+        display: "flex",
+        flexDirection: "column",
         fontFamily: "'Pretendard Variable', 'Pretendard', system-ui",
+        color: COLORS.ink,
+        overflow: "hidden",
+        paddingTop: "max(0px, env(safe-area-inset-top))",
+        paddingBottom: "max(0px, env(safe-area-inset-bottom))",
       }}
     >
-      {!r && (
+      {/* 상단 바 */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          padding: "12px 14px",
+          gap: 8,
+        }}
+      >
         <button
           onClick={onClose}
           aria-label="닫기"
           style={{
-            position: "fixed",
-            top: "max(16px, env(safe-area-inset-top))",
-            right: 16,
-            zIndex: 5,
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            background: "rgba(240,232,216,0.08)",
-            border: "1px solid rgba(240,232,216,0.15)",
-            color: "rgba(240,232,216,0.7)",
-            display: "flex",
+            width: 40,
+            height: 40,
+            borderRadius: 10,
+            background: "rgba(240,232,216,0.06)",
+            border: "1px solid rgba(240,232,216,0.1)",
+            color: COLORS.ink,
+            display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
@@ -179,21 +89,124 @@ export default function ShieldModal({
             padding: 0,
           }}
         >
-          <X size={18} />
+          <ChevronLeft size={20} />
         </button>
-      )}
-      <AnimatePresence mode="wait">
-        <Motion.div
-          key={r ? r.status : "lobby"}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2 }}
-          style={{ minHeight: "100vh" }}
+        <div
+          style={{
+            flex: 1,
+            textAlign: "center",
+            fontSize: 14,
+            letterSpacing: "0.2em",
+            color: "rgba(240,232,216,0.6)",
+            fontWeight: 600,
+          }}
         >
-          {content}
+          초성 게임
+        </div>
+        {/* 좌우 균형용 */}
+        <div style={{ width: 40, height: 40 }} />
+      </div>
+
+      {/* 중앙: 거대한 초성 */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px 20px",
+          gap: 24,
+          minHeight: 0,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.3em",
+            color: COLORS.danger,
+            fontWeight: 700,
+          }}
+        >
+          ▼ 초성
+        </div>
+
+        <Motion.div
+          key={initials}
+          initial={{ scale: 0.85, opacity: 0, y: 8 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          transition={{ type: "spring", damping: 14, stiffness: 220 }}
+          style={{
+            fontSize: "clamp(96px, 36vw, 180px)",
+            lineHeight: 1,
+            fontFamily: "'Black Han Sans', 'Noto Serif KR', serif",
+            fontWeight: 900,
+            letterSpacing: "0.06em",
+            textAlign: "center",
+            color: COLORS.ink,
+            textShadow: "0 4px 24px rgba(229,68,60,0.25)",
+            userSelect: "none",
+            display: "flex",
+            gap: "0.18em",
+            justifyContent: "center",
+          }}
+        >
+          {initials.split("").map((ch, i) => (
+            <span key={i}>{ch}</span>
+          ))}
         </Motion.div>
-      </AnimatePresence>
+
+        <div
+          style={{
+            fontSize: 13,
+            color: "rgba(240,232,216,0.55)",
+            textAlign: "center",
+            lineHeight: 1.6,
+          }}
+        >
+          이 초성으로 시작하는 단어를
+          <br />
+          <strong style={{ color: COLORS.ink }}>입으로 외치세요!</strong>
+        </div>
+      </div>
+
+      {/* 하단: PASS 버튼 */}
+      <div style={{ padding: "12px 16px 18px" }}>
+        <Motion.button
+          whileTap={{ scale: 0.96 }}
+          onClick={handlePass}
+          style={{
+            width: "100%",
+            minHeight: 84,
+            padding: "20px",
+            border: "none",
+            borderRadius: 20,
+            background: `linear-gradient(135deg, ${COLORS.danger}, #B83328)`,
+            color: "#fff",
+            fontWeight: 900,
+            fontSize: 24,
+            fontFamily: "'Noto Serif KR', serif",
+            letterSpacing: "0.06em",
+            cursor: "pointer",
+            boxShadow:
+              "0 14px 32px rgba(229,68,60,0.42), inset 0 0 18px rgba(255,255,255,0.08)",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          💥 PASS 💥
+        </Motion.button>
+        <div
+          style={{
+            textAlign: "center",
+            fontSize: 10,
+            color: "rgba(240,232,216,0.3)",
+            marginTop: 8,
+            letterSpacing: "0.1em",
+          }}
+        >
+          탭하면 새 초성이 나와요
+        </div>
+      </div>
     </Motion.div>
   );
 }
