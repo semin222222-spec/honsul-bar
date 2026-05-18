@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
-import { Clock, Sparkles, MessageCircle, Eye, Flame } from "lucide-react";
+import { SkipForward, MessageCircle, Eye, Flame } from "lucide-react";
 import { useLocale } from "@/shared/i18n/LocaleContext";
 
 const QUESTIONS = [
@@ -534,52 +534,31 @@ const LEVEL_INFO = {
   },
 };
 
-function getQuestionIndex(timestamp) {
-  const tenMinBlock = Math.floor(timestamp / (10 * 60 * 1000));
-  const seed = tenMinBlock * 2654435761;
-  return (seed >>> 0) % QUESTIONS.length;
-}
-
-function getTimeLeft() {
-  const now = Date.now();
-  const tenMin = 10 * 60 * 1000;
-  const nextBlock = Math.ceil(now / tenMin) * tenMin;
-  return Math.max(0, Math.floor((nextBlock - now) / 1000));
-}
-
-function formatCountdown(totalSeconds) {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+function pickRandomIndex(excludeIdx) {
+  if (QUESTIONS.length <= 1) return 0;
+  let idx;
+  do {
+    idx = Math.floor(Math.random() * QUESTIONS.length);
+  } while (idx === excludeIdx);
+  return idx;
 }
 
 export default function QuestionCardScreen() {
   const [questionIdx, setQuestionIdx] = useState(() =>
-    getQuestionIndex(Date.now()),
+    Math.floor(Math.random() * QUESTIONS.length),
   );
-  const [secondsLeft, setSecondsLeft] = useState(() => getTimeLeft());
   const [flipKey, setFlipKey] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const { locale } = useLocale();
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const left = getTimeLeft();
-      setSecondsLeft(left);
-
-      const newIdx = getQuestionIndex(Date.now());
-      if (newIdx !== questionIdx) {
-        setQuestionIdx(newIdx);
-        setFlipKey((prev) => prev + 1);
-        setRevealed(false);
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [questionIdx]);
+  function handleNext() {
+    setQuestionIdx((prev) => pickRandomIndex(prev));
+    setFlipKey((prev) => prev + 1);
+    setRevealed(false);
+  }
 
   const current = QUESTIONS[questionIdx];
   const level = LEVEL_INFO[current.level];
-  const progress = 1 - secondsLeft / 600;
 
   // 현재 언어에 맞는 질문 텍스트
   const currentQuestion = locale === "ja" ? current.qJa : current.q;
@@ -653,34 +632,6 @@ export default function QuestionCardScreen() {
               justifyContent: "center",
             }}
           >
-            {/* 상단 프로그레스 바 */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 3,
-                background: "rgba(255,255,255,0.05)",
-                borderRadius: "20px 20px 0 0",
-              }}
-            >
-              <Motion.div
-                animate={{ width: progress * 100 + "%" }}
-                transition={{ duration: 0.5, ease: "linear" }}
-                style={{
-                  height: "100%",
-                  borderRadius: "20px 20px 0 0",
-                  background:
-                    "linear-gradient(90deg, " +
-                    level.color +
-                    ", " +
-                    level.color +
-                    "80)",
-                }}
-              />
-            </div>
-
             {/* 수위 뱃지 */}
             <div
               style={{
@@ -706,23 +657,6 @@ export default function QuestionCardScreen() {
               >
                 {levelLabel}
               </span>
-            </div>
-
-            {/* 동기화 표시 */}
-            <div
-              style={{
-                position: "absolute",
-                top: 16,
-                right: 16,
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                fontSize: "clamp(9px, 2.2vw, 10px)",
-                color: "rgba(255,255,255,0.3)",
-              }}
-            >
-              <Sparkles size={10} />
-              {locale === "ja" ? "みんな同じ質問" : "모두 같은 질문"}
             </div>
 
             {/* 질문 내용 또는 스포일러 */}
@@ -827,7 +761,7 @@ export default function QuestionCardScreen() {
         </Motion.div>
       </AnimatePresence>
 
-      {/* 카운트다운 */}
+      {/* 패스 버튼 (다음 질문) */}
       <div
         style={{
           display: "flex",
@@ -835,38 +769,29 @@ export default function QuestionCardScreen() {
           marginTop: "clamp(14px, 4vw, 20px)",
         }}
       >
-        <div
+        <button
+          type="button"
+          onClick={handleNext}
           style={{
             display: "inline-flex",
             alignItems: "center",
             gap: 8,
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.06)",
+            background: "rgba(212,165,55,0.1)",
+            border: "1px solid rgba(212,165,55,0.35)",
             borderRadius: 12,
-            padding: "10px 18px",
+            padding: "12px 22px",
+            color: "#D4A537",
+            fontSize: "clamp(13px, 3.4vw, 15px)",
+            fontWeight: 500,
+            fontFamily: "'Noto Sans KR', sans-serif",
+            cursor: "pointer",
+            WebkitTapHighlightColor: "transparent",
+            minHeight: 44,
           }}
         >
-          <Clock size={14} style={{ color: "rgba(212,165,55,0.6)" }} />
-          <span
-            style={{
-              fontSize: "clamp(18px, 5vw, 24px)",
-              fontWeight: 300,
-              color: "#D4A537",
-              fontFamily: "'Noto Serif KR', serif",
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {formatCountdown(secondsLeft)}
-          </span>
-          <span
-            style={{
-              fontSize: "clamp(10px, 2.5vw, 11px)",
-              color: "rgba(255,255,255,0.3)",
-            }}
-          >
-            {locale === "ja" ? "後 次の質問" : "후 다음 질문"}
-          </span>
-        </div>
+          <SkipForward size={16} />
+          {locale === "ja" ? "パス · 次の質問" : "패스 · 다음 질문"}
+        </button>
       </div>
 
       {/* 팁 카드 */}
@@ -931,8 +856,8 @@ export default function QuestionCardScreen() {
               }}
             >
               {locale === "ja"
-                ? "皆さんが同じ質問を見ています。隣の方に見せて会話を始めてみてください!"
-                : "모든 사람이 같은 질문을 보고 있어요. 옆 사람에게 보여주며 대화를 시작해 보세요!"}
+                ? "気になる質問だけ話して、合わなければパスして次の質問へどうぞ!"
+                : "마음에 드는 질문만 같이 얘기하고, 별로면 패스로 다음 질문으로 넘어가세요!"}
             </div>
           </div>
         </div>
