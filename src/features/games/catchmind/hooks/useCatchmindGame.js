@@ -255,26 +255,15 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
     finalizeRound("timeup");
   }, [secondsLeft, isPlaying, roundStartedAt, finalizeRound]);
 
-  // 모든 정답자(출제자 제외)가 맞혔으면 종료
+  // ⭐ 첫 정답자가 나오면 즉시 라운드 종료 (캐치마인드 표준 룰)
   useEffect(() => {
     if (!isPlaying || !room) return;
-    const players = room.players || [];
-    const drawerId = room.current_drawer_session_id;
-    const guessers = players.filter((p) => p.session_id !== drawerId);
-    if (guessers.length === 0) return;
-
-    const correctSet = new Set(
-      messages
-        .filter(
-          (m) =>
-            m.type === "correct" && m.round_number === room.current_round,
-        )
-        .map((m) => m.session_id),
+    const hasCorrect = messages.some(
+      (m) => m.type === "correct" && m.round_number === room.current_round,
     );
-
-    const allCorrect = guessers.every((g) => correctSet.has(g.session_id));
-    if (allCorrect) {
-      finalizeRound("all_correct");
+    if (hasCorrect) {
+      console.log("[Catchmind] 🎯 첫 정답자 감지 → 라운드 종료 트리거");
+      finalizeRound("first_correct");
     }
   }, [messages, isPlaying, room, finalizeRound]);
 
@@ -506,29 +495,10 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
           score_gained: scoreGained,
         });
 
-        // 정답이면 즉시 all-correct 체크 (Realtime echo 기다리지 않음)
+        // 정답이면 즉시 라운드 종료 트리거 (Realtime echo 기다리지 않음)
         if (type === "correct") {
-          const players = room.players || [];
-          const drawerId = room.current_drawer_session_id;
-          const correctIds = new Set(
-            messages
-              .filter(
-                (m) =>
-                  m.type === "correct" &&
-                  m.round_number === room.current_round,
-              )
-              .map((m) => m.session_id),
-          );
-          correctIds.add(sessionId);
-          const guessers = players.filter(
-            (p) => p.session_id !== drawerId,
-          );
-          if (
-            guessers.length > 0 &&
-            guessers.every((g) => correctIds.has(g.session_id))
-          ) {
-            finalizeRound("all_correct");
-          }
+          console.log("[Catchmind] 🎯 본인이 첫(또는 한)명 정답 → 즉시 종료");
+          finalizeRound("first_correct");
         }
       } catch (err) {
         console.error("[Catchmind] 메시지 전송 실패:", err);

@@ -185,25 +185,40 @@ export function useCatchmindRoom({ sessionId, seatLabel, storeId }) {
   //    · 방장이면 다음 사람에게 위임
   // ─────────────────────────────────────────
   const leaveRoom = useCallback(async () => {
-    if (!myRoom) return;
+    console.log("[Catchmind] 🚪 leaveRoom 진입");
+    console.log("[Catchmind]   myRoom?", !!myRoom, "id:", myRoom?.id);
+    console.log("[Catchmind]   sessionId:", sessionId);
+
+    if (!myRoom) {
+      console.warn("[Catchmind] ⚠️ myRoom 없음 — 그냥 종료");
+      return;
+    }
 
     const roomId = myRoom.id;
     const mySession = sessionId;
 
-    // 1) 로컬 즉시 정리
+    // 1) 로컬 즉시 정리 (항상 무조건)
     setMyRoom(null);
+    console.log("[Catchmind] ✅ setMyRoom(null) 호출 완료");
 
     // 2) DB는 RPC로 한 방에 처리 (race 없음)
-    if (!mySession) return;
+    if (!mySession) {
+      console.warn("[Catchmind] ⚠️ sessionId 없음 — DB 정리 스킵");
+      return;
+    }
 
     try {
+      console.log("[Catchmind] 📡 RPC leave_catchmind_room 호출", { roomId, sessionId: mySession });
       await catchmindRepository.leaveRoomRpc({
         roomId,
         sessionId: mySession,
       });
-      console.log("[Catchmind] leaveRoom 성공");
+      console.log("[Catchmind] ✅ leaveRoom RPC 성공");
     } catch (err) {
-      console.error("[Catchmind] leaveRoom RPC 실패:", err);
+      console.error("[Catchmind] ❌ leaveRoom RPC 실패:", err);
+      console.error("[Catchmind]   message:", err?.message);
+      console.error("[Catchmind]   code:", err?.code);
+      console.error("[Catchmind]   details:", err?.details);
     }
   }, [myRoom, sessionId]);
 

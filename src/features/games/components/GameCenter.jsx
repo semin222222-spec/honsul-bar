@@ -22,6 +22,7 @@ export default function GameCenter({
   onOpenFlirting,
   onOpenCatchmind,
   onOpenShield,
+  onOpenLiar,
 }) {
   const [view, setView] = useState("menu");
   const { locale } = useLocale();
@@ -423,6 +424,128 @@ export default function GameCenter({
                       </span>
                       <br />
                       못 외치면 데킬라 1잔 🥃
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Motion.div>
+
+          {/* 🆕 라이어 게임 카드 (보라) */}
+          <Motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.108 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onOpenLiar}
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(157,122,224,0.14), rgba(122,86,201,0.05))",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(157,122,224,0.32)",
+              borderRadius: 16,
+              padding: "clamp(18px, 5vw, 24px)",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <Motion.div
+              animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.26, 0.15] }}
+              transition={{ duration: 2.6, repeat: Infinity }}
+              style={{
+                position: "absolute",
+                top: -10,
+                right: -10,
+                fontSize: 60,
+                pointerEvents: "none",
+              }}
+            >
+              🎭
+            </Motion.div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                position: "relative",
+              }}
+            >
+              <Motion.div
+                animate={{ rotate: [0, 8, -8, 8, 0] }}
+                transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 2 }}
+                style={{
+                  fontSize: 44,
+                  lineHeight: 1,
+                  flexShrink: 0,
+                  filter: "drop-shadow(0 0 10px rgba(157,122,224,0.6))",
+                }}
+              >
+                🎭
+              </Motion.div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.2em",
+                    color: "#B395E8",
+                    marginBottom: 3,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  LIAR GAME
+                  <span
+                    style={{
+                      padding: "1px 6px",
+                      background: "rgba(157,122,224,0.25)",
+                      borderRadius: 4,
+                      fontSize: 8,
+                      letterSpacing: "0.1em",
+                      fontWeight: 700,
+                      color: "#D2BCF5",
+                    }}
+                  >
+                    NEW
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: "#F5E6C8",
+                    fontFamily: "'Noto Serif KR', serif",
+                    marginBottom: 4,
+                  }}
+                >
+                  {locale === "ja"
+                    ? "ライアーゲーム · 嘘つきを当てる"
+                    : "라이어 게임 · 거짓말쟁이 찾기"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(220,200,255,0.65)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {locale === "ja" ? (
+                    <>
+                      <span style={{ color: "rgba(179,149,232,0.85)" }}>
+                        3〜8人の心理ゲーム。
+                      </span>
+                      <br />
+                      正体不明のライアーを暴け 🥃
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: "rgba(179,149,232,0.85)" }}>
+                        3~8명 심리 게임.
+                      </span>
+                      <br />
+                      라이어를 못 찾으면 데킬라 🥃
                     </>
                   )}
                 </div>

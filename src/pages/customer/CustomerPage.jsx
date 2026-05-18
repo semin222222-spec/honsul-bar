@@ -18,6 +18,7 @@ import FlirtingGameModal from "@/features/games/flirting/components/FlirtingGame
 import IncomingFlirtingModal from "@/features/games/flirting/components/IncomingFlirtingModal";
 import CatchmindModal from "@/features/games/catchmind/components/CatchmindModal";
 import ShieldModal from "@/features/games/shield/components/ShieldModal";
+import LiarModal from "@/features/games/liar/components/LiarModal";
 import { usePresence } from "@/features/presence/hooks/usePresence";
 import { useMatchmaking } from "@/features/games/whisky-nine/hooks/useMatchmaking";
 import { useSession } from "@/features/sessions/hooks/useSession";
@@ -502,6 +503,7 @@ export default function App() {
   const [gameSelectTarget, setGameSelectTarget] = useState(null);
   const [showCatchmind, setShowCatchmind] = useState(false);
   const [showShield, setShowShield] = useState(false);
+  const [showLiar, setShowLiar] = useState(false);
 
   const mm = useMatchmaking({ myId, myNickname, myAvatar, mySeat });
 
@@ -565,6 +567,14 @@ export default function App() {
 
   const handleCloseShield = useCallback(() => {
     setShowShield(false);
+  }, []);
+
+  const handleOpenLiar = useCallback(() => {
+    setShowLiar(true);
+  }, []);
+
+  const handleCloseLiar = useCallback(() => {
+    setShowLiar(false);
   }, []);
 
   const handleFlirtingSelect = useCallback(
@@ -859,6 +869,7 @@ export default function App() {
                   onOpenFlirting={handleOpenFlirting}
                   onOpenCatchmind={handleOpenCatchmind}
                   onOpenShield={handleOpenShield}
+                  onOpenLiar={handleOpenLiar}
                 />
               )}
             </Motion.div>
@@ -1004,6 +1015,18 @@ export default function App() {
           <ShieldModal
             open={showShield}
             onClose={handleCloseShield}
+            sessionId={session?.id}
+            seatLabel={mySeat}
+            storeId={storeId}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showLiar && (
+          <LiarModal
+            open={showLiar}
+            onClose={handleCloseLiar}
             sessionId={session?.id}
             seatLabel={mySeat}
             storeId={storeId}

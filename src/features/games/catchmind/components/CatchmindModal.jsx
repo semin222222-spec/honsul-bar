@@ -78,8 +78,15 @@ export default function CatchmindModal({
   // 한 번 더 setMyRoom(null)을 호출하지만, 여기서도 setRoomDirect로
   // 명시적으로 강제 — 어떤 race도 끼어들지 못하게.
   const handleLeaveToLobby = useCallback(async () => {
-    room.setRoomDirect(null);
-    await room.leaveRoom();
+    console.log("[Catchmind] 🏃 handleLeaveToLobby 시작");
+    try {
+      room.setRoomDirect(null);
+      console.log("[Catchmind]   setRoomDirect(null) 호출됨");
+      await room.leaveRoom();
+      console.log("[Catchmind] ✅ handleLeaveToLobby 완료");
+    } catch (err) {
+      console.error("[Catchmind] ❌ handleLeaveToLobby 예외:", err);
+    }
   }, [room]);
 
   const handleStart = useCallback(async () => {
