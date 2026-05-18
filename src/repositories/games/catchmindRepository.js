@@ -83,6 +83,22 @@ export async function deleteRoom(roomId) {
   throwIfError(error);
 }
 
+// 원자적 leave (RPC) — race condition 없이 players 제거 + 호스트 위임 + 빈 방 삭제
+export async function leaveRoomRpc({ roomId, sessionId }) {
+  const { error } = await supabase.rpc("leave_catchmind_room", {
+    p_room_id: roomId,
+    p_session_id: sessionId,
+  });
+  throwIfError(error);
+}
+
+// 좀비 방 정리 (RPC)
+export async function cleanupRooms() {
+  const { data, error } = await supabase.rpc("cleanup_catchmind_rooms");
+  throwIfError(error);
+  return data || 0;
+}
+
 export function subscribeToStoreRooms({ storeId, onChange, onStatus }) {
   const channel = supabase
     .channel(`catchmind-lobby-${storeId}`)
@@ -196,6 +212,8 @@ export const catchmindRepository = {
   createRoom,
   updateRoom,
   deleteRoom,
+  leaveRoomRpc,
+  cleanupRooms,
   subscribeToStoreRooms,
   subscribeToRoom,
   insertStroke,

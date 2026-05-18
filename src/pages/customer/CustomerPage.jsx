@@ -17,6 +17,7 @@ import FlirtingSeatPicker from "@/features/games/flirting/components/FlirtingSea
 import FlirtingGameModal from "@/features/games/flirting/components/FlirtingGameModal";
 import IncomingFlirtingModal from "@/features/games/flirting/components/IncomingFlirtingModal";
 import CatchmindModal from "@/features/games/catchmind/components/CatchmindModal";
+import ShieldModal from "@/features/games/shield/components/ShieldModal";
 import { usePresence } from "@/features/presence/hooks/usePresence";
 import { useMatchmaking } from "@/features/games/whisky-nine/hooks/useMatchmaking";
 import { useSession } from "@/features/sessions/hooks/useSession";
@@ -500,6 +501,7 @@ export default function App() {
   const [invitingGame, setInvitingGame] = useState(false);
   const [gameSelectTarget, setGameSelectTarget] = useState(null);
   const [showCatchmind, setShowCatchmind] = useState(false);
+  const [showShield, setShowShield] = useState(false);
 
   const mm = useMatchmaking({ myId, myNickname, myAvatar, mySeat });
 
@@ -555,6 +557,14 @@ export default function App() {
 
   const handleCloseCatchmind = useCallback(() => {
     setShowCatchmind(false);
+  }, []);
+
+  const handleOpenShield = useCallback(() => {
+    setShowShield(true);
+  }, []);
+
+  const handleCloseShield = useCallback(() => {
+    setShowShield(false);
   }, []);
 
   const handleFlirtingSelect = useCallback(
@@ -848,6 +858,7 @@ export default function App() {
                   onCancelOutgoing={mm.cancelOutgoing}
                   onOpenFlirting={handleOpenFlirting}
                   onOpenCatchmind={handleOpenCatchmind}
+                  onOpenShield={handleOpenShield}
                 />
               )}
             </Motion.div>
@@ -981,6 +992,18 @@ export default function App() {
           <CatchmindModal
             open={showCatchmind}
             onClose={handleCloseCatchmind}
+            sessionId={session?.id}
+            seatLabel={mySeat}
+            storeId={storeId}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showShield && (
+          <ShieldModal
+            open={showShield}
+            onClose={handleCloseShield}
             sessionId={session?.id}
             seatLabel={mySeat}
             storeId={storeId}

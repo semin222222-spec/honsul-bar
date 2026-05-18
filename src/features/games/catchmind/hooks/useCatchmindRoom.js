@@ -36,14 +36,23 @@ export function useCatchmindRoom({ sessionId, seatLabel, storeId }) {
     }
   }, [storeId]);
 
-  // 매장 방 리스트 Realtime 구독
+  // 매장 방 리스트 Realtime 구독 + 마운트 시 좀비 방 cleanup
   useEffect(() => {
     if (!hasStoreScope(storeId)) return;
+
+    // 마운트 시 좀비 방 정리 (finished 5분↑, 30분 idle, 빈 방 1분↑)
+    catchmindRepository
+      .cleanupRooms()
+      .then((n) => {
+        if (n > 0) console.log(`[Catchmind] cleanup: ${n}개 좀비 방 정리`);
+      })
+      .catch((err) =>
+        console.error("[Catchmind] cleanup 실패:", err),
+      );
 
     const unsubscribe = catchmindRepository.subscribeToStoreRooms({
       storeId,
       onChange: () => {
-        // INSERT/UPDATE/DELETE 모두 전체 refresh가 안전
         refreshRooms();
       },
       onStatus: (status) => {
@@ -167,51 +176,34 @@ export function useCatchmindRoom({ sessionId, seatLabel, storeId }) {
   );
 
   // ─────────────────────────────────────────
-  // 방 퇴장 (방장이면 위임, 아니면 그냥 빠짐)
+  // 방 퇴장 — DB-side RPC로 원자적 처리
   //
-  // ⚠️ UX 원칙: "로비로 나가기" 버튼은 항상 즉시 로비로 가야 한다.
-  //   - sessionId가 일시적으로 없거나(세션 재발급 등) 본인이 players에 없는
-  //     상태로 결과 화면에 머물러 있는 경우에도 버튼이 동작해야 한다.
-  //   - 따라서 setMyRoom(null)을 먼저 동기적으로 실행한 다음, DB 정리는
-  //     best-effort로 진행한다 (사용자 체감엔 즉시 로비로 이동).
+  // 1) setMyRoom(null) 즉시 — UX 무조건 로비로
+  // 2) leave_catchmind_room RPC 호출 — 서버에서 한 트랜잭션으로:
+  //    · players에서 제거
+  //    · 0명 되면 방 DELETE (혼자 남은 방장 케이스 해결)
+  //    · 방장이면 다음 사람에게 위임
   // ─────────────────────────────────────────
   const leaveRoom = useCallback(async () => {
     if (!myRoom) return;
 
     const roomId = myRoom.id;
-    const myPlayers = myRoom.players || [];
-    const wasInPlayers =
-      !!sessionId && myPlayers.some((p) => p.session_id === sessionId);
+    const mySession = sessionId;
 
-    // 1) 로컬 즉시 정리 — 무조건 로비로 보낸다
+    // 1) 로컬 즉시 정리
     setMyRoom(null);
 
-    // 2) 본인이 players에 없거나 sessionId가 없으면 DB는 건드릴 게 없음
-    if (!sessionId || !wasInPlayers) return;
-
-    // 3) DB best-effort cleanup
-    const remaining = myPlayers.filter(
-      (p) => p.session_id !== sessionId,
-    );
+    // 2) DB는 RPC로 한 방에 처리 (race 없음)
+    if (!mySession) return;
 
     try {
-      if (remaining.length === 0) {
-        await catchmindRepository.deleteRoom(roomId);
-      } else {
-        const wasHost = myRoom.host_session_id === sessionId;
-        const updates = { players: remaining };
-        if (wasHost) {
-          updates.host_session_id = remaining[0].session_id;
-          updates.host_seat_label = remaining[0].seat_label;
-        }
-        await catchmindRepository.updateRoom({
-          roomId,
-          updates,
-          returning: false,
-        });
-      }
+      await catchmindRepository.leaveRoomRpc({
+        roomId,
+        sessionId: mySession,
+      });
+      console.log("[Catchmind] leaveRoom 성공");
     } catch (err) {
-      console.error("[Catchmind] 방 퇴장 DB 정리 실패:", err);
+      console.error("[Catchmind] leaveRoom RPC 실패:", err);
     }
   }, [myRoom, sessionId]);
 
