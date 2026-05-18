@@ -11,7 +11,6 @@ import CatchmindCanvas from "./CatchmindCanvas";
 import {
   ROUND_SECONDS,
   formatHintString,
-  calcCorrectScore,
 } from "../lib/catchmindRules";
 
 const PALETTE = [
@@ -188,7 +187,6 @@ export default function CatchmindGame({
           onSubmit={handleSubmitChat}
           sessionId={sessionId}
           iAmCorrect={iAmCorrect}
-          secondsLeft={secondsLeft}
           currentRound={room?.current_round}
         />
       )}
@@ -519,7 +517,6 @@ function GuesserChat({
   onSubmit,
   sessionId,
   iAmCorrect,
-  secondsLeft,
   currentRound,
 }) {
   const roundMessages = messages.filter(
@@ -621,7 +618,7 @@ function GuesserChat({
             textAlign: "center",
           }}
         >
-          지금 맞히면 +{calcCorrectScore(secondsLeft)}점
+          맞히면 +1점
         </div>
       )}
     </div>

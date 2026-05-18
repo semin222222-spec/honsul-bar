@@ -196,29 +196,56 @@ export function useCatchmindRoom({ sessionId, seatLabel, storeId }) {
 
     const roomId = myRoom.id;
     const mySession = sessionId;
+    const snapshotPlayers = myRoom.players || [];
+    const snapshotHost = myRoom.host_session_id;
 
     // 1) 로컬 즉시 정리 (항상 무조건)
     setMyRoom(null);
     console.log("[Catchmind] ✅ setMyRoom(null) 호출 완료");
 
-    // 2) DB는 RPC로 한 방에 처리 (race 없음)
     if (!mySession) {
       console.warn("[Catchmind] ⚠️ sessionId 없음 — DB 정리 스킵");
       return;
     }
 
+    // 2) DB 정리 — RPC 시도, 실패하면 직접 DELETE/UPDATE 폴백
     try {
-      console.log("[Catchmind] 📡 RPC leave_catchmind_room 호출", { roomId, sessionId: mySession });
+      console.log("[Catchmind] 📡 RPC leave_catchmind_room 호출");
       await catchmindRepository.leaveRoomRpc({
         roomId,
         sessionId: mySession,
       });
       console.log("[Catchmind] ✅ leaveRoom RPC 성공");
-    } catch (err) {
-      console.error("[Catchmind] ❌ leaveRoom RPC 실패:", err);
-      console.error("[Catchmind]   message:", err?.message);
-      console.error("[Catchmind]   code:", err?.code);
-      console.error("[Catchmind]   details:", err?.details);
+    } catch (rpcErr) {
+      console.warn("[Catchmind] ⚠️ RPC 실패, 직접 처리 폴백:", rpcErr?.message);
+      // 폴백: 클로저에 캡처해둔 players로 새 배열 만들고 update or delete
+      try {
+        const remaining = snapshotPlayers.filter(
+          (p) => p.session_id !== mySession,
+        );
+        if (remaining.length === 0) {
+          console.log("[Catchmind] 폴백: 마지막 플레이어 → deleteRoom");
+          await catchmindRepository.deleteRoom(roomId);
+        } else {
+          const updates = { players: remaining };
+          if (snapshotHost === mySession) {
+            updates.host_session_id = remaining[0].session_id;
+            updates.host_seat_label = remaining[0].seat_label;
+          }
+          console.log("[Catchmind] 폴백: updateRoom으로 player 제거");
+          await catchmindRepository.updateRoom({
+            roomId,
+            updates,
+            returning: false,
+          });
+        }
+        console.log("[Catchmind] ✅ 폴백 정리 성공");
+      } catch (fallbackErr) {
+        console.error(
+          "[Catchmind] ❌ 폴백도 실패 (DB 좀비 방으로 남을 수 있음):",
+          fallbackErr,
+        );
+      }
     }
   }, [myRoom, sessionId]);
 

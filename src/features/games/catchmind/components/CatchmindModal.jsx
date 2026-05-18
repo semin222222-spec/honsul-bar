@@ -74,20 +74,26 @@ export default function CatchmindModal({
     [room],
   );
 
-  // ⚠️ 로비로 나가기는 무슨 일이 있어도 즉시 로비로. leaveRoom 내부에서
-  // 한 번 더 setMyRoom(null)을 호출하지만, 여기서도 setRoomDirect로
-  // 명시적으로 강제 — 어떤 race도 끼어들지 못하게.
-  const handleLeaveToLobby = useCallback(async () => {
-    console.log("[Catchmind] 🏃 handleLeaveToLobby 시작");
+  // ⚠️ 강제 단순화: "나가기" 누르면 무조건 모달 전체 닫기 (UI 즉시 반응) →
+  // DB 정리는 백그라운드. RPC 실패해도 직접 DELETE 폴백이 leaveRoom 안에 있음.
+  const handleLeaveToLobby = useCallback(() => {
+    console.log("[Catchmind] 🚪 나가기 클릭 — 모달 즉시 닫기");
+    // 1) 모달 닫기 — 부모 onClose. 즉시 게임 센터로.
+    onClose();
+    // 2) 백그라운드 DB 정리 (await 안 함 — UI는 이미 빠져나감)
+    room.leaveRoom().catch((err) => {
+      console.error("[Catchmind] 백그라운드 leaveRoom 에러:", err);
+    });
+  }, [room, onClose]);
+
+  // 결과 화면에서 "한 판 더!" 누르면 게임 재시작 (방 유지)
+  const handleRestart = useCallback(async () => {
     try {
-      room.setRoomDirect(null);
-      console.log("[Catchmind]   setRoomDirect(null) 호출됨");
-      await room.leaveRoom();
-      console.log("[Catchmind] ✅ handleLeaveToLobby 완료");
+      await game.restartRoom();
     } catch (err) {
-      console.error("[Catchmind] ❌ handleLeaveToLobby 예외:", err);
+      console.error("[Catchmind] restart 에러:", err);
     }
-  }, [room]);
+  }, [game]);
 
   const handleStart = useCallback(async () => {
     const res = await room.startGame();
@@ -171,7 +177,7 @@ export default function CatchmindModal({
         room={r}
         sessionId={sessionId}
         isHost={room.isHost}
-        onRestart={game.restartRoom}
+        onRestart={handleRestart}
         onLeave={handleLeaveToLobby}
       />
     );

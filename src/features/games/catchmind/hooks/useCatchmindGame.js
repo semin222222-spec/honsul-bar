@@ -5,9 +5,6 @@ import {
   ROUND_SECONDS,
   COUNTDOWN_SECONDS,
   TRANSITION_SECONDS,
-  PASS_PENALTY,
-  calcCorrectScore,
-  calcDrawerBonus,
   calcSecondsLeft,
   isCorrectAnswer,
   isCloseAnswer,
@@ -189,8 +186,14 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
         const players = room.players || [];
 
         const correctSessions = correctMsgs.map((m) => m.session_id);
-        const drawerBonus =
-          reason === "pass" ? PASS_PENALTY : calcDrawerBonus(correctSessions.length);
+        // ⭐ 새 룰: 정답자 +1, 시간초과+정답자0명이면 출제자 -1, 그 외 출제자 0
+        //   · pass도 -1 (출제자 페널티)
+        let drawerBonus = 0;
+        if (reason === "pass") {
+          drawerBonus = -1;
+        } else if (reason === "timeup" && correctSessions.length === 0) {
+          drawerBonus = -1;
+        }
 
         // 점수 합산 (correct 메시지에 score_gained가 이미 들어가 있음)
         const scoreChanges = {};
@@ -477,8 +480,8 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
       if (!isDrawer && !alreadyCorrect) {
         if (isCorrectAnswer(trimmed, word)) {
           type = "correct";
-          const left = calcSecondsLeft(room.current_round_started_at);
-          scoreGained = calcCorrectScore(left);
+          // ⭐ 새 룰: 정답자는 무조건 +1
+          scoreGained = 1;
         } else if (isCloseAnswer(trimmed, word)) {
           type = "close";
         }
