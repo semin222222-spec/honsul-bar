@@ -165,25 +165,57 @@ export default function LiarWordReveal({
                   marginBottom: 12,
                 }}
               >
-                {isLiar ? "당신은 라이어" : "정답 단어"}
+                {isLiar ? "당신의 역할" : "정답 단어"}
               </div>
-              <div
-                style={{
-                  fontSize: isLiar ? 64 : 36,
-                  fontFamily: isLiar
-                    ? "'Black Han Sans', sans-serif"
-                    : "'Noto Serif KR', serif",
-                  fontWeight: 900,
-                  color: accentBright,
-                  letterSpacing: isLiar ? "0.05em" : "0.02em",
-                  textShadow: `0 4px 24px ${accent}66`,
-                  lineHeight: 1.1,
-                  padding: "0 16px",
-                  textAlign: "center",
-                }}
-              >
-                {isLiar ? "???" : room?.answer_word || "—"}
-              </div>
+              {isLiar ? (
+                <>
+                  <div
+                    style={{
+                      fontSize: 28,
+                      fontFamily: "'Noto Serif KR', serif",
+                      fontWeight: 900,
+                      color: accentBright,
+                      letterSpacing: "0.02em",
+                      textShadow: `0 4px 24px ${accent}66`,
+                      lineHeight: 1.2,
+                      padding: "0 16px",
+                      textAlign: "center",
+                    }}
+                  >
+                    🎭 라이어 입니다
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 12,
+                      fontSize: 12,
+                      color: "rgba(220,200,255,0.7)",
+                      lineHeight: 1.5,
+                      padding: "0 24px",
+                      textAlign: "center",
+                    }}
+                  >
+                    다른 사람 설명 듣고
+                    <br />
+                    들키지 마세요!
+                  </div>
+                </>
+              ) : (
+                <div
+                  style={{
+                    fontSize: 36,
+                    fontFamily: "'Noto Serif KR', serif",
+                    fontWeight: 900,
+                    color: accentBright,
+                    letterSpacing: "0.02em",
+                    textShadow: `0 4px 24px ${accent}66`,
+                    lineHeight: 1.1,
+                    padding: "0 16px",
+                    textAlign: "center",
+                  }}
+                >
+                  {room?.answer_word || "—"}
+                </div>
+              )}
               <div
                 style={{
                   marginTop: 14,

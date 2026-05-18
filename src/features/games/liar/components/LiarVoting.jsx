@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { motion as Motion } from "framer-motion";
-import { Check, Vote } from "lucide-react";
+import { LogOut, Eye } from "lucide-react";
 
 const COLORS = {
   bgBase: "#0F0E0D",
-  bgCard: "#1A1816",
   ink: "#F0E8D8",
   gold: "#C9A66B",
   liar: "#9D7AE0",
@@ -12,26 +11,25 @@ const COLORS = {
 };
 
 /**
- * LiarVoting — 7단계 동시 투표
+ * LiarVoting — 7단계 (오프라인 투표 안내)
  *
- *  - 자기 자신 투표 불가
- *  - voted_for 저장된 사람은 회색 처리
+ * 앱 투표 제거. 술자리에서 손가락으로 가리키는 게 자연스러움.
+ * "정답 공개" 버튼 → 결과 화면, "나가기" 버튼 → 즉시 leave.
  */
-export default function LiarVoting({ room, sessionId, onSubmit }) {
-  const [selected, setSelected] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+export default function LiarVoting({ room, onReveal, onLeave }) {
+  const [revealing, setRevealing] = useState(false);
 
   const players = room?.players || [];
-  const me = players.find((p) => p.session_id === sessionId);
-  const alreadyVoted = !!me?.voted_for;
-  const votedCount = players.filter((p) => !!p.voted_for).length;
 
-  const handleSubmit = async () => {
-    if (!selected || submitting || alreadyVoted) return;
-    setSubmitting(true);
-    const res = await onSubmit(selected);
-    setSubmitting(false);
-    if (!res?.ok && res?.error) alert(res.error);
+  const handleReveal = async () => {
+    if (revealing) return;
+    setRevealing(true);
+    const res = await onReveal?.();
+    if (!res?.ok && res?.error) {
+      setRevealing(false);
+      alert(res.error);
+    }
+    // 성공 시 status가 finished로 바뀌면서 화면 자체가 갈아끼워짐
   };
 
   return (
@@ -43,205 +41,193 @@ export default function LiarVoting({ room, sessionId, onSubmit }) {
         background: COLORS.bgBase,
         color: COLORS.ink,
         fontFamily: "'Pretendard Variable', 'Pretendard', system-ui",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      {/* 헤더 */}
-      <div style={{ padding: "20px 20px 12px", textAlign: "center" }}>
+      {/* 배경 글로우 */}
+      <Motion.div
+        animate={{ opacity: [0.3, 0.55, 0.3] }}
+        transition={{ duration: 3, repeat: Infinity }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background:
+            "radial-gradient(circle at 50% 40%, rgba(157,122,224,0.18), transparent 60%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "40px 24px",
+          textAlign: "center",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        <Motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", damping: 14 }}
+          style={{
+            fontSize: 80,
+            marginBottom: 24,
+            filter: "drop-shadow(0 0 28px rgba(157,122,224,0.55))",
+          }}
+        >
+          🗳️
+        </Motion.div>
+
         <div
           style={{
-            fontSize: 10,
+            fontSize: 11,
             letterSpacing: "0.25em",
             color: COLORS.liar,
             marginBottom: 6,
           }}
         >
-          LIAR · VOTING
+          LIAR · VOTE TIME
         </div>
         <div
           style={{
-            fontSize: 26,
+            fontSize: 30,
             fontFamily: "'Noto Serif KR', serif",
-            fontWeight: 800,
-            color: COLORS.ink,
-            marginBottom: 6,
+            fontWeight: 900,
+            background: `linear-gradient(135deg, ${COLORS.liarBright}, ${COLORS.gold})`,
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            color: COLORS.liarBright,
+            marginBottom: 18,
+            lineHeight: 1.2,
           }}
         >
-          🎭 누가 라이어?
+          투표 시간입니다
         </div>
+
         <div
           style={{
-            fontSize: 12,
-            color: "rgba(240,232,216,0.5)",
+            fontSize: 15,
+            color: "rgba(240,232,216,0.75)",
+            lineHeight: 1.7,
+            marginBottom: 28,
           }}
         >
-          투표 완료:{" "}
-          <strong style={{ color: COLORS.liarBright }}>{votedCount}</strong>
-          /{players.length}명
+          다 같이{" "}
+          <strong
+            style={{
+              color: COLORS.liar,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 20,
+            }}
+          >
+            3, 2, 1!
+          </strong>{" "}
+          외치고
+          <br />
+          라이어라고 생각하는 사람을
+          <br />
+          <strong style={{ color: COLORS.gold }}>손가락으로 가리키세요</strong>
+        </div>
+
+        {/* 참여자 좌석 표시 (참고용) */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            justifyContent: "center",
+            marginBottom: 8,
+            maxWidth: 320,
+          }}
+        >
+          {players.map((p) => (
+            <span
+              key={p.session_id}
+              style={{
+                padding: "4px 12px",
+                borderRadius: 999,
+                background: "rgba(240,232,216,0.06)",
+                border: "1px solid rgba(240,232,216,0.1)",
+                color: "rgba(240,232,216,0.7)",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              {p.seat_label}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* 그리드 */}
-      <div style={{ padding: "8px 20px", flex: 1 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
-            gap: 10,
-          }}
-        >
-          {players.map((p) => {
-            const isMe = p.session_id === sessionId;
-            const isSelected = selected === p.session_id;
-            const hasVotedThis = me?.voted_for === p.session_id;
-            const disabled = isMe || alreadyVoted;
-
-            return (
-              <Motion.button
-                key={p.session_id}
-                whileTap={!disabled ? { scale: 0.97 } : undefined}
-                onClick={() => !disabled && setSelected(p.session_id)}
-                disabled={disabled}
-                style={{
-                  padding: "20px 16px",
-                  borderRadius: 14,
-                  background: isMe
-                    ? "transparent"
-                    : isSelected || hasVotedThis
-                      ? "linear-gradient(135deg, rgba(157,122,224,0.2), rgba(157,122,224,0.05))"
-                      : COLORS.bgCard,
-                  border: isMe
-                    ? "1.5px dashed rgba(240,232,216,0.15)"
-                    : isSelected || hasVotedThis
-                      ? `2px solid ${COLORS.liar}`
-                      : "1px solid rgba(240,232,216,0.08)",
-                  color: isMe
-                    ? "rgba(240,232,216,0.35)"
-                    : isSelected || hasVotedThis
-                      ? COLORS.liarBright
-                      : COLORS.ink,
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  WebkitTapHighlightColor: "transparent",
-                  fontFamily: "inherit",
-                  position: "relative",
-                  textAlign: "center",
-                  minHeight: 96,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 4,
-                }}
-              >
-                {(isSelected || hasVotedThis) && !isMe && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 8,
-                      right: 8,
-                      width: 22,
-                      height: 22,
-                      borderRadius: "50%",
-                      background: COLORS.liar,
-                      color: "#fff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Check size={14} strokeWidth={3} />
-                  </div>
-                )}
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 800,
-                    fontFamily: "'Noto Serif KR', serif",
-                  }}
-                >
-                  {p.seat_label}
-                </div>
-                {isMe && (
-                  <div
-                    style={{
-                      fontSize: 11,
-                      letterSpacing: "0.15em",
-                      color: "rgba(240,232,216,0.4)",
-                    }}
-                  >
-                    (나)
-                  </div>
-                )}
-                {!isMe && p.voted_for && !hasVotedThis && (
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "rgba(240,232,216,0.4)",
-                    }}
-                  >
-                    투표 완료
-                  </div>
-                )}
-              </Motion.button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 투표 버튼 */}
+      {/* 버튼 */}
       <div
         style={{
           padding: "12px 20px",
           paddingBottom: "max(20px, env(safe-area-inset-bottom))",
+          display: "flex",
+          gap: 10,
+          position: "relative",
+          zIndex: 1,
         }}
       >
-        {alreadyVoted ? (
-          <div
-            style={{
-              padding: "16px 18px",
-              borderRadius: 14,
-              background: "rgba(240,232,216,0.04)",
-              border: "1px solid rgba(240,232,216,0.08)",
-              color: "rgba(240,232,216,0.6)",
-              fontSize: 14,
-              textAlign: "center",
-              fontWeight: 600,
-            }}
-          >
-            ✓ 투표 완료 · 다른 사람 대기 중...
-          </div>
-        ) : (
-          <Motion.button
-            whileTap={selected ? { scale: 0.97 } : undefined}
-            onClick={handleSubmit}
-            disabled={!selected || submitting}
-            style={{
-              width: "100%",
-              padding: "16px 18px",
-              border: "none",
-              borderRadius: 14,
-              background: selected
-                ? `linear-gradient(135deg, ${COLORS.liar}, #7A56C9)`
-                : "rgba(240,232,216,0.06)",
-              color: selected ? "#fff" : "rgba(240,232,216,0.35)",
-              fontWeight: 800,
-              fontSize: 15,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              cursor: selected ? "pointer" : "not-allowed",
-              boxShadow: selected ? `0 8px 22px ${COLORS.liar}55` : "none",
-              fontFamily: "inherit",
-              WebkitTapHighlightColor: "transparent",
-              minHeight: 52,
-            }}
-          >
-            <Vote size={16} />
-            {selected
-              ? `투표하기 · ${players.find((p) => p.session_id === selected)?.seat_label || ""}`
-              : "라이어를 선택해주세요"}
-          </Motion.button>
-        )}
+        <button
+          onClick={onLeave}
+          style={{
+            flex: 1,
+            padding: "14px 18px",
+            background: "transparent",
+            border: "1px solid rgba(240,232,216,0.15)",
+            borderRadius: 12,
+            color: "rgba(240,232,216,0.7)",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            fontFamily: "inherit",
+            WebkitTapHighlightColor: "transparent",
+            minHeight: 48,
+          }}
+        >
+          <LogOut size={14} />
+          나가기
+        </button>
+        <Motion.button
+          whileTap={{ scale: revealing ? 1 : 0.97 }}
+          onClick={handleReveal}
+          disabled={revealing}
+          style={{
+            flex: 1.4,
+            padding: "14px 18px",
+            border: "none",
+            borderRadius: 12,
+            background: `linear-gradient(135deg, ${COLORS.liar}, #7A56C9)`,
+            color: "#fff",
+            fontSize: 14,
+            fontWeight: 800,
+            cursor: revealing ? "wait" : "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            boxShadow: `0 8px 22px ${COLORS.liar}55`,
+            fontFamily: "inherit",
+            WebkitTapHighlightColor: "transparent",
+            minHeight: 48,
+          }}
+        >
+          <Eye size={14} strokeWidth={2.5} />
+          정답 공개
+        </Motion.button>
       </div>
     </div>
   );

@@ -91,11 +91,6 @@ export default function LiarModal({
     [room],
   );
 
-  const handleRestart = useCallback(async () => {
-    const res = await game.restartRoom();
-    if (!res?.ok && res?.error) alert(res.error);
-  }, [game]);
-
   const handlePass = useCallback(async () => {
     const res = await game.handlePassMySpeech();
     if (!res?.ok && res?.error) alert(res.error);
@@ -148,17 +143,14 @@ export default function LiarModal({
     content = (
       <LiarVoting
         room={r}
-        sessionId={sessionId}
-        onSubmit={game.submitVote}
+        onReveal={game.revealResult}
+        onLeave={handleLeaveToLobby}
       />
     );
   } else if (r.status === "finished") {
     content = (
       <LiarResult
         room={r}
-        sessionId={sessionId}
-        isHost={room.isHost}
-        onRestart={handleRestart}
         onLeave={handleLeaveToLobby}
         dismissLeftMs={game.dismissLeftMs}
       />

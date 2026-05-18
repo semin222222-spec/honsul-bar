@@ -1,6 +1,10 @@
 import { motion as Motion } from "framer-motion";
 import { Check, MessageCircle } from "lucide-react";
-import { SPEECH_SECONDS } from "../lib/liarRules";
+import {
+  SPEECH_SECONDS,
+  TOTAL_LAPS,
+  getCurrentLap,
+} from "../lib/liarRules";
 
 const COLORS = {
   bgBase: "#0F0E0D",
@@ -33,6 +37,7 @@ export default function LiarSpeech({
   const me = players.find((p) => p.session_id === sessionId);
   const isLiar = me?.role === "liar";
   const isDanger = secondsLeft <= 3;
+  const currentLap = getCurrentLap(players, TOTAL_LAPS);
 
   return (
     <div
@@ -45,7 +50,7 @@ export default function LiarSpeech({
         fontFamily: "'Pretendard Variable', 'Pretendard', system-ui",
       }}
     >
-      {/* 헤더 + 카테고리 */}
+      {/* 헤더 + 카테고리 + 바퀴 */}
       <div style={{ padding: "20px 20px 8px", textAlign: "center" }}>
         <div
           style={{
@@ -59,12 +64,33 @@ export default function LiarSpeech({
         </div>
         <div
           style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
             fontSize: 13,
             color: "rgba(240,232,216,0.6)",
           }}
         >
-          카테고리:{" "}
-          <strong style={{ color: COLORS.gold }}>{room?.category || "—"}</strong>
+          <span>
+            카테고리:{" "}
+            <strong style={{ color: COLORS.gold }}>
+              {room?.category || "—"}
+            </strong>
+          </span>
+          <span
+            style={{
+              padding: "2px 10px",
+              borderRadius: 999,
+              background: "rgba(157,122,224,0.15)",
+              border: "1px solid rgba(157,122,224,0.3)",
+              color: COLORS.liarBright,
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}
+          >
+            바퀴 {currentLap}/{TOTAL_LAPS}
+          </span>
         </div>
       </div>
 
@@ -79,7 +105,8 @@ export default function LiarSpeech({
           }}
         >
           {players.map((p, i) => {
-            const done = !!p.speech_done;
+            const count = p.speech_count || 0;
+            const done = count >= TOTAL_LAPS;
             const isCurrent = i === idx;
             return (
               <Motion.div
@@ -116,6 +143,15 @@ export default function LiarSpeech({
               >
                 {done && <Check size={11} />}
                 {p.seat_label}
+                <span
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 10,
+                    opacity: 0.75,
+                  }}
+                >
+                  {count}/{TOTAL_LAPS}
+                </span>
               </Motion.div>
             );
           })}

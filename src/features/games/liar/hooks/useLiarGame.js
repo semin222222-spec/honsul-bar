@@ -3,21 +3,20 @@ import { liarRepository } from "@/repositories/games/liarRepository";
 import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
 import {
   SPEECH_SECONDS,
+  TOTAL_LAPS,
   RESULT_AUTO_DISMISS_MS,
   calcSpeechSecondsLeft,
-  computeVoteResult,
 } from "../lib/liarRules";
 
 /**
  * useLiarGame
  *
- * 라이어 게임 진행 훅.
+ * 라이어 게임 진행 훅 — 단순화 V2.
  *  - room Realtime 구독
- *  - 단어 확인 (word_reveal → speech 전환은 방장만)
- *  - 설명 PASS / 15초 타임아웃 (first-writer-wins guard)
- *  - 투표 / 모두 완료 시 결과 산출 (방장만)
+ *  - 단어 확인 → 방장이 speech 전환
+ *  - 설명: 각자 TOTAL_LAPS(3)번 → 다 끝나면 voting
+ *  - voting: 앱 투표 없음. 사용자가 명시적으로 revealResult 호출 시 finished
  *  - finished 30s 자동 leave
- *  - restartRoom (한 판 더 — 방장만)
  */
 export function useLiarGame({
   room,
@@ -33,7 +32,6 @@ export function useLiarGame({
   const isFinished = status === "finished";
   const speechStartedAt = room?.speech_started_at;
 
-  // derived secondsLeft — state로 안 둔다 (stale 방지)
   const secondsLeft =
     isSpeech && speechStartedAt
       ? Math.max(0, calcSpeechSecondsLeft(speechStartedAt))
@@ -92,9 +90,7 @@ export function useLiarGame({
     };
   }, [roomId, sessionId, onRoomUpdate]);
 
-  // ─────────────────────────────────────────
-  // 250ms tick — secondsLeft 재계산용
-  // ─────────────────────────────────────────
+  // 타이머 tick
   useEffect(() => {
     if (!isSpeech || !speechStartedAt) return;
     const id = setInterval(() => setTick((t) => t + 1), 250);
@@ -169,6 +165,11 @@ export function useLiarGame({
 
   // ─────────────────────────────────────────
   // 설명 종료 / 다음 사람 / 투표 전환
+  //
+  // - 각자 TOTAL_LAPS번 설명
+  // - speech_count 증가 → 모두 >= TOTAL_LAPS 면 voting
+  // - 인덱스는 모듈로 (한 바퀴 끝나면 다시 0번부터)
+  // - 15초 타임아웃 / 본인 PASS 모두 동일 finishSpeech 호출 (guard로 race 흡수)
   // ─────────────────────────────────────────
   const finishingSpeechRef = useRef(false);
 
@@ -185,12 +186,14 @@ export function useLiarGame({
     finishingSpeechRef.current = true;
     try {
       const nextPlayers = players.map((p, i) =>
-        i === idx ? { ...p, speech_done: true } : p,
+        i === idx ? { ...p, speech_count: (p.speech_count || 0) + 1 } : p,
       );
-      const nextIndex = idx + 1;
 
-      if (nextIndex >= players.length) {
-        // 모두 끝 → 투표
+      const everyoneDone = nextPlayers.every(
+        (p) => (p.speech_count || 0) >= TOTAL_LAPS,
+      );
+
+      if (everyoneDone) {
         await liarRepository.updateRoom({
           roomId: r.id,
           updates: {
@@ -205,6 +208,7 @@ export function useLiarGame({
           returning: false,
         });
       } else {
+        const nextIndex = (idx + 1) % players.length;
         await liarRepository.updateRoom({
           roomId: r.id,
           updates: {
@@ -230,7 +234,6 @@ export function useLiarGame({
     }
   }, []);
 
-  // 본인 차례면 PASS 가능 — 본인만
   const handlePassMySpeech = useCallback(async () => {
     const r = roomRef.current;
     if (!r) return { ok: false };
@@ -243,7 +246,7 @@ export function useLiarGame({
     return finishSpeech();
   }, [sessionId, finishSpeech]);
 
-  // 15초 타임아웃 — 누구든 먼저 감지하면 finishSpeech (guard로 race 흡수)
+  // 15초 타임아웃 — 누구든 먼저 감지 (guard race 흡수)
   useEffect(() => {
     if (!isSpeech || !speechStartedAt) return;
     if (secondsLeft > 0) return;
@@ -251,120 +254,41 @@ export function useLiarGame({
   }, [secondsLeft, isSpeech, speechStartedAt, finishSpeech]);
 
   // ─────────────────────────────────────────
-  // 투표
+  // 정답 공개 (voting → finished)
+  //
+  // 누구든 voting 화면에서 "정답 공개" 누르면 finished로.
+  // guard로 race 흡수 — 첫 클릭이 이김.
   // ─────────────────────────────────────────
-  const submitVote = useCallback(
-    async (targetSessionId) => {
-      const r = roomRef.current;
-      if (!r) return { ok: false };
-      if (r.status !== "voting") return { ok: false, error: "투표 시간이 아니에요" };
-      if (!targetSessionId) return { ok: false, error: "대상을 선택해주세요" };
-      if (targetSessionId === sessionId)
-        return { ok: false, error: "자기 자신은 투표할 수 없어요" };
+  const revealingRef = useRef(false);
+  const revealResult = useCallback(async () => {
+    const r = roomRef.current;
+    if (!r || revealingRef.current) return { ok: false };
+    if (r.status !== "voting") return { ok: false };
 
-      try {
-        const nextPlayers = (r.players || []).map((p) =>
-          p.session_id === sessionId ? { ...p, voted_for: targetSessionId } : p,
-        );
-        await liarRepository.updateRoom({
-          roomId: r.id,
-          updates: { players: nextPlayers },
-          guard: { status: "voting" },
-          returning: false,
-        });
-        return { ok: true };
-      } catch (err) {
-        console.error("[Liar] 투표 실패:", err);
-        return { ok: false, error: "투표에 실패했어요" };
-      }
-    },
-    [sessionId],
-  );
-
-  // 모두 투표 완료 → 방장이 결과 산출 후 finished
-  const computingResultRef = useRef(false);
-  useEffect(() => {
-    if (!isHost || !room) return;
-    if (room.status !== "voting") return;
-    const players = room.players || [];
-    if (players.length === 0) return;
-    if (!players.every((p) => p.voted_for)) return;
-    if (computingResultRef.current) return;
-
-    computingResultRef.current = true;
-    const result = computeVoteResult(players, room.liar_session_id);
-
-    liarRepository
-      .updateRoom({
-        roomId: room.id,
+    revealingRef.current = true;
+    try {
+      await liarRepository.updateRoom({
+        roomId: r.id,
         updates: {
           status: "finished",
           finished_at: new Date().toISOString(),
-          vote_result: result,
         },
         guard: { status: "voting" },
         returning: false,
-      })
-      .catch((err) => console.error("[Liar] 결과 산출 실패:", err))
-      .finally(() => {
-        setTimeout(() => {
-          computingResultRef.current = false;
-        }, 800);
       });
-  }, [room, isHost]);
-
-  // ─────────────────────────────────────────
-  // restartRoom (한 판 더 — 방장만)
-  // ─────────────────────────────────────────
-  const restartRoom = useCallback(async () => {
-    const r = roomRef.current;
-    if (!r) return { ok: false };
-    if (r.host_session_id !== sessionId)
-      return { ok: false, error: "방장만 시작할 수 있어요" };
-
-    try {
-      const resetPlayers = (r.players || []).map((p) => ({
-        session_id: p.session_id,
-        seat_label: p.seat_label,
-        role: null,
-        word_confirmed: false,
-        speech_done: false,
-        voted_for: null,
-        joined_at: p.joined_at,
-        last_seen_at: new Date().toISOString(),
-      }));
-
-      if (resetPlayers.length < 3) {
-        return { ok: false, error: "인원이 부족해요" };
-      }
-
-      const updated = await liarRepository.updateRoom({
-        roomId: r.id,
-        updates: {
-          status: "waiting",
-          players: resetPlayers,
-          category: null,
-          answer_word: null,
-          liar_session_id: null,
-          current_speech_index: 0,
-          speech_started_at: null,
-          vote_result: null,
-          started_at: null,
-          finished_at: null,
-        },
-        guard: { status: "finished" },
-      });
-      if (!updated)
-        return { ok: false, error: "방 상태가 바뀌었어요. 다시 시도해주세요." };
       return { ok: true };
     } catch (err) {
-      console.error("[Liar] 한 판 더 실패:", err);
-      return { ok: false, error: "재시작에 실패했어요" };
+      console.error("[Liar] 정답 공개 실패:", err);
+      return { ok: false, error: "정답 공개에 실패했어요" };
+    } finally {
+      setTimeout(() => {
+        revealingRef.current = false;
+      }, 400);
     }
-  }, [sessionId]);
+  }, []);
 
   // ─────────────────────────────────────────
-  // finished 30s 자동 leave
+  // finished 30s 자동 leave (라이프사이클 유지)
   // ─────────────────────────────────────────
   const finishedAt = isFinished ? room?.finished_at : null;
 
@@ -398,8 +322,7 @@ export function useLiarGame({
     confirmWord,
     finishSpeech,
     handlePassMySpeech,
-    submitVote,
-    restartRoom,
+    revealResult,
     dismissLeftMs,
   };
 }

@@ -7,12 +7,17 @@
 const ENV_SPEECH_SECONDS = Number(
   import.meta?.env?.VITE_LIAR_SPEECH_SECONDS,
 );
+const ENV_TOTAL_LAPS = Number(import.meta?.env?.VITE_LIAR_TOTAL_LAPS);
 
-// 1인당 설명 시간(초). 기본 15초.
+// 1인당 한 차례 설명 시간(초). 기본 15초.
 export const SPEECH_SECONDS =
   Number.isFinite(ENV_SPEECH_SECONDS) && ENV_SPEECH_SECONDS > 0
     ? ENV_SPEECH_SECONDS
     : 15;
+
+// 각자 설명할 횟수 (= 바퀴 수). 기본 3바퀴.
+export const TOTAL_LAPS =
+  Number.isFinite(ENV_TOTAL_LAPS) && ENV_TOTAL_LAPS > 0 ? ENV_TOTAL_LAPS : 3;
 
 export const MIN_PLAYERS = 3;
 export const MAX_PLAYERS = 8;
@@ -39,47 +44,21 @@ export function calcSpeechSecondsLeft(startedAt, now = Date.now()) {
 }
 
 /**
- * 투표 결과 계산.
+ * 현재 바퀴 계산 — 모든 player의 최소 speech_count + 1.
+ * 모든 사람이 같은 바퀴를 끝낸 후에야 다음 바퀴로 진입한다고 가정.
  *
- * @param {Array} players players 배열 (voted_for 포함)
- * @param {string} liarSessionId
- * @returns {{ accused_session_id: string|null, accused_seat_label: string|null,
- *             citizen_win: boolean, is_tie: boolean,
- *             vote_count: Object<string, number> }}
+ * 단, 한 바퀴 내에서 일부만 끝낸 경우(예: 4명 중 2명만 1번)에는 여전히 그 바퀴.
+ *
+ * @param {Array} players
+ * @param {number} totalLaps
+ * @returns {number} 1..totalLaps
  */
-export function computeVoteResult(players, liarSessionId) {
-  const voteCount = {};
-  for (const p of players || []) {
-    const target = p?.voted_for;
-    if (!target) continue;
-    voteCount[target] = (voteCount[target] || 0) + 1;
-  }
-
-  const sorted = Object.entries(voteCount).sort((a, b) => b[1] - a[1]);
-  if (sorted.length === 0) {
-    return {
-      accused_session_id: null,
-      accused_seat_label: null,
-      citizen_win: false,
-      is_tie: true,
-      vote_count: voteCount,
-    };
-  }
-
-  const top = sorted[0][1];
-  const topVoted = sorted.filter(([, n]) => n === top);
-  const isTie = topVoted.length > 1;
-  const accusedId = isTie ? null : topVoted[0][0];
-  const accusedSeat = accusedId
-    ? (players.find((p) => p.session_id === accusedId)?.seat_label || null)
-    : null;
-  const citizenWin = !isTie && accusedId === liarSessionId;
-
-  return {
-    accused_session_id: accusedId,
-    accused_seat_label: accusedSeat,
-    citizen_win: citizenWin,
-    is_tie: isTie,
-    vote_count: voteCount,
-  };
+export function getCurrentLap(players, totalLaps = TOTAL_LAPS) {
+  if (!Array.isArray(players) || players.length === 0) return 1;
+  const minCount = players.reduce(
+    (m, p) => Math.min(m, p?.speech_count || 0),
+    Infinity,
+  );
+  if (!Number.isFinite(minCount)) return 1;
+  return Math.min(totalLaps, minCount + 1);
 }

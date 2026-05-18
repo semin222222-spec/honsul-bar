@@ -96,8 +96,7 @@ export function useLiarRoom({ sessionId, seatLabel, storeId }) {
             seat_label: seatLabel,
             role: null,
             word_confirmed: false,
-            speech_done: false,
-            voted_for: null,
+            speech_count: 0,
             joined_at: nowIso,
             last_seen_at: nowIso,
           },
@@ -153,8 +152,7 @@ export function useLiarRoom({ sessionId, seatLabel, storeId }) {
             seat_label: seatLabel,
             role: null,
             word_confirmed: false,
-            speech_done: false,
-            voted_for: null,
+            speech_count: 0,
             joined_at: nowIso,
             last_seen_at: nowIso,
           },
@@ -232,8 +230,7 @@ export function useLiarRoom({ sessionId, seatLabel, storeId }) {
           ...p,
           role: p.session_id === liarSessionId ? "liar" : "citizen",
           word_confirmed: false,
-          speech_done: false,
-          voted_for: null,
+          speech_count: 0,
         }));
 
         const updated = await liarRepository.updateRoom({
