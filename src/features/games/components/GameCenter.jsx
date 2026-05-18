@@ -20,6 +20,7 @@ export default function GameCenter({
   outgoingInvite,
   onCancelOutgoing,
   onOpenFlirting,
+  onOpenCatchmind,
 }) {
   const [view, setView] = useState("menu");
   const { locale } = useLocale();
@@ -177,6 +178,128 @@ export default function GameCenter({
                         같은 단어 고르면 운명!
                       </span>{" "}
                       — 마음에 드는 손님께 신청!
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Motion.div>
+
+          {/* 🆕 캐치마인드 카드 (골드) */}
+          <Motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onOpenCatchmind}
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255,210,63,0.13), rgba(255,133,82,0.06))",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(255,210,63,0.28)",
+              borderRadius: 16,
+              padding: "clamp(18px, 5vw, 24px)",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <Motion.div
+              animate={{ scale: [1, 1.08, 1], opacity: [0.15, 0.25, 0.15] }}
+              transition={{ duration: 2.4, repeat: Infinity }}
+              style={{
+                position: "absolute",
+                top: -10,
+                right: -10,
+                fontSize: 60,
+                pointerEvents: "none",
+              }}
+            >
+              🎨
+            </Motion.div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                position: "relative",
+              }}
+            >
+              <Motion.div
+                animate={{ rotate: [0, 6, -6, 6, 0] }}
+                transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 2 }}
+                style={{
+                  fontSize: 44,
+                  lineHeight: 1,
+                  flexShrink: 0,
+                  filter: "drop-shadow(0 0 10px rgba(255,210,63,0.5))",
+                }}
+              >
+                🎨
+              </Motion.div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.2em",
+                    color: "#FFD23F",
+                    marginBottom: 3,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  CATCH MIND
+                  <span
+                    style={{
+                      padding: "1px 6px",
+                      background: "rgba(255,210,63,0.22)",
+                      borderRadius: 4,
+                      fontSize: 8,
+                      letterSpacing: "0.1em",
+                      fontWeight: 700,
+                      color: "#FFE08A",
+                    }}
+                  >
+                    NEW
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: "#F5E6C8",
+                    fontFamily: "'Noto Serif KR', serif",
+                    marginBottom: 4,
+                  }}
+                >
+                  {locale === "ja"
+                    ? "キャッチマインド · 描いて当てる"
+                    : "캐치마인드 · 그리고 맞히기"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(245,230,200,0.65)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {locale === "ja" ? (
+                    <>
+                      <span style={{ color: "rgba(255,210,63,0.85)" }}>
+                        2〜8人のドローイングクイズ。
+                      </span>
+                      <br />
+                      80秒以内に絵を見て単語を当てよう!
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: "rgba(255,210,63,0.85)" }}>
+                        2~8명 드로잉 퀴즈.
+                      </span>
+                      <br />
+                      80초 안에 그림을 보고 단어를 맞혀보세요!
                     </>
                   )}
                 </div>
