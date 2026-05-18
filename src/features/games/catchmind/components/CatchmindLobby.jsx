@@ -223,18 +223,25 @@ function RoomCard({ room, onJoin, disabled, mySeat }) {
   const players = room.players || [];
   const full = players.length >= MAX_PLAYERS;
   const inGame = room.status !== "waiting";
+  // 내 좌석이 이 방에 있으면 진행 중이어도 재참여 가능 (새로고침 복구)
+  const imIn = !!mySeat && players.some((p) => p.seat_label === mySeat);
+  const clickable = !disabled && (imIn || (!inGame && !full));
   return (
     <Motion.div
-      whileTap={!disabled && !inGame && !full ? { scale: 0.98 } : undefined}
-      onClick={() => !disabled && !inGame && !full && onJoin(room.id)}
+      whileTap={clickable ? { scale: 0.98 } : undefined}
+      onClick={() => clickable && onJoin(room.id)}
       style={{
-        background: COLORS.bgCard,
-        border: "1px solid rgba(245,230,200,0.08)",
+        background: imIn
+          ? "linear-gradient(135deg, rgba(255,107,157,0.12), rgba(255,107,157,0.04))"
+          : COLORS.bgCard,
+        border: imIn
+          ? "1px solid rgba(255,107,157,0.4)"
+          : "1px solid rgba(245,230,200,0.08)",
         borderRadius: 14,
         padding: "14px 16px",
         marginBottom: 10,
-        cursor: disabled || inGame || full ? "default" : "pointer",
-        opacity: inGame ? 0.45 : 1,
+        cursor: clickable ? "pointer" : "default",
+        opacity: inGame && !imIn ? 0.45 : 1,
         WebkitTapHighlightColor: "transparent",
       }}
     >
@@ -292,7 +299,20 @@ function RoomCard({ room, onJoin, disabled, mySeat }) {
           </span>
         ))}
       </div>
-      {!inGame && !full && (
+      {imIn && (
+        <div
+          style={{
+            marginTop: 10,
+            fontSize: 12,
+            color: COLORS.pink,
+            fontWeight: 700,
+            textAlign: "right",
+          }}
+        >
+          내 방 · 다시 들어가기 →
+        </div>
+      )}
+      {!imIn && !inGame && !full && (
         <div
           style={{
             marginTop: 10,
@@ -305,7 +325,7 @@ function RoomCard({ room, onJoin, disabled, mySeat }) {
           입장하기 →
         </div>
       )}
-      {full && !inGame && (
+      {!imIn && full && !inGame && (
         <div
           style={{
             marginTop: 10,
@@ -317,7 +337,7 @@ function RoomCard({ room, onJoin, disabled, mySeat }) {
           정원 마감
         </div>
       )}
-      {inGame && (
+      {!imIn && inGame && (
         <div
           style={{
             marginTop: 10,

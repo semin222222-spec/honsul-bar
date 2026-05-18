@@ -27,15 +27,14 @@ export function useCatchmindRoom({ sessionId, seatLabel, storeId }) {
     try {
       const data = await catchmindRepository.listRoomsByStore(storeId);
       setRooms(data);
-      // 내가 어딘가 들어가 있는지 동기화
-      const mine = data.find((r) =>
-        (r.players || []).some((p) => p.session_id === sessionId),
-      );
-      setMyRoom(mine || null);
+      // myRoom은 명시적인 createRoom/joinRoom/leaveRoom 액션과
+      // subscribeToRoom 이벤트로만 갱신한다. 자동 재참여 안 함.
+      // (이전엔 들어오자마자 내 session_id가 있는 방으로 자동 진입돼서
+      //  유령 방 때문에 "내 방이 자동 생성된 것처럼" 보이는 버그가 있었음)
     } catch (err) {
       console.error("[Catchmind] 방 목록 조회 실패:", err);
     }
-  }, [storeId, sessionId]);
+  }, [storeId]);
 
   // 매장 방 리스트 Realtime 구독
   useEffect(() => {
@@ -123,14 +122,16 @@ export function useCatchmindRoom({ sessionId, seatLabel, storeId }) {
         if (!room) return { ok: false, error: "방을 찾을 수 없어요" };
         if (room.store_id !== storeId)
           return { ok: false, error: "다른 매장의 방이에요" };
-        if (room.status !== "waiting")
-          return { ok: false, error: "이미 시작된 게임이에요" };
 
         const players = room.players || [];
+        // 이미 player에 있으면 status 무관하게 재참여 허용 (새로고침 복구)
         if (players.some((p) => p.session_id === sessionId)) {
           setMyRoom(room);
           return { ok: true, room };
         }
+        // 새로 들어가는 경우엔 waiting 상태만 허용
+        if (room.status !== "waiting")
+          return { ok: false, error: "이미 시작된 게임이에요" };
         if (players.length >= MAX_PLAYERS)
           return { ok: false, error: "정원이 가득 찼어요" };
 
@@ -167,26 +168,41 @@ export function useCatchmindRoom({ sessionId, seatLabel, storeId }) {
 
   // ─────────────────────────────────────────
   // 방 퇴장 (방장이면 위임, 아니면 그냥 빠짐)
+  //
+  // ⚠️ UX 원칙: "로비로 나가기" 버튼은 항상 즉시 로비로 가야 한다.
+  //   - sessionId가 일시적으로 없거나(세션 재발급 등) 본인이 players에 없는
+  //     상태로 결과 화면에 머물러 있는 경우에도 버튼이 동작해야 한다.
+  //   - 따라서 setMyRoom(null)을 먼저 동기적으로 실행한 다음, DB 정리는
+  //     best-effort로 진행한다 (사용자 체감엔 즉시 로비로 이동).
   // ─────────────────────────────────────────
   const leaveRoom = useCallback(async () => {
-    if (!myRoom || !sessionId) return;
+    if (!myRoom) return;
 
     const roomId = myRoom.id;
-    const players = (myRoom.players || []).filter(
+    const myPlayers = myRoom.players || [];
+    const wasInPlayers =
+      !!sessionId && myPlayers.some((p) => p.session_id === sessionId);
+
+    // 1) 로컬 즉시 정리 — 무조건 로비로 보낸다
+    setMyRoom(null);
+
+    // 2) 본인이 players에 없거나 sessionId가 없으면 DB는 건드릴 게 없음
+    if (!sessionId || !wasInPlayers) return;
+
+    // 3) DB best-effort cleanup
+    const remaining = myPlayers.filter(
       (p) => p.session_id !== sessionId,
     );
 
     try {
-      if (players.length === 0) {
-        // 모두 나가면 방 삭제
+      if (remaining.length === 0) {
         await catchmindRepository.deleteRoom(roomId);
       } else {
         const wasHost = myRoom.host_session_id === sessionId;
-        const updates = { players };
+        const updates = { players: remaining };
         if (wasHost) {
-          // 방장 위임
-          updates.host_session_id = players[0].session_id;
-          updates.host_seat_label = players[0].seat_label;
+          updates.host_session_id = remaining[0].session_id;
+          updates.host_seat_label = remaining[0].seat_label;
         }
         await catchmindRepository.updateRoom({
           roomId,
@@ -195,9 +211,7 @@ export function useCatchmindRoom({ sessionId, seatLabel, storeId }) {
         });
       }
     } catch (err) {
-      console.error("[Catchmind] 방 퇴장 실패:", err);
-    } finally {
-      setMyRoom(null);
+      console.error("[Catchmind] 방 퇴장 DB 정리 실패:", err);
     }
   }, [myRoom, sessionId]);
 

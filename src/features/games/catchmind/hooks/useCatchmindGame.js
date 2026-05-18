@@ -27,11 +27,20 @@ import { pickRandomWord } from "../data/catchmindWords";
 export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
   const [strokes, setStrokes] = useState([]); // 현재 라운드의 strokes
   const [messages, setMessages] = useState([]); // 채팅 + 정답
-  const [secondsLeft, setSecondsLeft] = useState(ROUND_SECONDS);
+  // tick은 단순히 re-render 트리거 (실제 secondsLeft는 roundStartedAt에서 derive)
+  const [, setTick] = useState(0);
 
   const roomId = room?.id;
   const currentRound = room?.current_round || 0;
   const isPlaying = room?.status === "playing";
+  const roundStartedAt = room?.current_round_started_at;
+
+  // ⚠️ secondsLeft는 state가 아닌 derived. 라운드 사이에 stale 값으로 인해
+  // 다음 라운드가 즉시 종료되는 버그를 피하려면 매 render마다 roundStartedAt
+  // 기준으로 다시 계산해야 한다.
+  const secondsLeft = isPlaying && roundStartedAt
+    ? Math.max(0, Math.ceil(calcSecondsLeft(roundStartedAt)))
+    : ROUND_SECONDS;
 
   // ─────────────────────────────────────────
   // Realtime 구독 + 초기 로드
@@ -49,8 +58,22 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
           catchmindRepository.listMessages({ roomId }),
           catchmindRepository.getRoom(roomId),
         ]);
-        setStrokes(strokeData);
-        setMessages(messageData);
+        // 머지: 구독 후 도착한 Realtime 메시지를 query 결과로 덮어쓰지 않게.
+        // 같은 id가 양쪽에 있을 수 있으니 id 기준 dedupe.
+        setStrokes((prev) => {
+          const ids = new Set(strokeData.map((s) => s.id));
+          const extra = prev.filter((s) => s.id != null && !ids.has(s.id));
+          return [...strokeData, ...extra].sort((a, b) =>
+            (a.id ?? 0) - (b.id ?? 0),
+          );
+        });
+        setMessages((prev) => {
+          const ids = new Set(messageData.map((m) => m.id));
+          const extra = prev.filter((m) => m.id != null && !ids.has(m.id));
+          return [...messageData, ...extra].sort((a, b) =>
+            (a.id ?? 0) - (b.id ?? 0),
+          );
+        });
         if (roomData && onRoomUpdate) onRoomUpdate(roomData);
       } catch (err) {
         console.error("[Catchmind] 초기 로드 실패:", err);
@@ -62,6 +85,17 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
       onRoomChange: (payload) => {
         if (payload.eventType === "DELETE") {
           // 방이 삭제되면 외부에서 myRoom = null 처리
+          if (onRoomUpdate) onRoomUpdate(null);
+          return;
+        }
+        // ⚠️ players에 내가 없으면 = 내가 나간 것으로 처리.
+        // 본인이 leaveRoom으로 UPDATE한 echo가 본 구독으로 돌아와서
+        // myRoom을 다시 채우는 race를 막는다. 다른 사람이 호스트 권한으로
+        // 내보내는 흐름이 추가되어도 동일하게 동작.
+        const stillIn = (payload.new?.players || []).some(
+          (p) => p.session_id === sessionId,
+        );
+        if (!stillIn) {
           if (onRoomUpdate) onRoomUpdate(null);
           return;
         }
@@ -121,19 +155,14 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
   }, [roomId, currentRound]);
 
   // ─────────────────────────────────────────
-  // 타이머 tick (UI 표시용 — 판정은 항상 서버 기준)
+  // 타이머 tick (re-render 트리거만 담당)
   //
-  // setState 콜은 setInterval 콜백 안에서만 일어난다 (effect body가 아님).
-  // 라운드/playing 상태가 바뀌면 interval이 새로 시작되며, 다음 tick(250ms 이내)
-  // 에 새 값으로 덮어쓴다. 초기 ROUND_SECONDS 표시는 한 tick 이내라 무해.
+  // secondsLeft는 render시점에 roundStartedAt에서 derive되므로,
+  // 여기서는 250ms마다 re-render만 발생시키면 된다.
   // ─────────────────────────────────────────
-  const roundStartedAt = room?.current_round_started_at;
   useEffect(() => {
     if (!isPlaying || !roundStartedAt) return;
-    const id = setInterval(() => {
-      const left = calcSecondsLeft(roundStartedAt);
-      setSecondsLeft(Math.ceil(left));
-    }, 250);
+    const id = setInterval(() => setTick((t) => t + 1), 250);
     return () => clearInterval(id);
   }, [isPlaying, roundStartedAt]);
 
@@ -218,11 +247,13 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
   );
 
   // 시간 종료 감지
+  // roundStartedAt을 deps에 포함해서, 라운드가 바뀐 직후 새 roundStartedAt
+  // 기준으로 secondsLeft가 재계산된 후에만 0 체크가 되도록 보장.
   useEffect(() => {
-    if (!isPlaying) return;
+    if (!isPlaying || !roundStartedAt) return;
     if (secondsLeft > 0) return;
     finalizeRound("timeup");
-  }, [secondsLeft, isPlaying, finalizeRound]);
+  }, [secondsLeft, isPlaying, roundStartedAt, finalizeRound]);
 
   // 모든 정답자(출제자 제외)가 맞혔으면 종료
   useEffect(() => {
@@ -457,11 +488,36 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
           type,
           score_gained: scoreGained,
         });
+
+        // 정답이면 즉시 all-correct 체크 (Realtime echo 기다리지 않음)
+        if (type === "correct") {
+          const players = room.players || [];
+          const drawerId = room.current_drawer_session_id;
+          const correctIds = new Set(
+            messages
+              .filter(
+                (m) =>
+                  m.type === "correct" &&
+                  m.round_number === room.current_round,
+              )
+              .map((m) => m.session_id),
+          );
+          correctIds.add(sessionId);
+          const guessers = players.filter(
+            (p) => p.session_id !== drawerId,
+          );
+          if (
+            guessers.length > 0 &&
+            guessers.every((g) => correctIds.has(g.session_id))
+          ) {
+            finalizeRound("all_correct");
+          }
+        }
       } catch (err) {
         console.error("[Catchmind] 메시지 전송 실패:", err);
       }
     },
-    [room, isPlaying, sessionId, seatLabel, messages],
+    [room, isPlaying, sessionId, seatLabel, messages, finalizeRound],
   );
 
   // 캔버스 전체 지우기 (출제자)
