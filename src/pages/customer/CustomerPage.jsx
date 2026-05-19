@@ -19,6 +19,7 @@ import IncomingFlirtingModal from "@/features/games/flirting/components/Incoming
 import CatchmindModal from "@/features/games/catchmind/components/CatchmindModal";
 import ShieldModal from "@/features/games/shield/components/ShieldModal";
 import LiarModal from "@/features/games/liar/components/LiarModal";
+import TelestrationsModal from "@/features/games/telestrations/components/TelestrationsModal";
 import { usePresence } from "@/features/presence/hooks/usePresence";
 import { useMatchmaking } from "@/features/games/whisky-nine/hooks/useMatchmaking";
 import { useSession } from "@/features/sessions/hooks/useSession";
@@ -504,6 +505,7 @@ export default function App() {
   const [showCatchmind, setShowCatchmind] = useState(false);
   const [showShield, setShowShield] = useState(false);
   const [showLiar, setShowLiar] = useState(false);
+  const [showTelestrations, setShowTelestrations] = useState(false);
 
   const mm = useMatchmaking({ myId, myNickname, myAvatar, mySeat });
 
@@ -575,6 +577,14 @@ export default function App() {
 
   const handleCloseLiar = useCallback(() => {
     setShowLiar(false);
+  }, []);
+
+  const handleOpenTelestrations = useCallback(() => {
+    setShowTelestrations(true);
+  }, []);
+
+  const handleCloseTelestrations = useCallback(() => {
+    setShowTelestrations(false);
   }, []);
 
   const handleFlirtingSelect = useCallback(
@@ -870,6 +880,7 @@ export default function App() {
                   onOpenCatchmind={handleOpenCatchmind}
                   onOpenShield={handleOpenShield}
                   onOpenLiar={handleOpenLiar}
+                  onOpenTelestrations={handleOpenTelestrations}
                 />
               )}
             </Motion.div>
@@ -1027,6 +1038,18 @@ export default function App() {
           <LiarModal
             open={showLiar}
             onClose={handleCloseLiar}
+            sessionId={session?.id}
+            seatLabel={mySeat}
+            storeId={storeId}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showTelestrations && (
+          <TelestrationsModal
+            open={showTelestrations}
+            onClose={handleCloseTelestrations}
             sessionId={session?.id}
             seatLabel={mySeat}
             storeId={storeId}

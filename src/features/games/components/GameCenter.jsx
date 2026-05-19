@@ -23,6 +23,7 @@ export default function GameCenter({
   onOpenCatchmind,
   onOpenShield,
   onOpenLiar,
+  onOpenTelestrations,
 }) {
   const [view, setView] = useState("menu");
   const { locale } = useLocale();
@@ -546,6 +547,126 @@ export default function GameCenter({
                       </span>
                       <br />
                       라이어를 못 찾으면 데킬라 🥃
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Motion.div>
+
+          {/* 🎨 텔레스트레이션 카드 */}
+          <Motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.13 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onOpenTelestrations}
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(176,132,255,0.14), rgba(122,232,181,0.06))",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(176,132,255,0.32)",
+              borderRadius: 16,
+              padding: "clamp(18px, 5vw, 24px)",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <Motion.div
+              animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.25, 0.15] }}
+              transition={{ duration: 2.4, repeat: Infinity }}
+              style={{
+                position: "absolute",
+                top: -10,
+                right: -10,
+                fontSize: 60,
+                pointerEvents: "none",
+              }}
+            >
+              🎨
+            </Motion.div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                position: "relative",
+              }}
+            >
+              <Motion.div
+                animate={{ rotate: [0, -10, 10, -10, 0] }}
+                transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 2.5 }}
+                style={{
+                  fontSize: 44,
+                  lineHeight: 1,
+                  flexShrink: 0,
+                  filter: "drop-shadow(0 0 10px rgba(176,132,255,0.55))",
+                }}
+              >
+                🎨
+              </Motion.div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.2em",
+                    color: "#B084FF",
+                    marginBottom: 3,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  TELESTRATIONS
+                  <span
+                    style={{
+                      padding: "1px 6px",
+                      background: "rgba(176,132,255,0.25)",
+                      borderRadius: 4,
+                      fontSize: 8,
+                      letterSpacing: "0.1em",
+                      fontWeight: 700,
+                      color: "#DCC7FF",
+                    }}
+                  >
+                    NEW
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: "#F5E6C8",
+                    fontFamily: "'Noto Serif KR', serif",
+                    marginBottom: 4,
+                  }}
+                >
+                  {locale === "ja" ? "絵で伝言" : "그림으로 전달해요"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(220,200,255,0.65)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {locale === "ja" ? (
+                    <>
+                      <span style={{ color: "rgba(176,132,255,0.85)" }}>
+                        4〜8人で順に絵と単語をリレー。
+                      </span>
+                      <br />
+                      最後はどう変わってる? 🖌️
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: "rgba(176,132,255,0.85)" }}>
+                        4~8명이 그림과 단어를 이어가요.
+                      </span>
+                      <br />
+                      처음 단어가 어떻게 변할까? 🖌️
                     </>
                   )}
                 </div>
