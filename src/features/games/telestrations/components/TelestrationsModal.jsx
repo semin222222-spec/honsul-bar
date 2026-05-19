@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 
@@ -31,16 +31,21 @@ export default function TelestrationsModal({
 
   const room = useTelestrationsRoom({ sessionId, seatLabel, storeId });
 
-  const onRoomUpdate = useCallback(
-    (next) => {
-      room.setRoomDirect(next);
-    },
-    [room],
-  );
+  // room 객체는 매 렌더마다 새 reference (내부 함수들이 myRoom 의존이라 안 stable).
+  // 따라서 ref 로 보관해서 onRoomUpdate / onLeaveAfterFinish 콜백을 안정화한다.
+  // (안정화 안 하면 useTelestrationsGame 의 subscribeToRoom 이 매 렌더마다 재구독 → 무한 루프)
+  const roomRef = useRef(room);
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
+
+  const onRoomUpdate = useCallback((next) => {
+    roomRef.current?.setRoomDirect(next);
+  }, []);
 
   const onLeaveAfterFinish = useCallback(async () => {
-    await room.leaveRoom();
-  }, [room]);
+    await roomRef.current?.leaveRoom();
+  }, []);
 
   const game = useTelestrationsGame({
     room: room.myRoom,
