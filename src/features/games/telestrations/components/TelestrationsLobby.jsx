@@ -48,7 +48,7 @@ export default function TelestrationsLobby({
             marginBottom: 4,
           }}
         >
-          그림 전화기
+          텔레스트레이션
         </div>
         <div
           style={{

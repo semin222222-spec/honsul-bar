@@ -643,7 +643,9 @@ export default function GameCenter({
                     marginBottom: 4,
                   }}
                 >
-                  {locale === "ja" ? "絵で伝言" : "그림으로 전달해요"}
+                  {locale === "ja"
+                    ? "テレストレーション(絵で伝言)"
+                    : "텔레스트레이션(그림으로 전달해요)"}
                 </div>
                 <div
                   style={{
