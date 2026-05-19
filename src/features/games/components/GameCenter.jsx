@@ -63,130 +63,6 @@ export default function GameCenter({
         />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {/* 🆕 플러팅 게임 카드 (맨 위 - 가장 눈에 띄게) */}
-          <Motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.08 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={onOpenFlirting}
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(255,107,157,0.12), rgba(196,122,255,0.06))",
-              backdropFilter: "blur(16px)",
-              border: "1px solid rgba(255,107,157,0.3)",
-              borderRadius: 16,
-              padding: "clamp(18px, 5vw, 24px)",
-              cursor: "pointer",
-              WebkitTapHighlightColor: "transparent",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            <Motion.div
-              animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.25, 0.15] }}
-              transition={{ duration: 2.5, repeat: Infinity }}
-              style={{
-                position: "absolute",
-                top: -10,
-                right: -10,
-                fontSize: 60,
-                pointerEvents: "none",
-              }}
-            >
-              💕
-            </Motion.div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                position: "relative",
-              }}
-            >
-              <Motion.div
-                animate={{ rotate: [0, -8, 8, -8, 0] }}
-                transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2 }}
-                style={{
-                  fontSize: 44,
-                  lineHeight: 1,
-                  flexShrink: 0,
-                  filter: "drop-shadow(0 0 10px rgba(255,107,157,0.5))",
-                }}
-              >
-                💕
-              </Motion.div>
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: "0.2em",
-                    color: "#FF6B9D",
-                    marginBottom: 3,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                  }}
-                >
-                  FLIRTING GAME
-                  <span
-                    style={{
-                      padding: "1px 6px",
-                      background: "rgba(255,107,157,0.25)",
-                      borderRadius: 4,
-                      fontSize: 8,
-                      letterSpacing: "0.1em",
-                      fontWeight: 700,
-                      color: "#FFB0CD",
-                    }}
-                  >
-                    HOT
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 500,
-                    color: "#F5E6C8",
-                    fontFamily: "'Noto Serif KR', serif",
-                    marginBottom: 4,
-                  }}
-                >
-                  {locale === "ja"
-                    ? "イ・グドンソン フラーティングゲーム"
-                    : "이구동성 플러팅 게임"}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "rgba(255,200,220,0.65)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {locale === "ja" ? (
-                    <>
-                      5ラウンドの心理ゲーム。
-                      <br />
-                      <span style={{ color: "rgba(255,107,157,0.85)" }}>
-                        同じ単語を選べば運命!
-                      </span>{" "}
-                      — 気になるお客様に申請!
-                    </>
-                  ) : (
-                    <>
-                      5라운드 이구동성 게임.
-                      <br />
-                      <span style={{ color: "rgba(255,107,157,0.85)" }}>
-                        같은 단어 고르면 운명!
-                      </span>{" "}
-                      — 마음에 드는 손님께 신청!
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Motion.div>
-
           {/* 🆕 캐치마인드 카드 (골드) */}
           <Motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -431,6 +307,130 @@ export default function GameCenter({
             </div>
           </Motion.div>
 
+          {/* 🆕 플러팅 게임 카드 */}
+          <Motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.08 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onOpenFlirting}
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255,107,157,0.12), rgba(196,122,255,0.06))",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(255,107,157,0.3)",
+              borderRadius: 16,
+              padding: "clamp(18px, 5vw, 24px)",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <Motion.div
+              animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.25, 0.15] }}
+              transition={{ duration: 2.5, repeat: Infinity }}
+              style={{
+                position: "absolute",
+                top: -10,
+                right: -10,
+                fontSize: 60,
+                pointerEvents: "none",
+              }}
+            >
+              💕
+            </Motion.div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                position: "relative",
+              }}
+            >
+              <Motion.div
+                animate={{ rotate: [0, -8, 8, -8, 0] }}
+                transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2 }}
+                style={{
+                  fontSize: 44,
+                  lineHeight: 1,
+                  flexShrink: 0,
+                  filter: "drop-shadow(0 0 10px rgba(255,107,157,0.5))",
+                }}
+              >
+                💕
+              </Motion.div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.2em",
+                    color: "#FF6B9D",
+                    marginBottom: 3,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  FLIRTING GAME
+                  <span
+                    style={{
+                      padding: "1px 6px",
+                      background: "rgba(255,107,157,0.25)",
+                      borderRadius: 4,
+                      fontSize: 8,
+                      letterSpacing: "0.1em",
+                      fontWeight: 700,
+                      color: "#FFB0CD",
+                    }}
+                  >
+                    HOT
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: "#F5E6C8",
+                    fontFamily: "'Noto Serif KR', serif",
+                    marginBottom: 4,
+                  }}
+                >
+                  {locale === "ja"
+                    ? "イ・グドンソン フラーティングゲーム"
+                    : "이구동성 플러팅 게임"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(255,200,220,0.65)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {locale === "ja" ? (
+                    <>
+                      5ラウンドの心理ゲーム。
+                      <br />
+                      <span style={{ color: "rgba(255,107,157,0.85)" }}>
+                        同じ単語を選べば運命!
+                      </span>{" "}
+                      — 気になるお客様に申請!
+                    </>
+                  ) : (
+                    <>
+                      5라운드 이구동성 게임.
+                      <br />
+                      <span style={{ color: "rgba(255,107,157,0.85)" }}>
+                        같은 단어 고르면 운명!
+                      </span>{" "}
+                      — 마음에 드는 손님께 신청!
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Motion.div>
+
           {/* 🆕 라이어 게임 카드 (보라) */}
           <Motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -546,6 +546,118 @@ export default function GameCenter({
                       </span>
                       <br />
                       라이어를 못 찾으면 데킬라 🥃
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Motion.div>
+
+          {/* 더 나인 카드 */}
+          <Motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.18 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setView("nine")}
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(212,165,55,0.08), rgba(180,120,30,0.05))",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(212,165,55,0.2)",
+              borderRadius: 16,
+              padding: "clamp(18px, 5vw, 24px)",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <Motion.div
+              animate={{ opacity: [0.3, 0.5, 0.3] }}
+              transition={{ duration: 3, repeat: Infinity }}
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "radial-gradient(circle at 80% 30%, rgba(212,165,55,0.12), transparent 50%)",
+                pointerEvents: "none",
+              }}
+            />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                position: "relative",
+              }}
+            >
+              <div style={{ fontSize: 44, lineHeight: 1, flexShrink: 0 }}>
+                ⚔️
+              </div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.2em",
+                    color: "#D4A537",
+                    marginBottom: 3,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  1 vs 1 BATTLE
+                  <span
+                    style={{
+                      padding: "1px 6px",
+                      background: "rgba(212,165,55,0.2)",
+                      borderRadius: 4,
+                      fontSize: 8,
+                      letterSpacing: "0.1em",
+                      fontWeight: 600,
+                    }}
+                  >
+                    NEW
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: "#F5E6C8",
+                    fontFamily: "'Noto Serif KR', serif",
+                    marginBottom: 4,
+                  }}
+                >
+                  {locale === "ja"
+                    ? "ザ・ナイン · 対戦申請"
+                    : "더 나인 · 대결 신청"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(255,255,255,0.5)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {locale === "ja" ? (
+                    <>
+                      9ラウンドの心理戦対決。
+                      <br />
+                      <span style={{ color: "rgba(212,165,55,0.7)" }}>
+                        1は9を倒す
+                      </span>{" "}
+                      — 他のお客様に申請してみてください
+                    </>
+                  ) : (
+                    <>
+                      9라운드 심리전 대결.
+                      <br />
+                      <span style={{ color: "rgba(212,165,55,0.7)" }}>
+                        1은 9를 잡는다
+                      </span>{" "}
+                      — 다른 손님에게 신청해보세요
                     </>
                   )}
                 </div>
@@ -733,118 +845,6 @@ export default function GameCenter({
                       혼자 즐기는 타이밍 게임.
                       <br />
                       잔을 높이 쌓아 명예의 전당에 도전!
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Motion.div>
-
-          {/* 더 나인 카드 */}
-          <Motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.18 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setView("nine")}
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(212,165,55,0.08), rgba(180,120,30,0.05))",
-              backdropFilter: "blur(16px)",
-              border: "1px solid rgba(212,165,55,0.2)",
-              borderRadius: 16,
-              padding: "clamp(18px, 5vw, 24px)",
-              cursor: "pointer",
-              WebkitTapHighlightColor: "transparent",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
-            <Motion.div
-              animate={{ opacity: [0.3, 0.5, 0.3] }}
-              transition={{ duration: 3, repeat: Infinity }}
-              style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "radial-gradient(circle at 80% 30%, rgba(212,165,55,0.12), transparent 50%)",
-                pointerEvents: "none",
-              }}
-            />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                position: "relative",
-              }}
-            >
-              <div style={{ fontSize: 44, lineHeight: 1, flexShrink: 0 }}>
-                ⚔️
-              </div>
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: "0.2em",
-                    color: "#D4A537",
-                    marginBottom: 3,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                  }}
-                >
-                  1 vs 1 BATTLE
-                  <span
-                    style={{
-                      padding: "1px 6px",
-                      background: "rgba(212,165,55,0.2)",
-                      borderRadius: 4,
-                      fontSize: 8,
-                      letterSpacing: "0.1em",
-                      fontWeight: 600,
-                    }}
-                  >
-                    NEW
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontSize: 16,
-                    fontWeight: 500,
-                    color: "#F5E6C8",
-                    fontFamily: "'Noto Serif KR', serif",
-                    marginBottom: 4,
-                  }}
-                >
-                  {locale === "ja"
-                    ? "ザ・ナイン · 対戦申請"
-                    : "더 나인 · 대결 신청"}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "rgba(255,255,255,0.5)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {locale === "ja" ? (
-                    <>
-                      9ラウンドの心理戦対決。
-                      <br />
-                      <span style={{ color: "rgba(212,165,55,0.7)" }}>
-                        1は9を倒す
-                      </span>{" "}
-                      — 他のお客様に申請してみてください
-                    </>
-                  ) : (
-                    <>
-                      9라운드 심리전 대결.
-                      <br />
-                      <span style={{ color: "rgba(212,165,55,0.7)" }}>
-                        1은 9를 잡는다
-                      </span>{" "}
-                      — 다른 손님에게 신청해보세요
                     </>
                   )}
                 </div>
