@@ -12,6 +12,7 @@ import {
   Minus,
 } from "lucide-react";
 import { enableSound, playOrderSuccess } from "@/shared/lib/sounds";
+import { features } from "@/shared/config/features";
 
 // ────── 메뉴 상세 + 옵션 선택 + 🆕 수량 선택 모달 ──────
 function DrinkDetail({
@@ -332,7 +333,8 @@ function DrinkDetail({
             </div>
           )}
 
-          {/* 🆕 수량 선택 */}
+          {/* 🆕 수량 선택 — 손님 직접 주문 모드일 때만 표시 */}
+          {features.customerOrderingEnabled && (
           <div style={{ marginBottom: 14 }}>
             <div
               style={{
@@ -431,8 +433,9 @@ function DrinkDetail({
               </div>
             )}
           </div>
+          )}
 
-          {/* 합계 */}
+          {/* 합계 (주문 모드 OFF 시에는 가격 표시로 사용) */}
           <div
             style={{
               padding: "14px 16px",
@@ -451,7 +454,7 @@ function DrinkDetail({
                 letterSpacing: "0.1em",
               }}
             >
-              합계{" "}
+              {features.customerOrderingEnabled ? "합계" : "가격"}{" "}
               {quantity > 1 && (
                 <span style={{ marginLeft: 4, color: "rgba(255,255,255,0.3)" }}>
                   ({unitPrice.toLocaleString()}원 × {quantity})
@@ -479,6 +482,9 @@ function DrinkDetail({
             </span>
           </div>
 
+          {/* 주문 버튼 + 안내문구 — 손님 직접 주문 모드일 때만 표시 */}
+          {features.customerOrderingEnabled && (
+          <>
           <Motion.button
             whileTap={!ordering ? { scale: 0.96 } : {}}
             onClick={handleSubmit}
@@ -525,6 +531,8 @@ function DrinkDetail({
           >
             주문 시 사장님께 바로 알림이 전달됩니다
           </div>
+          </>
+          )}
         </div>
       </Motion.div>
     </Motion.div>
