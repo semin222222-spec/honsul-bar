@@ -21,6 +21,7 @@ import ShieldModal from "@/features/games/shield/components/ShieldModal";
 import LiarModal from "@/features/games/liar/components/LiarModal";
 import TelestrationsModal from "@/features/games/telestrations/components/TelestrationsModal";
 import DripBattleModal from "@/features/games/dripbattle/components/DripBattleModal";
+import CallMyNameModal from "@/features/games/callmyname/components/CallMyNameModal";
 import { usePresence } from "@/features/presence/hooks/usePresence";
 import { useMatchmaking } from "@/features/games/whisky-nine/hooks/useMatchmaking";
 import { useSession } from "@/features/sessions/hooks/useSession";
@@ -508,6 +509,7 @@ export default function App() {
   const [showLiar, setShowLiar] = useState(false);
   const [showTelestrations, setShowTelestrations] = useState(false);
   const [showDripBattle, setShowDripBattle] = useState(false);
+  const [showCallMyName, setShowCallMyName] = useState(false);
 
   const mm = useMatchmaking({ myId, myNickname, myAvatar, mySeat });
 
@@ -595,6 +597,14 @@ export default function App() {
 
   const handleCloseDripBattle = useCallback(() => {
     setShowDripBattle(false);
+  }, []);
+
+  const handleOpenCallMyName = useCallback(() => {
+    setShowCallMyName(true);
+  }, []);
+
+  const handleCloseCallMyName = useCallback(() => {
+    setShowCallMyName(false);
   }, []);
 
   const handleFlirtingSelect = useCallback(
@@ -892,6 +902,7 @@ export default function App() {
                   onOpenLiar={handleOpenLiar}
                   onOpenTelestrations={handleOpenTelestrations}
                   onOpenDripBattle={handleOpenDripBattle}
+                  onOpenCallMyName={handleOpenCallMyName}
                 />
               )}
             </Motion.div>
@@ -1073,6 +1084,18 @@ export default function App() {
           <DripBattleModal
             open={showDripBattle}
             onClose={handleCloseDripBattle}
+            sessionId={session?.id}
+            seatLabel={mySeat}
+            storeId={storeId}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showCallMyName && (
+          <CallMyNameModal
+            open={showCallMyName}
+            onClose={handleCloseCallMyName}
             sessionId={session?.id}
             seatLabel={mySeat}
             storeId={storeId}

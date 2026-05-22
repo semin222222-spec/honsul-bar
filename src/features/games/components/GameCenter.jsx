@@ -25,6 +25,7 @@ export default function GameCenter({
   onOpenLiar,
   onOpenTelestrations,
   onOpenDripBattle,
+  onOpenCallMyName,
 }) {
   const [view, setView] = useState("menu");
   const { locale } = useLocale();
@@ -65,6 +66,128 @@ export default function GameCenter({
         />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* 🆕 콜 마이 네임 카드 (시안 — 단체 추리) */}
+          <Motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.085 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onOpenCallMyName}
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(91,229,224,0.16), rgba(30,127,155,0.06))",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(91,229,224,0.34)",
+              borderRadius: 16,
+              padding: "clamp(18px, 5vw, 24px)",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <Motion.div
+              animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.28, 0.15] }}
+              transition={{ duration: 2.2, repeat: Infinity }}
+              style={{
+                position: "absolute",
+                top: -10,
+                right: -10,
+                fontSize: 60,
+                pointerEvents: "none",
+              }}
+            >
+              🕵️
+            </Motion.div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                position: "relative",
+              }}
+            >
+              <Motion.div
+                animate={{ rotate: [0, -8, 8, -8, 0] }}
+                transition={{ duration: 1.3, repeat: Infinity, repeatDelay: 2 }}
+                style={{
+                  fontSize: 44,
+                  lineHeight: 1,
+                  flexShrink: 0,
+                  filter: "drop-shadow(0 0 10px rgba(91,229,224,0.55))",
+                }}
+              >
+                🕵️
+              </Motion.div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.2em",
+                    color: "#5BE5E0",
+                    marginBottom: 3,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  CALL MY NAME
+                  <span
+                    style={{
+                      padding: "1px 6px",
+                      background: "rgba(91,229,224,0.25)",
+                      borderRadius: 4,
+                      fontSize: 8,
+                      letterSpacing: "0.1em",
+                      fontWeight: 700,
+                      color: "#A6F0EC",
+                    }}
+                  >
+                    NEW
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: "#F5E6C8",
+                    fontFamily: "'Noto Serif KR', serif",
+                    marginBottom: 4,
+                  }}
+                >
+                  {locale === "ja"
+                    ? "コール・マイ・ネーム · 私は誰?"
+                    : "콜 마이 네임 · 나는 누구일까?"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(200,240,238,0.65)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {locale === "ja" ? (
+                    <>
+                      <span style={{ color: "rgba(91,229,224,0.85)" }}>
+                        2〜8人 · Yes/No 推理ゲーム。
+                      </span>
+                      <br />
+                      自分の正体を当てろ、外せば罰ゲーム 🥃
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: "rgba(91,229,224,0.85)" }}>
+                        2~8명 · Yes/No 추리 게임.
+                      </span>
+                      <br />
+                      내 정체를 맞혀라, 다 틀리면 벌칙 🥃
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Motion.div>
+
           {/* 🆕 드립 배틀 카드 (골드 — 단체 빈칸 채우기) */}
           <Motion.div
             initial={{ opacity: 0, y: 16 }}
