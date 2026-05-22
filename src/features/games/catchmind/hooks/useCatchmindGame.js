@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { catchmindRepository } from "@/repositories/games/catchmindRepository";
 import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
 import {
@@ -26,6 +26,25 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
   const [messages, setMessages] = useState([]); // 채팅 + 정답
   // tick은 단순히 re-render 트리거 (실제 secondsLeft는 roundStartedAt에서 derive)
   const [, setTick] = useState(0);
+
+  // ─── live draw (Broadcast) ───────────────────────────────
+  // 그리는 도중의 부분 선을 DB 없이 실시간으로 주고받기 위한 채널.
+  //  - sendLiveDrawRef: repository가 채널에 바인딩해준 송신 함수
+  //  - liveDrawListenersRef: 캔버스(보는 사람)가 등록한 수신 리스너 집합.
+  //    high-frequency 이벤트라 state/re-render 대신 ref 기반으로 즉시 전달한다.
+  const sendLiveDrawRef = useRef(null);
+  const liveDrawListenersRef = useRef(new Set());
+
+  // 캔버스(보는 사람)가 부분 선 수신을 구독. 반환값으로 해제.
+  const subscribeLiveDraw = useCallback((listener) => {
+    liveDrawListenersRef.current.add(listener);
+    return () => liveDrawListenersRef.current.delete(listener);
+  }, []);
+
+  // 캔버스(그리는 사람)가 부분 선을 송신.
+  const broadcastLiveDraw = useCallback((payload) => {
+    sendLiveDrawRef.current?.(payload);
+  }, []);
 
   const roomId = room?.id;
   const currentRound = room?.current_round || 0;
@@ -77,8 +96,17 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
       }
     };
 
-    const unsubscribe = catchmindRepository.subscribeToRoom({
+    const sub = catchmindRepository.subscribeToRoom({
       roomId,
+      onLiveDraw: (payload) => {
+        for (const fn of liveDrawListenersRef.current) {
+          try {
+            fn(payload);
+          } catch {
+            // 한 리스너 에러가 나머지 전달을 막지 않게
+          }
+        }
+      },
       onRoomChange: (payload) => {
         if (payload.eventType === "DELETE") {
           // 방이 삭제되면 외부에서 myRoom = null 처리
@@ -125,11 +153,14 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
       },
     });
 
+    sendLiveDrawRef.current = sub.sendLiveDraw;
+
     const initTimer = setTimeout(load, 0);
 
     return () => {
       clearTimeout(initTimer);
-      unsubscribe();
+      sub.unsubscribe();
+      sendLiveDrawRef.current = null;
     };
     // currentRound는 의존성에 넣지 않는다 — 라운드 바뀔 때마다 채널을 다시 만들면 잠깐 끊김
     // 라운드 변화는 onRoomChange에서 처리하고, strokes는 별도 effect에서 갈아끼움
@@ -560,8 +591,13 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
   }, [room, sessionId]);
 
   // 현재 라운드 strokes만 필터링해서 반환 (안전)
-  const currentRoundStrokes = strokes.filter(
-    (s) => s.round_number === currentRound,
+  // ⚠️ useMemo 필수: 게임 중 250ms 타이머 tick마다 이 훅이 re-render되는데,
+  //    매번 .filter()로 새 배열을 만들면 CatchmindCanvas의 React.memo가 깨지고
+  //    렌더 effect가 불필요하게 다시 돌아 그리는 도중 렉이 생긴다.
+  //    strokes(state)나 currentRound가 실제로 바뀔 때만 새 배열을 만든다.
+  const currentRoundStrokes = useMemo(
+    () => strokes.filter((s) => s.round_number === currentRound),
+    [strokes, currentRound],
   );
 
   return {
@@ -573,5 +609,7 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
     sendGuess,
     passDrawer,
     restartRoom,
+    broadcastLiveDraw,
+    subscribeLiveDraw,
   };
 }

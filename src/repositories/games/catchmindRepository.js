@@ -117,15 +117,29 @@ export function subscribeToStoreRooms({ storeId, onChange, onStatus }) {
   return () => supabase.removeChannel(channel);
 }
 
+// 그리는 도중의 부분 선(live stroke)은 DB를 거치지 않고 Broadcast로 흘려보낸다.
+//  - postgres_changes(=DB INSERT)는 지연이 커서 손 뗄 때마다 툭툭 끊겨 보인다.
+//  - Broadcast는 ephemeral pub/sub이라 저지연. 보는 사람이 선이 그려지는 과정을
+//    실시간으로 본다. 영구 기록(늦게 들어온 사람/재접속/clear 후 redraw)은
+//    pointerup 때 insertStroke로 따로 남긴다.
+//
+// 반환값: { unsubscribe, sendLiveDraw }
+//  - sendLiveDraw(payload): 그리는 사람이 부분 선을 broadcast (fire-and-forget)
+//  - onLiveDraw(payload): 보는 사람이 부분 선을 수신
 export function subscribeToRoom({
   roomId,
   onRoomChange,
   onStrokeInsert,
   onMessageInsert,
+  onLiveDraw,
   onStatus,
 }) {
   const channel = supabase
-    .channel(`catchmind-room-${roomId}`)
+    .channel(`catchmind-room-${roomId}`, {
+      // self:false → 본인이 보낸 broadcast는 본인에게 안 옴 (그리는 사람은
+      // 로컬에 이미 그리므로 echo 불필요)
+      config: { broadcast: { self: false } },
+    })
     .on(
       "postgres_changes",
       {
@@ -156,9 +170,22 @@ export function subscribeToRoom({
       },
       onMessageInsert,
     )
+    .on("broadcast", { event: "draw" }, (msg) => onLiveDraw?.(msg.payload))
     .subscribe(onStatus);
 
-  return () => supabase.removeChannel(channel);
+  const sendLiveDraw = (payload) => {
+    // 구독 전이거나 채널이 죽었으면 조용히 무시 (DB 기록이 있으니 손실돼도 안전)
+    try {
+      channel.send({ type: "broadcast", event: "draw", payload });
+    } catch {
+      // ignore
+    }
+  };
+
+  return {
+    unsubscribe: () => supabase.removeChannel(channel),
+    sendLiveDraw,
+  };
 }
 
 // ============================================================

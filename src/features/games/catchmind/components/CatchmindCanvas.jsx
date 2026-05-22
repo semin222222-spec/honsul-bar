@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback, memo } from "react";
 
 const COLORS = {
   ink: "#F5E6C8",
 };
+
+// 그리는 도중 부분 선을 broadcast하는 최소 간격(ms). 너무 잦으면 트래픽,
+// 너무 뜸하면 끊겨 보인다. ~20fps 정도.
+const LIVE_THROTTLE_MS = 50;
 
 /**
  * CatchmindCanvas
@@ -13,10 +17,12 @@ const COLORS = {
  *         그리는 동안에는 ctx에 직접 그리고, 완료된 strokes는 부모 갱신을 기다린다.
  * 정답자: strokes 배열을 받아 캔버스에 그려준다 (읽기 전용).
  */
-export default function CatchmindCanvas({
+function CatchmindCanvas({
   isDrawer,
   strokes,
   onStrokeComplete,
+  onLiveStroke,
+  subscribeLiveStroke,
   color = "#F5E6C8",
   width = 4,
   mode = "draw",
@@ -29,10 +35,26 @@ export default function CatchmindCanvas({
   const pointsRef = useRef([]);
   const lastPointRef = useRef(null);
 
+  // live draw(broadcast)용 상태 (그리는 사람)
+  const strokeIdRef = useRef(null);       // 현재 stroke 식별자
+  const liveSentIdxRef = useRef(0);       // 마지막으로 broadcast한 point 인덱스
+  const liveSentAtRef = useRef(0);        // 마지막 broadcast 시각 (throttle)
+
+  // 캔버스 위치/크기 캐시. pointermove마다 getBoundingClientRect()를 호출하면
+  // 강제 레이아웃 리플로우로 그리는 도중 렉이 생긴다. stroke 시작(pointerdown)과
+  // 리사이즈 때만 측정하고, 그 사이엔 이 값을 재사용한다.
+  const rectRef = useRef(null);
+
   // 이미 그린 stroke id 추적 (증분 렌더링용)
   const renderedIdsRef = useRef(new Set());
 
   const [canvasSize, setCanvasSize] = useState({ w: 320, h: 224 });
+  // 보는 사람의 live draw 리스너는 render 밖에서 ctx에 직접 그리므로,
+  // 좌표 스케일에 쓸 canvasSize를 ref로도 들고 있는다.
+  const canvasSizeRef = useRef(canvasSize);
+  useEffect(() => {
+    canvasSizeRef.current = canvasSize;
+  }, [canvasSize]);
 
   const VIRTUAL_W = 1000;
   const VIRTUAL_H = 700;
@@ -45,6 +67,8 @@ export default function CatchmindCanvas({
       const rect = el.getBoundingClientRect();
       const w = Math.max(1, Math.floor(rect.width));
       const h = Math.max(1, Math.floor((w * VIRTUAL_H) / VIRTUAL_W));
+      // 캔버스 좌표 변환용 rect 캐시도 함께 갱신 (회전/리사이즈 대응)
+      rectRef.current = canvasRef.current?.getBoundingClientRect() || null;
       setCanvasSize((prev) =>
         prev.w === w && prev.h === h ? prev : { w, h },
       );
@@ -137,21 +161,99 @@ export default function CatchmindCanvas({
   }, [strokes, canvasSize.w, canvasSize.h]);
 
   // ─────────────────────────────────────────
+  // 보는 사람: broadcast로 들어온 부분 선을 캔버스에 즉시 그린다.
+  //   - render(state) 밖에서 ctx에 직접 그려 high-frequency 이벤트에도 가볍다.
+  //   - 배치끼리 1점씩 겹쳐 오므로 moveTo→lineTo만으로 자연스럽게 이어진다.
+  //   - 나중에 같은 선이 DB stroke로 도착해 다시 그려져도 픽셀이 같아 무해.
+  // ─────────────────────────────────────────
+  const drawLiveBatch = useCallback((payload) => {
+    const canvas = canvasRef.current;
+    const size = canvasSizeRef.current;
+    if (!canvas || !size) return;
+    const pts = payload?.points;
+    if (!pts || pts.length === 0) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.globalCompositeOperation =
+      payload.type === "erase" ? "destination-out" : "source-over";
+    ctx.strokeStyle = payload.color || COLORS.ink;
+    ctx.lineWidth = payload.width || 4;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0] * size.w, pts[0][1] * size.h);
+    if (pts.length === 1) {
+      ctx.lineTo(pts[0][0] * size.w, pts[0][1] * size.h);
+    } else {
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i][0] * size.w, pts[i][1] * size.h);
+      }
+    }
+    ctx.stroke();
+    ctx.globalCompositeOperation = "source-over";
+  }, []);
+
+  useEffect(() => {
+    // 그리는 사람은 로컬에 직접 그리므로 수신 불필요 (self:false라 안 오기도 함)
+    if (isDrawer || !subscribeLiveStroke) return;
+    const unsub = subscribeLiveStroke(drawLiveBatch);
+    return unsub;
+  }, [isDrawer, subscribeLiveStroke, drawLiveBatch]);
+
+  // iOS Safari 대응: touch-action:none 만으로는 그리는 도중 페이지가
+  // 스크롤되는 버그가 남는다. React 합성 pointer 이벤트의 preventDefault는
+  // iOS 터치 스크롤을 못 막으므로, 출제자일 때 native(non-passive) touch
+  // 리스너를 직접 걸어 캔버스 위 터치의 기본 스크롤을 확실히 차단한다.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !isDrawer) return;
+    const prevent = (e) => e.preventDefault();
+    canvas.addEventListener("touchstart", prevent, { passive: false });
+    canvas.addEventListener("touchmove", prevent, { passive: false });
+    return () => {
+      canvas.removeEventListener("touchstart", prevent);
+      canvas.removeEventListener("touchmove", prevent);
+    };
+  }, [isDrawer]);
+
+  // ─────────────────────────────────────────
   // 출제자 포인터 이벤트
   // ─────────────────────────────────────────
   const pointFromEvent = (e) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
+    const rect = rectRef.current;
+    if (!rect || rect.width === 0 || rect.height === 0) return null;
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
     return [Math.max(0, Math.min(1, x)), Math.max(0, Math.min(1, y))];
+  };
+
+  // 아직 broadcast 안 한 point들을 모아 보낸다. 다음 배치가 이번 배치의
+  // 마지막 점부터 시작하도록 인덱스를 한 칸 덜 올려 선이 끊기지 않게 한다.
+  const flushLiveStroke = () => {
+    if (!onLiveStroke) return;
+    const pts = pointsRef.current;
+    const batch = pts.slice(liveSentIdxRef.current);
+    if (batch.length === 0) return;
+    onLiveStroke({
+      id: strokeIdRef.current,
+      type: mode === "erase" ? "erase" : "draw",
+      color,
+      width,
+      points: batch,
+    });
+    liveSentIdxRef.current = Math.max(0, pts.length - 1);
+    liveSentAtRef.current = performance.now();
   };
 
   const handlePointerDown = (e) => {
     if (!isDrawer) return;
     e.preventDefault();
     const canvas = canvasRef.current;
+    // stroke 시작 시점에 한 번만 위치 측정 → 이후 pointermove는 캐시 재사용
+    rectRef.current = canvas?.getBoundingClientRect() || null;
     try {
       canvas?.setPointerCapture?.(e.pointerId);
     } catch {
@@ -162,6 +264,12 @@ export default function CatchmindCanvas({
     drawingRef.current = true;
     pointsRef.current = [pt];
     lastPointRef.current = pt;
+    // 새 stroke의 live broadcast 상태 초기화
+    strokeIdRef.current =
+      globalThis.crypto?.randomUUID?.() ||
+      `s-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    liveSentIdxRef.current = 0;
+    liveSentAtRef.current = 0;
   };
 
   const handlePointerMove = (e) => {
@@ -194,15 +302,23 @@ export default function CatchmindCanvas({
       ctx.stroke();
       ctx.globalCompositeOperation = "source-over";
     }
+
+    // 보는 사람에게 실시간 전송 (throttle)
+    if (performance.now() - liveSentAtRef.current >= LIVE_THROTTLE_MS) {
+      flushLiveStroke();
+    }
   };
 
   const handlePointerUp = (e) => {
     if (!isDrawer) return;
     if (!drawingRef.current) return;
     drawingRef.current = false;
+    // 잔여 구간을 즉시 broadcast (DB 왕복을 기다리지 않고 마지막 선까지 보이게)
+    flushLiveStroke();
     const points = pointsRef.current;
     pointsRef.current = [];
     lastPointRef.current = null;
+    liveSentIdxRef.current = 0;
 
     try {
       canvasRef.current?.releasePointerCapture?.(e.pointerId);
@@ -248,3 +364,8 @@ export default function CatchmindCanvas({
     </div>
   );
 }
+
+// memo: 게임 중 타이머 tick(250ms)으로 부모가 초당 4번 re-render돼도,
+// props(strokes/color/width/mode 등)가 그대로면 캔버스는 다시 렌더하지 않는다.
+// strokes는 useCatchmindGame에서 useMemo로 참조를 안정화해 둬야 효과가 있다.
+export default memo(CatchmindCanvas);

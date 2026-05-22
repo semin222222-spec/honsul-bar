@@ -152,6 +152,8 @@ export default function CatchmindModal({
         onClearCanvas={game.clearCanvas}
         onSendGuess={game.sendGuess}
         onPass={game.passDrawer}
+        onLiveStroke={game.broadcastLiveDraw}
+        subscribeLiveStroke={game.subscribeLiveDraw}
       />
     );
   } else if (r.status === "transition") {

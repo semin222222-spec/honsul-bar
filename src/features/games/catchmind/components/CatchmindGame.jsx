@@ -52,6 +52,8 @@ export default function CatchmindGame({
   onClearCanvas,
   onSendGuess,
   onPass,
+  onLiveStroke,
+  subscribeLiveStroke,
 }) {
   const isDrawer = room?.current_drawer_session_id === sessionId;
   const word = room?.current_word || "";
@@ -154,6 +156,8 @@ export default function CatchmindGame({
           isDrawer={isDrawer}
           strokes={visibleStrokes}
           onStrokeComplete={handleStrokeComplete}
+          onLiveStroke={onLiveStroke}
+          subscribeLiveStroke={subscribeLiveStroke}
           color={color}
           width={width}
           mode={mode}
