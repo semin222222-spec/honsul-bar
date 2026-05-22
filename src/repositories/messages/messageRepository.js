@@ -64,6 +64,7 @@ export async function insertChatMessage({
   nickname,
   avatar,
   content,
+  authorType = "customer",
 }) {
   const { data, error } = await supabase
     .from("chat_messages")
@@ -74,6 +75,7 @@ export async function insertChatMessage({
       nickname,
       avatar,
       content,
+      author_type: authorType,
     })
     .select()
     .single();

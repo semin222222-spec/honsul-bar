@@ -6,21 +6,22 @@ import {
 } from "@/shared/realtime/realtimeHealth";
 import { hasStoreScope } from "@/shared/lib/storeScope";
 import { countUnread, latestCreatedAt } from "@/features/messages/lib/loungeUnread";
+import { AUTHOR_OWNER, OWNER_IDENTITY } from "@/features/messages/lib/loungeMessage";
 
 /**
  * useLoungeAdmin
  *
- * 어드민에서 익명 라운지(chat_messages) 글을 읽기 전용으로 보여주는 훅.
+ * 어드민에서 익명 라운지(chat_messages)를 보고 사장님 글을 쓰는 훅.
  * - 손님 앱과 동일한 repository(listRecentChatMessages / subscribeToChatMessages) 재사용
  * - 12시간 이내 글만 조회, Realtime으로 새 글 즉시 반영
  * - 읽음 컬럼이 없으므로 "마지막 본 시각(lastSeenAt)" 기준으로 미확인 카운트
  *   (lastSeenAt은 매장별로 localStorage에 저장 → 새로고침해도 유지)
- *
- * 쓰기/삭제는 하지 않는다(이번 작업 범위 밖).
+ * - 사장님 글 작성: author_type='owner'로 INSERT (RLS가 위변조 차단)
  */
 
 const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
 const FETCH_LIMIT = 200;
+const OWNER_MAX_LEN = 200;
 
 function seenStorageKey(storeId) {
   return `honsul_lounge_seen_${storeId}`;
@@ -47,6 +48,7 @@ export function useLoungeAdmin(storeId) {
   const hasActiveScope = hasStoreScope(storeId);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(hasActiveScope);
+  const [sending, setSending] = useState(false);
   const [lastSeenAt, setLastSeenAt] = useState(() =>
     hasActiveScope ? readSeen(storeId) : null,
   );
@@ -162,12 +164,54 @@ export function useLoungeAdmin(storeId) {
     writeSeen(storeId, baseline);
   }, [storeId]);
 
+  // 사장님 글 작성 (author_type='owner'). RLS가 인증된 매장 사장님만 허용.
+  const sendOwnerMessage = useCallback(
+    async (content) => {
+      if (!hasStoreScope(storeId)) {
+        return { ok: false, error: "매장 정보가 없어요" };
+      }
+      const trimmed = (content || "").trim();
+      if (!trimmed) return { ok: false, error: "내용을 입력해주세요" };
+      if (trimmed.length > OWNER_MAX_LEN) {
+        return { ok: false, error: `${OWNER_MAX_LEN}자 이내로 입력해주세요` };
+      }
+      if (sending) return { ok: false, error: "전송 중이에요" };
+
+      setSending(true);
+      try {
+        const data = await messageRepository.insertChatMessage({
+          storeId,
+          sessionId: null,
+          seatLabel: null,
+          nickname: OWNER_IDENTITY.nickname,
+          avatar: OWNER_IDENTITY.avatar,
+          content: trimmed,
+          authorType: AUTHOR_OWNER,
+        });
+
+        // 낙관적 업데이트 (Realtime INSERT가 오기 전에 미리 표시)
+        setMessages((prev) =>
+          prev.some((m) => m.id === data.id) ? prev : [...prev, data],
+        );
+        return { ok: true, message: data };
+      } catch (err) {
+        console.error("[Lounge Admin] owner post error:", err);
+        return { ok: false, error: "전송에 실패했어요" };
+      } finally {
+        setSending(false);
+      }
+    },
+    [storeId, sending],
+  );
+
   const unreadCount = hasActiveScope ? countUnread(messages, lastSeenAt) : 0;
 
   return {
     messages: hasActiveScope ? messages : [],
     loading: hasActiveScope ? loading : false,
     unreadCount,
+    sending,
+    sendOwnerMessage,
     markAllRead,
     refetch: fetchMessages,
   };

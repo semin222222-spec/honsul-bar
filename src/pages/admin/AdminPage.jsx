@@ -355,6 +355,21 @@ function OrderCard({ order, onServed, onCancel }) {
                   사장님
                 </span>
               )}
+              {order.origin === "pos" && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    padding: "1px 6px",
+                    marginLeft: 6,
+                    background: "rgba(45,212,191,0.15)",
+                    color: "#2DD4BF",
+                    borderRadius: 4,
+                    fontWeight: 600,
+                  }}
+                >
+                  🏪 POS
+                </span>
+              )}
             </div>
             <div
               style={{
@@ -714,6 +729,8 @@ export default function AdminPage() {
     messages: loungeMessages,
     loading: loungeLoading,
     unreadCount: loungeUnreadCount,
+    sending: loungeSending,
+    sendOwnerMessage: sendLoungeMessage,
     markAllRead: markLoungeRead,
   } = useLoungeAdmin(storeId);
 
@@ -2056,6 +2073,8 @@ export default function AdminPage() {
               <LoungeAdminPanel
                 messages={loungeMessages}
                 loading={loungeLoading}
+                sending={loungeSending}
+                onSendOwnerMessage={sendLoungeMessage}
               />
             </Motion.div>
           )}

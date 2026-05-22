@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Send, Loader2 } from "lucide-react";
+import { isOwnerMessage } from "@/features/messages/lib/loungeMessage";
 
 /**
  * ChatRoom - 익명 라운지 채팅 UI
@@ -354,8 +355,10 @@ export default function ChatRoom({
   );
 }
 
-// 메시지 버블 - 자리 표시 제거
+// 메시지 버블 - 자리 표시 제거 / 사장님(owner) 글은 강조
 function MessageBubble({ message, isMine, onNicknameClick }) {
+  const isOwner = isOwnerMessage(message);
+
   const formatTime = (iso) => {
     const d = new Date(iso);
     return d.toLocaleTimeString("ko-KR", {
@@ -365,8 +368,10 @@ function MessageBubble({ message, isMine, onNicknameClick }) {
     });
   };
 
+  // 사장님 글에는 게임 신청(닉네임 클릭)을 걸지 않는다.
+  const clickable = !isMine && !isOwner;
   const handleClick = () => {
-    if (isMine) return;
+    if (!clickable) return;
     if (onNicknameClick) onNicknameClick(message);
   };
 
@@ -383,27 +388,29 @@ function MessageBubble({ message, isMine, onNicknameClick }) {
       }}
     >
       <Motion.div
-        whileHover={!isMine ? { scale: 1.1 } : {}}
-        whileTap={!isMine ? { scale: 0.95 } : {}}
+        whileHover={clickable ? { scale: 1.1 } : {}}
+        whileTap={clickable ? { scale: 0.95 } : {}}
         onClick={handleClick}
         style={{
           width: 28, height: 28,
           borderRadius: "50%",
-          background: isMine
-            ? "rgba(212,165,55,0.12)"
-            : "rgba(255,255,255,0.06)",
-          border: "1.5px solid " + (isMine ? "rgba(212,165,55,0.6)" : "rgba(212,165,55,0.3)"),
+          background: isOwner
+            ? "rgba(212,165,55,0.22)"
+            : isMine
+              ? "rgba(212,165,55,0.12)"
+              : "rgba(255,255,255,0.06)",
+          border: "1.5px solid " + (isOwner || isMine ? "rgba(212,165,55,0.6)" : "rgba(212,165,55,0.3)"),
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: 13,
           flexShrink: 0,
-          cursor: isMine ? "default" : "pointer",
+          cursor: clickable ? "pointer" : "default",
           WebkitTapHighlightColor: "transparent",
           transition: "all 0.2s",
         }}
       >
-        {message.avatar || "🥃"}
+        {isOwner ? (message.avatar || "👑") : (message.avatar || "🥃")}
       </Motion.div>
 
       <div style={{
@@ -422,6 +429,13 @@ function MessageBubble({ message, isMine, onNicknameClick }) {
           {isMine ? (
             <>
               <span style={{ color: "#D4A537", fontWeight: 600 }}>나</span>
+              <span style={{ color: "rgba(255,255,255,0.3)" }}>{formatTime(message.created_at)}</span>
+            </>
+          ) : isOwner ? (
+            <>
+              <span style={{ color: "#D4A537", fontWeight: 700 }}>
+                ✨ {message.nickname || "사장님"}
+              </span>
               <span style={{ color: "rgba(255,255,255,0.3)" }}>{formatTime(message.created_at)}</span>
             </>
           ) : (
@@ -445,15 +459,21 @@ function MessageBubble({ message, isMine, onNicknameClick }) {
 
         <div style={{
           padding: "9px 12px",
-          background: isMine
-            ? "linear-gradient(135deg, rgba(212,165,55,0.2), rgba(180,120,30,0.1))"
-            : "rgba(255,255,255,0.06)",
-          border: isMine ? "1px solid rgba(212,165,55,0.3)" : "none",
+          background: isOwner
+            ? "linear-gradient(135deg, rgba(212,165,55,0.28), rgba(180,120,30,0.16))"
+            : isMine
+              ? "linear-gradient(135deg, rgba(212,165,55,0.2), rgba(180,120,30,0.1))"
+              : "rgba(255,255,255,0.06)",
+          border: isOwner
+            ? "1px solid rgba(212,165,55,0.45)"
+            : isMine
+              ? "1px solid rgba(212,165,55,0.3)"
+              : "none",
           borderRadius: 14,
           borderBottomRightRadius: isMine ? 4 : 14,
           borderBottomLeftRadius: isMine ? 14 : 4,
           fontSize: 13,
-          color: "#F5E6C8",
+          color: isOwner ? "#FFF4D8" : "#F5E6C8",
           lineHeight: 1.4,
           wordBreak: "break-word",
           whiteSpace: "pre-wrap",
