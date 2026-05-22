@@ -30,6 +30,7 @@ import { useMenuOptions } from "@/features/menus/hooks/useMenuOptions";
 import { useSeatRows } from "@/features/seats/hooks/useSeatRows";
 import { useSeatRowsAdmin } from "@/features/seats/hooks/useSeatRowsAdmin";
 import { useSalesStats } from "@/features/sales/hooks/useSalesStats";
+import { useLoungeAdmin } from "@/features/messages/hooks/useLoungeAdmin";
 import { useStoreId, useStore } from "@/shared/store/StoreContext";
 import SeatMap from "@/features/seats/components/SeatMap";
 import CustomerInsights from "@/features/sos/components/CustomerInsights";
@@ -38,6 +39,7 @@ import SeatRowsAdminPanel from "@/features/seats/components/SeatRowsAdminPanel";
 import SalesStatsPanel from "@/features/sales/components/SalesStatsPanel";
 import MonthlyHistoryPanel from "@/features/sales/components/MonthlyHistoryPanel";
 import InventoryAdminPanel from "@/features/inventory/components/InventoryAdminPanel";
+import LoungeAdminPanel from "@/features/messages/components/LoungeAdminPanel";
 import {
   enableSound,
   disableSound,
@@ -708,6 +710,13 @@ export default function AdminPage() {
   const { stats: salesStats, loading: salesStatsLoading } =
     useSalesStats(storeId);
 
+  const {
+    messages: loungeMessages,
+    loading: loungeLoading,
+    unreadCount: loungeUnreadCount,
+    markAllRead: markLoungeRead,
+  } = useLoungeAdmin(storeId);
+
   const prevSOSCountRef = useRef(0);
   const prevOrdersCountRef = useRef(0);
   const [flashHeader, setFlashHeader] = useState(false);
@@ -769,6 +778,11 @@ export default function AdminPage() {
       clearTimeout(hideTimer);
     };
   }, [orders.length]);
+
+  // 라운지 탭을 보고 있는 동안에는 새 글을 바로 "확인함"으로 처리
+  useEffect(() => {
+    if (activeTab === "lounge") markLoungeRead();
+  }, [activeTab, loungeMessages, markLoungeRead]);
 
   return (
     <div
@@ -1288,6 +1302,48 @@ export default function AdminPage() {
             }}
           >
             ⚙️ 관리
+          </button>
+          <button
+            onClick={() => setActiveTab("lounge")}
+            style={{
+              flex: 1,
+              padding: "10px 6px",
+              borderRadius: 9,
+              border: "none",
+              background:
+                activeTab === "lounge"
+                  ? "rgba(196,122,255,0.14)"
+                  : "transparent",
+              color:
+                activeTab === "lounge" ? "#C47AFF" : "rgba(255,255,255,0.5)",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
+            }}
+          >
+            <MessageCircle size={13} /> 라운지
+            {loungeUnreadCount > 0 && (
+              <Motion.span
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                style={{
+                  padding: "1px 5px",
+                  borderRadius: 5,
+                  background: "#C47AFF",
+                  color: "#0D0B08",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  display: "inline-block",
+                }}
+              >
+                {loungeUnreadCount}
+              </Motion.span>
+            )}
           </button>
         </div>
 
@@ -1986,6 +2042,21 @@ export default function AdminPage() {
                   />
                 </div>
               )}
+            </Motion.div>
+          )}
+
+          {activeTab === "lounge" && (
+            <Motion.div
+              key="lounge"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.25 }}
+            >
+              <LoungeAdminPanel
+                messages={loungeMessages}
+                loading={loungeLoading}
+              />
             </Motion.div>
           )}
         </AnimatePresence>
