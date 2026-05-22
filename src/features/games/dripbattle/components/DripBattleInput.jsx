@@ -138,19 +138,18 @@ export default function DripBattleInput({
         >
           {before}
           <span
+            aria-label="빈칸"
             style={{
               display: "inline-block",
-              background: "rgba(255,182,39,0.15)",
+              minWidth: 110,
+              height: "1.15em",
+              verticalAlign: "bottom",
+              margin: "0 6px",
+              background: "rgba(255,182,39,0.12)",
               borderBottom: `3px solid ${C.gold}`,
-              padding: "0 14px",
-              margin: "0 4px",
-              color: C.gold,
-              fontWeight: 900,
-              letterSpacing: "0.2em",
+              borderRadius: "3px 3px 0 0",
             }}
-          >
-            ____
-          </span>
+          />
           {after}
         </div>
       </div>
@@ -169,13 +168,13 @@ export default function DripBattleInput({
               justifyContent: "space-between",
             }}
           >
-            <span>✏️ 가장 웃긴 답변을 적어줘</span>
+            <span>✏️ 빈칸을 가장 웃기게 채워줘 (글자 수 자유)</span>
             <span style={{ color: C.gold }}>익명 제출</span>
           </div>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value.slice(0, ANSWER_MAX_LEN))}
-            placeholder="여기에 입력..."
+            placeholder="자유롭게 길고 웃기게! (최대 50자)"
             maxLength={ANSWER_MAX_LEN}
             style={{
               width: "100%",

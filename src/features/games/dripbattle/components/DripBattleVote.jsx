@@ -121,7 +121,17 @@ export default function DripBattleVote({
           }}
         >
           “{before}
-          <span style={{ color: C.gold, fontWeight: 700 }}>____</span>
+          <span
+            aria-label="빈칸"
+            style={{
+              display: "inline-block",
+              minWidth: 56,
+              height: "1em",
+              verticalAlign: "bottom",
+              margin: "0 4px",
+              borderBottom: `2px solid ${C.gold}`,
+            }}
+          />
           {after}”
         </div>
         <div
