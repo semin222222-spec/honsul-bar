@@ -24,6 +24,7 @@ export default function GameCenter({
   onOpenShield,
   onOpenLiar,
   onOpenTelestrations,
+  onOpenDripBattle,
 }) {
   const [view, setView] = useState("menu");
   const { locale } = useLocale();
@@ -64,6 +65,128 @@ export default function GameCenter({
         />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* 🆕 드립 배틀 카드 (골드 — 단체 빈칸 채우기) */}
+          <Motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.09 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onOpenDripBattle}
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255,182,39,0.16), rgba(255,107,53,0.06))",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(255,182,39,0.34)",
+              borderRadius: 16,
+              padding: "clamp(18px, 5vw, 24px)",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <Motion.div
+              animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.28, 0.15] }}
+              transition={{ duration: 2.3, repeat: Infinity }}
+              style={{
+                position: "absolute",
+                top: -10,
+                right: -10,
+                fontSize: 60,
+                pointerEvents: "none",
+              }}
+            >
+              🎤
+            </Motion.div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                position: "relative",
+              }}
+            >
+              <Motion.div
+                animate={{ rotate: [0, -8, 8, -8, 0] }}
+                transition={{ duration: 1.3, repeat: Infinity, repeatDelay: 2 }}
+                style={{
+                  fontSize: 44,
+                  lineHeight: 1,
+                  flexShrink: 0,
+                  filter: "drop-shadow(0 0 10px rgba(255,182,39,0.55))",
+                }}
+              >
+                🎤
+              </Motion.div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.2em",
+                    color: "#FFB627",
+                    marginBottom: 3,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  DRIP BATTLE
+                  <span
+                    style={{
+                      padding: "1px 6px",
+                      background: "rgba(255,182,39,0.25)",
+                      borderRadius: 4,
+                      fontSize: 8,
+                      letterSpacing: "0.1em",
+                      fontWeight: 700,
+                      color: "#FFD065",
+                    }}
+                  >
+                    NEW
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: "#F5E6C8",
+                    fontFamily: "'Noto Serif KR', serif",
+                    marginBottom: 4,
+                  }}
+                >
+                  {locale === "ja"
+                    ? "ドリップバトル · 穴埋め大喜利"
+                    : "드립 배틀 · 빈칸 채우기"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(255,225,170,0.65)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {locale === "ja" ? (
+                    <>
+                      <span style={{ color: "rgba(255,182,39,0.85)" }}>
+                        3〜8人 · 約10分。
+                      </span>
+                      <br />
+                      一番ウケる答えで優勝、ノージャムは罰ゲーム 🥃
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: "rgba(255,182,39,0.85)" }}>
+                        3~8명 · 약 10분.
+                      </span>
+                      <br />
+                      가장 웃긴 답이 우승, 노잼은 벌칙 🥃
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Motion.div>
+
           {/* 🆕 캐치마인드 카드 (골드) */}
           <Motion.div
             initial={{ opacity: 0, y: 16 }}

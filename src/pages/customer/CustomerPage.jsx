@@ -20,6 +20,7 @@ import CatchmindModal from "@/features/games/catchmind/components/CatchmindModal
 import ShieldModal from "@/features/games/shield/components/ShieldModal";
 import LiarModal from "@/features/games/liar/components/LiarModal";
 import TelestrationsModal from "@/features/games/telestrations/components/TelestrationsModal";
+import DripBattleModal from "@/features/games/dripbattle/components/DripBattleModal";
 import { usePresence } from "@/features/presence/hooks/usePresence";
 import { useMatchmaking } from "@/features/games/whisky-nine/hooks/useMatchmaking";
 import { useSession } from "@/features/sessions/hooks/useSession";
@@ -506,6 +507,7 @@ export default function App() {
   const [showShield, setShowShield] = useState(false);
   const [showLiar, setShowLiar] = useState(false);
   const [showTelestrations, setShowTelestrations] = useState(false);
+  const [showDripBattle, setShowDripBattle] = useState(false);
 
   const mm = useMatchmaking({ myId, myNickname, myAvatar, mySeat });
 
@@ -585,6 +587,14 @@ export default function App() {
 
   const handleCloseTelestrations = useCallback(() => {
     setShowTelestrations(false);
+  }, []);
+
+  const handleOpenDripBattle = useCallback(() => {
+    setShowDripBattle(true);
+  }, []);
+
+  const handleCloseDripBattle = useCallback(() => {
+    setShowDripBattle(false);
   }, []);
 
   const handleFlirtingSelect = useCallback(
@@ -881,6 +891,7 @@ export default function App() {
                   onOpenShield={handleOpenShield}
                   onOpenLiar={handleOpenLiar}
                   onOpenTelestrations={handleOpenTelestrations}
+                  onOpenDripBattle={handleOpenDripBattle}
                 />
               )}
             </Motion.div>
@@ -1050,6 +1061,18 @@ export default function App() {
           <TelestrationsModal
             open={showTelestrations}
             onClose={handleCloseTelestrations}
+            sessionId={session?.id}
+            seatLabel={mySeat}
+            storeId={storeId}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showDripBattle && (
+          <DripBattleModal
+            open={showDripBattle}
+            onClose={handleCloseDripBattle}
             sessionId={session?.id}
             seatLabel={mySeat}
             storeId={storeId}
