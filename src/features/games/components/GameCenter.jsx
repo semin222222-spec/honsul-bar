@@ -26,6 +26,7 @@ export default function GameCenter({
   onOpenTelestrations,
   onOpenDripBattle,
   onOpenCallMyName,
+  onOpenExposed,
 }) {
   const [view, setView] = useState("menu");
   const { locale } = useLocale();
@@ -66,6 +67,128 @@ export default function GameCenter({
         />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* 🆕 익명 폭로전 카드 (핑크 — 단체 익명 + 다수결) */}
+          <Motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.08 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onOpenExposed}
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255,42,122,0.16), rgba(157,78,255,0.06))",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(255,42,122,0.34)",
+              borderRadius: 16,
+              padding: "clamp(18px, 5vw, 24px)",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            <Motion.div
+              animate={{ scale: [1, 1.1, 1], opacity: [0.15, 0.28, 0.15] }}
+              transition={{ duration: 2.1, repeat: Infinity }}
+              style={{
+                position: "absolute",
+                top: -10,
+                right: -10,
+                fontSize: 60,
+                pointerEvents: "none",
+              }}
+            >
+              🎭
+            </Motion.div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                position: "relative",
+              }}
+            >
+              <Motion.div
+                animate={{ rotate: [0, -8, 8, -8, 0] }}
+                transition={{ duration: 1.3, repeat: Infinity, repeatDelay: 2 }}
+                style={{
+                  fontSize: 44,
+                  lineHeight: 1,
+                  flexShrink: 0,
+                  filter: "drop-shadow(0 0 10px rgba(255,42,122,0.55))",
+                }}
+              >
+                🎭
+              </Motion.div>
+              <div style={{ flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: "0.2em",
+                    color: "#FF5B9A",
+                    marginBottom: 3,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  EXPOSED
+                  <span
+                    style={{
+                      padding: "1px 6px",
+                      background: "rgba(255,42,122,0.25)",
+                      borderRadius: 4,
+                      fontSize: 8,
+                      letterSpacing: "0.1em",
+                      fontWeight: 700,
+                      color: "#FFADCB",
+                    }}
+                  >
+                    NEW
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: "#F5E6C8",
+                    fontFamily: "'Noto Serif KR', serif",
+                    marginBottom: 4,
+                  }}
+                >
+                  {locale === "ja"
+                    ? "匿名暴露戦 · 多数決の罠"
+                    : "익명 폭로전 · 다수결의 함정"}
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(255,200,220,0.65)",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {locale === "ja" ? (
+                    <>
+                      <span style={{ color: "rgba(255,91,154,0.85)" }}>
+                        2〜8人 · 🎭 匿名 + 多数決。
+                      </span>
+                      <br />
+                      🌶️ 中辛まで · 嘘がバレたら罰ゲーム 🥃
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ color: "rgba(255,91,154,0.85)" }}>
+                        2~8명 · 🎭 익명 + 다수결.
+                      </span>
+                      <br />
+                      🌶️ 매운맛까지 · 거짓말 들키면 벌칙 🥃
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Motion.div>
+
           {/* 🆕 콜 마이 네임 카드 (시안 — 단체 추리) */}
           <Motion.div
             initial={{ opacity: 0, y: 16 }}
