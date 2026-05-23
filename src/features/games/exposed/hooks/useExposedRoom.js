@@ -5,12 +5,11 @@ import { hasStoreScope } from "@/shared/lib/storeScope";
 import {
   MAX_PLAYERS,
   MIN_PLAYERS,
-  START_LIVES,
-  SPICE_LEVELS,
   HEARTBEAT_MS,
   ZOMBIE_THRESHOLD_MS,
   ZOMBIE_CHECK_MS,
 } from "../lib/exposedRules";
+import { pickRandomQuestion } from "../data/exposedQuestions";
 
 /**
  * useExposedRoom
@@ -90,20 +89,15 @@ export function useExposedRoom({ sessionId, seatLabel, storeId }) {
         host_session_id: sessionId,
         host_seat_label: seatLabel,
         status: "waiting",
-        spice_level: "medium",
         players: [
           {
             session_id: sessionId,
             seat_label: seatLabel,
             joined_at: nowIso,
             last_seen_at: nowIso,
-            lives_remaining: START_LIVES,
-            status: "playing",
           },
         ],
-        question_pool: [],
         used_questions: [],
-        submitted_sessions: [],
         voted_sessions: [],
         current_round: 0,
       });
@@ -155,8 +149,6 @@ export function useExposedRoom({ sessionId, seatLabel, storeId }) {
             seat_label: seatLabel,
             joined_at: nowIso,
             last_seen_at: nowIso,
-            lives_remaining: START_LIVES,
-            status: "playing",
           },
         ];
 
@@ -203,34 +195,7 @@ export function useExposedRoom({ sessionId, seatLabel, storeId }) {
   }, [myRoom, sessionId]);
 
   // ─────────────────────────────────────────
-  // 매운맛 설정 (방장 only, 대기실에서만)
-  // ─────────────────────────────────────────
-  const setSpice = useCallback(
-    async (spice) => {
-      if (!myRoom) return { ok: false };
-      if (myRoom.host_session_id !== sessionId)
-        return { ok: false, error: "방장만 바꿀 수 있어요" };
-      if (!SPICE_LEVELS.includes(spice)) return { ok: false };
-      if (myRoom.spice_level === spice) return { ok: true };
-
-      try {
-        const updated = await exposedRepository.updateRoom({
-          roomId: myRoom.id,
-          updates: { spice_level: spice },
-          guard: { status: "waiting" },
-        });
-        if (updated) setMyRoom(updated);
-        return { ok: true };
-      } catch (err) {
-        console.error("[Exposed] 매운맛 설정 실패:", err);
-        return { ok: false, error: "설정에 실패했어요" };
-      }
-    },
-    [myRoom, sessionId],
-  );
-
-  // ─────────────────────────────────────────
-  // 게임 시작 (방장 only) — phase_input 진입(질문 풀 구성)
+  // 게임 시작 (방장 only) — 첫 질문 뽑아 바로 phase_vote 진입
   // ─────────────────────────────────────────
   const startGame = useCallback(async () => {
     if (!myRoom) return { ok: false, error: "방이 없어요" };
@@ -242,19 +207,19 @@ export function useExposedRoom({ sessionId, seatLabel, storeId }) {
       return { ok: false, error: `최소 ${MIN_PLAYERS}명 이상 필요해요` };
 
     try {
+      const question = pickRandomQuestion([]);
+      const nowIso = new Date().toISOString();
       const updated = await exposedRepository.updateRoom({
         roomId: myRoom.id,
         updates: {
-          status: "phase_input",
-          current_round: 0,
-          current_question: null,
-          question_pool: [],
-          used_questions: [],
-          submitted_sessions: [],
+          status: "phase_vote",
+          current_round: 1,
+          current_question: question,
+          used_questions: [question],
           voted_sessions: [],
           last_round_result: null,
-          phase_started_at: new Date().toISOString(),
-          started_at: new Date().toISOString(),
+          phase_started_at: nowIso,
+          started_at: nowIso,
           finished_at: null,
         },
         guard: { status: "waiting" },
@@ -357,7 +322,6 @@ export function useExposedRoom({ sessionId, seatLabel, storeId }) {
     createRoom,
     joinRoom,
     leaveRoom,
-    setSpice,
     startGame,
     setRoomDirect,
   };

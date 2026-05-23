@@ -306,6 +306,14 @@ export default function CallMyNameResult({
           {players.map((p, i) => {
             const col = playerColor(i);
             const solved = p.status === "solved";
+            const penalty = p.status === "penalty";
+            // 시간 종료로 못 맞힌 경우(status still 'playing') → 시간초과
+            const outLabel = solved
+              ? "✓ 정답"
+              : penalty
+                ? "💀 벌칙"
+                : "⏱️ 시간초과";
+            const outColor = solved ? C.cyan : penalty ? C.danger : C.gold;
             return (
               <div
                 key={p.session_id}
@@ -349,11 +357,11 @@ export default function CallMyNameResult({
                   style={{
                     fontSize: 11,
                     fontWeight: 800,
-                    color: solved ? C.cyan : C.danger,
+                    color: outColor,
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {solved ? "✓ 정답" : "💀 벌칙"}
+                  {outLabel}
                 </span>
               </div>
             );

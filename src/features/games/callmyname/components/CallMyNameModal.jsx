@@ -131,9 +131,9 @@ export default function CallMyNameModal({
     content = (
       <CallMyNamePlay
         room={r}
-        sessionId={sessionId}
         me={me}
         others={game.others}
+        elapsedMs={game.elapsedMs}
         onSubmitGuess={game.submitGuess}
         onLeave={handleLeaveToLobby}
       />

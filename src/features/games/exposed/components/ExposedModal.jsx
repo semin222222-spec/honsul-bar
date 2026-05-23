@@ -6,14 +6,13 @@ import { useExposedGame } from "../hooks/useExposedGame";
 import { C, FONTS } from "./exposedTheme";
 import ExposedLobby from "./ExposedLobby";
 import ExposedWaitingRoom from "./ExposedWaitingRoom";
-import ExposedQuestionInput from "./ExposedQuestionInput";
 import ExposedVote from "./ExposedVote";
 import ExposedResult from "./ExposedResult";
 
 /**
- * ExposedModal — 익명 폭로전 전체 단계를 감싸는 풀스크린 모달
+ * ExposedModal — 익명 폭로전(지목 방식) 전체 단계를 감싸는 풀스크린 모달
  *
- * room.status: waiting → phase_input → phase_vote → phase_result → (다음 질문 ...) → finished
+ * room.status: waiting → phase_vote(질문+지목) → phase_result(벌칙자) → (다음 질문 ...) → finished
  * room이 없으면 lobby.
  */
 export default function ExposedModal({
@@ -106,29 +105,15 @@ export default function ExposedModal({
         sessionId={sessionId}
         onLeave={handleLeaveToLobby}
         onStart={handleStart}
-        onSetSpice={room.setSpice}
-      />
-    );
-  } else if (r.status === "phase_input") {
-    content = (
-      <ExposedQuestionInput
-        room={r}
-        sessionId={sessionId}
-        secondsLeft={game.secondsLeft}
-        me={game.me}
-        iSubmitted={game.iSubmitted}
-        submittedCount={game.submittedCount}
-        onSubmit={game.submitQuestion}
-        onLeave={handleLeaveToLobby}
       />
     );
   } else if (r.status === "phase_vote") {
     content = (
       <ExposedVote
         room={r}
+        sessionId={sessionId}
         secondsLeft={game.secondsLeft}
-        me={game.me}
-        myVote={game.myVote}
+        myVoteTarget={game.myVoteTarget}
         iVoted={game.iVoted}
         votedCount={game.votedCount}
         onVote={game.castVote}
@@ -140,8 +125,6 @@ export default function ExposedModal({
       <ExposedResult
         room={r}
         isHost={room.isHost}
-        me={game.me}
-        myVote={game.myVote}
         onNextQuestion={game.nextQuestion}
         onEndGame={game.endGame}
         onRestart={game.restartGame}

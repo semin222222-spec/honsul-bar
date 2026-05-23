@@ -2,21 +2,109 @@ import { useState } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { LogOut } from "lucide-react";
 import { C, FONTS, playerColor } from "./callMyNameTheme";
-import { INITIAL_LIVES } from "../lib/callMyNameRules";
+import {
+  INITIAL_LIVES,
+  HINT_STAGES,
+  GAME_DURATION_MS,
+  getHintStage,
+  formatClock,
+  toChoseong,
+  answerLength,
+} from "../lib/callMyNameRules";
 import CallMyNameAnswerModal from "./CallMyNameAnswerModal";
 import CallMyNameResult from "./CallMyNameResult";
 
 /**
- * CallMyNamePlay — 게임 메인 (시안 화면 2)
+ * 시간별 힌트 잠금 카드. 임계 시각이 되면 네온과 함께 스르륵 열린다.
+ * (오직 본인 화면에서만 보이는 힌트 — 다른 사람은 처음부터 내 정답이 다 보임)
+ */
+function HintCard({ icon, label, unlocked, unlockAt, value }) {
+  return (
+    <Motion.div
+      layout
+      animate={{
+        borderColor: unlocked ? C.cyan : "rgba(255,255,255,0.10)",
+        boxShadow: unlocked
+          ? `0 0 18px ${C.cyanGlow}, inset 0 0 14px rgba(91,229,224,0.08)`
+          : "0 0 0 rgba(0,0,0,0)",
+      }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "11px 13px",
+        borderRadius: 12,
+        border: "1px solid rgba(255,255,255,0.10)",
+        background: unlocked ? "rgba(91,229,224,0.08)" : C.bgCard,
+        opacity: unlocked ? 1 : 0.55,
+      }}
+    >
+      <span style={{ fontSize: 16, flexShrink: 0 }}>{unlocked ? "🔓" : icon}</span>
+      <span
+        style={{
+          fontSize: 11,
+          letterSpacing: "0.1em",
+          color: unlocked ? C.cyan : C.sub,
+          textTransform: "uppercase",
+          flexShrink: 0,
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ flex: 1, textAlign: "right", minWidth: 0 }}>
+        <AnimatePresence mode="wait">
+          {unlocked ? (
+            <Motion.span
+              key="val"
+              initial={{ opacity: 0, y: 6, filter: "blur(4px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.45 }}
+              style={{
+                display: "inline-block",
+                fontSize: 18,
+                fontWeight: 800,
+                color: C.ink,
+                letterSpacing: "0.04em",
+                textShadow: `0 0 12px ${C.cyanGlow}`,
+                wordBreak: "keep-all",
+              }}
+            >
+              {value}
+            </Motion.span>
+          ) : (
+            <Motion.span
+              key="lock"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                fontSize: 11,
+                color: C.muted,
+                fontFamily: FONTS.mono,
+              }}
+            >
+              🔒 {formatClock(unlockAt)} 공개
+            </Motion.span>
+          )}
+        </AnimatePresence>
+      </div>
+    </Motion.div>
+  );
+}
+
+/**
+ * CallMyNamePlay — 게임 메인 (타임어택 + 시간별 힌트 자동 공개)
  *
- * 자유 플레이: 내 정체는 "?"로 블라인드, 다른 사람 정체는 크게 노출, 하단 FAB로 정답 시도.
+ * 본인 화면: 내 정답은 끝까지 "?"로 가려지지만, 경과 시간에 따라
+ *   3분 카테고리 → 5분 글자 수 → 10분 초성 힌트가 잠금 해제된다.
  * me.status(solved/penalty)와 일시 오답(fail)은 CallMyNameResult로 전환해 보여준다.
  */
 export default function CallMyNamePlay({
   room,
-  sessionId,
   me,
   others = [],
+  elapsedMs = 0,
   onSubmitGuess,
   onLeave,
 }) {
@@ -81,6 +169,20 @@ export default function CallMyNamePlay({
     );
   }
 
+  // ── 힌트 단계 계산 ──
+  const stage = getHintStage(elapsedMs);
+  const answer = me?.identity_keyword || "";
+  const hintValues = {
+    category: me?.identity_category || "?",
+    length: `${answerLength(answer)}글자`,
+    choseong: me?.identity_hint || toChoseong(answer) || "?",
+  };
+
+  // 다음 힌트까지 남은 시간 / 종료까지
+  const nextStage = HINT_STAGES.find((s) => elapsedMs < s.at);
+  const remainingToEnd = Math.max(0, GAME_DURATION_MS - elapsedMs);
+  const urgent = remainingToEnd <= 60_000;
+
   // ── 게임 보드 ──
   return (
     <div
@@ -92,34 +194,28 @@ export default function CallMyNamePlay({
         padding: "max(18px, env(safe-area-inset-top)) 18px 110px",
       }}
     >
-      {/* 상단: 자유 추리 + 라이프 */}
+      {/* 상단: 타임어택 배지 + 라이프 */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          paddingBottom: 12,
-          borderBottom: `1px solid ${C.border}`,
+          paddingBottom: 10,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span
-            style={{
-              background: `linear-gradient(135deg, ${C.cyanSoft}, ${C.cyanDeep})`,
-              color: "#002a26",
-              padding: "3px 8px",
-              borderRadius: 6,
-              fontSize: 10,
-              fontWeight: 900,
-              letterSpacing: "0.06em",
-            }}
-          >
-            자유 추리
-          </span>
-          <span style={{ fontSize: 11, color: C.sub }}>
-            Yes/No 질문으로 알아내요
-          </span>
-        </div>
+        <span
+          style={{
+            background: `linear-gradient(135deg, ${C.cyanSoft}, ${C.cyanDeep})`,
+            color: "#002a26",
+            padding: "3px 8px",
+            borderRadius: 6,
+            fontSize: 10,
+            fontWeight: 900,
+            letterSpacing: "0.06em",
+          }}
+        >
+          ⏱️ 타임어택
+        </span>
         <div style={{ display: "flex", gap: 3 }}>
           {Array.from({ length: INITIAL_LIVES }).map((_, i) => (
             <span
@@ -136,24 +232,49 @@ export default function CallMyNamePlay({
         </div>
       </div>
 
+      {/* 큰 진행 시간 시계 */}
+      <div style={{ textAlign: "center", margin: "4px 0 14px" }}>
+        <Motion.div
+          animate={urgent ? { scale: [1, 1.04, 1] } : { scale: 1 }}
+          transition={{ duration: 0.6, repeat: urgent ? Infinity : 0 }}
+          style={{
+            fontFamily: FONTS.mono,
+            fontSize: 52,
+            fontWeight: 700,
+            lineHeight: 1,
+            letterSpacing: "0.04em",
+            color: urgent ? C.danger : C.cyan,
+            textShadow: `0 0 24px ${urgent ? C.dangerGlow : C.cyanGlow}`,
+          }}
+        >
+          {formatClock(elapsedMs)}
+        </Motion.div>
+        <div style={{ fontSize: 11, color: C.sub, marginTop: 6 }}>
+          {nextStage
+            ? `${nextStage.label} 힌트까지 ${formatClock(nextStage.at - elapsedMs)}`
+            : urgent
+              ? "⚠️ 곧 시간 종료!"
+              : `종료까지 ${formatClock(remainingToEnd)}`}
+        </div>
+      </div>
+
       {/* 내 정체 카드 (블라인드) */}
       <div
         style={{
-          margin: "14px 0 16px",
           position: "relative",
           overflow: "hidden",
           textAlign: "center",
           borderRadius: 20,
-          padding: "18px 16px",
+          padding: "16px 16px 14px",
           border: "2px solid rgba(91,229,224,0.4)",
           background:
             "radial-gradient(circle at 50% 30%, rgba(91,229,224,0.2), transparent 60%)," +
             "linear-gradient(135deg, #0a1a1f 0%, #0d1322 100%)",
           boxShadow:
             "0 0 30px rgba(91,229,224,0.2), inset 0 0 30px rgba(91,229,224,0.05)",
+          marginBottom: 12,
         }}
       >
-        {/* 사선 격자 */}
         <div
           style={{
             position: "absolute",
@@ -170,7 +291,7 @@ export default function CallMyNamePlay({
             color: C.cyan,
             letterSpacing: "0.2em",
             textTransform: "uppercase",
-            marginBottom: 8,
+            marginBottom: 4,
           }}
         >
           🕵️ 내 정체
@@ -187,23 +308,49 @@ export default function CallMyNamePlay({
           style={{
             position: "relative",
             fontFamily: FONTS.display,
-            fontSize: 90,
+            fontSize: 72,
             color: C.cyan,
             lineHeight: 1,
           }}
         >
           ?
         </Motion.div>
-        <div
-          style={{
-            position: "relative",
-            marginTop: 6,
-            fontSize: 11,
-            color: C.muted,
-          }}
-        >
-          질문해서 알아내세요!
-        </div>
+      </div>
+
+      {/* 시간별 힌트 (본인 전용) */}
+      <div
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.12em",
+          color: C.sub,
+          textTransform: "uppercase",
+          marginBottom: 8,
+        }}
+      >
+        🔓 시간이 지나면 힌트가 열려요
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
+        <HintCard
+          icon="📁"
+          label="카테고리"
+          unlocked={stage.category}
+          unlockAt={HINT_STAGES[0].at}
+          value={hintValues.category}
+        />
+        <HintCard
+          icon="🔢"
+          label="글자 수"
+          unlocked={stage.length}
+          unlockAt={HINT_STAGES[1].at}
+          value={hintValues.length}
+        />
+        <HintCard
+          icon="🔤"
+          label="초성"
+          unlocked={stage.choseong}
+          unlockAt={HINT_STAGES[2].at}
+          value={hintValues.choseong}
+        />
       </div>
 
       {/* 다른 참가자 정체 */}
@@ -265,7 +412,6 @@ export default function CallMyNamePlay({
                 opacity: isSolved ? 0.75 : 1,
               }}
             >
-              {/* 좌측 컬러 바 */}
               <div
                 style={{
                   position: "absolute",

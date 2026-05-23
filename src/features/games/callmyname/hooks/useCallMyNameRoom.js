@@ -209,8 +209,9 @@ export function useCallMyNameRoom({ sessionId, seatLabel, storeId }) {
       const nowIso = new Date().toISOString();
       const assigned = players.map((p, i) => ({
         ...p,
-        identity_keyword: identities[i]?.keyword ?? null,
+        identity_keyword: identities[i]?.answer ?? null,
         identity_category: identities[i]?.category ?? null,
+        identity_hint: identities[i]?.hint ?? null,
         lives_remaining: INITIAL_LIVES,
         status: "playing",
         solved_at: null,

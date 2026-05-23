@@ -80,21 +80,19 @@ export async function deleteRoom(roomId) {
 // RPC
 // ============================================================
 
-export async function submitQuestionRpc({ roomId, sessionId, text }) {
-  const { error } = await supabase.rpc("exposed_submit_question", {
-    p_room_id: roomId,
-    p_session_id: sessionId,
-    p_text: text,
-  });
-  throwIfError(error);
-}
-
-export async function castVoteRpc({ roomId, sessionId, round, vote }) {
+export async function castVoteRpc({
+  roomId,
+  sessionId,
+  round,
+  targetSessionId,
+  targetSeatLabel,
+}) {
   const { error } = await supabase.rpc("exposed_cast_vote", {
     p_room_id: roomId,
     p_session_id: sessionId,
     p_round: round,
-    p_vote: vote,
+    p_target_session_id: targetSessionId,
+    p_target_seat_label: targetSeatLabel,
   });
   throwIfError(error);
 }
@@ -218,7 +216,6 @@ export const exposedRepository = {
   createRoom,
   updateRoom,
   deleteRoom,
-  submitQuestionRpc,
   castVoteRpc,
   tallyRoundRpc,
   restartGameRpc,

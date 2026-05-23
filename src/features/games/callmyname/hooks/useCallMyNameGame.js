@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { callMyNameRepository } from "@/repositories/games/callMyNameRepository";
 import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
-import { RESULT_AUTO_DISMISS_MS, validateGuess } from "../lib/callMyNameRules";
+import {
+  RESULT_AUTO_DISMISS_MS,
+  validateGuess,
+  calcElapsedMs,
+  isTimeUp,
+} from "../lib/callMyNameRules";
 
 /**
  * useCallMyNameGame
@@ -22,7 +27,11 @@ export function useCallMyNameGame({
 
   const roomId = room?.id;
   const status = room?.status;
+  const isPlaying = status === "playing";
   const isFinished = status === "finished";
+
+  // 서버 시작 시각 기준 경과 ms (tick으로 재계산되어 시계/힌트가 흐른다)
+  const elapsedMs = isPlaying ? calcElapsedMs(room?.started_at) : 0;
 
   const roomRef = useRef(room);
   useEffect(() => {
@@ -121,6 +130,41 @@ export function useCallMyNameGame({
   );
 
   // ─────────────────────────────────────────
+  // 타임어택 tick (playing 동안 시계/힌트가 흐르도록 재렌더)
+  // ─────────────────────────────────────────
+  useEffect(() => {
+    if (!isPlaying) return;
+    const id = setInterval(() => setTick((t) => t + 1), 500);
+    return () => clearInterval(id);
+  }, [isPlaying]);
+
+  // ─────────────────────────────────────────
+  // 12분 경과 → 시간 종료. status='playing' 가드 update로 1회만 finished 전환.
+  //  players 는 건드리지 않아(컬럼 미포함) 막판 정답 시도(attempt RPC)와 충돌하지 않는다.
+  // ─────────────────────────────────────────
+  const timeoutFiredRef = useRef(false);
+  useEffect(() => {
+    if (!isPlaying || !roomId) {
+      timeoutFiredRef.current = false;
+      return;
+    }
+    if (!isTimeUp(elapsedMs)) return;
+    if (timeoutFiredRef.current) return;
+    timeoutFiredRef.current = true;
+    callMyNameRepository
+      .updateRoom({
+        roomId,
+        updates: {
+          status: "finished",
+          finished_at: new Date().toISOString(),
+        },
+        guard: { status: "playing" },
+        returning: false,
+      })
+      .catch((err) => console.error("[CallMyName] 타임아웃 종료 실패:", err));
+  }, [isPlaying, roomId, elapsedMs]);
+
+  // ─────────────────────────────────────────
   // finished 30s 자동 leave
   // ─────────────────────────────────────────
   const finishedAt = isFinished ? room?.finished_at : null;
@@ -152,6 +196,7 @@ export function useCallMyNameGame({
   return {
     me,
     others,
+    elapsedMs,
     submitGuess,
     dismissLeftMs,
   };

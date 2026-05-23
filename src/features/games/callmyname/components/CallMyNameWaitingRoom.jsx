@@ -268,11 +268,14 @@ export default function CallMyNameWaitingRoom({
           각자에게 정체가 배정돼요.{" "}
           <b style={{ color: C.ink }}>내 정체는 ? 로 가려져요.</b>
           <br />
-          돌아가며 Yes/No 질문으로 내 정체를 추리하세요!
+          Yes/No 질문으로 추리하고, 시간이 지나면{" "}
+          <b style={{ color: C.cyan }}>힌트가 자동으로 열려요</b>
+          <br />
+          (3분 카테고리 → 5분 글자 수 → 10분 초성)
         </div>
       </div>
 
-      {/* 라이프 안내 */}
+      {/* 라이프 / 타임어택 안내 */}
       <div
         style={{
           textAlign: "center",
@@ -283,9 +286,10 @@ export default function CallMyNameWaitingRoom({
           padding: 8,
           borderRadius: 8,
           border: "1px solid rgba(91,229,224,0.15)",
+          lineHeight: 1.6,
         }}
       >
-        ❤️ 라이프 3개 · 다 틀리면 벌칙
+        ⏱️ 12분 타임어택 · ❤️ 라이프 3개 · 다 틀리면 벌칙
       </div>
 
       <div style={{ flex: 1 }} />

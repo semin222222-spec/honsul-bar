@@ -2,27 +2,23 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { exposedRepository } from "@/repositories/games/exposedRepository";
 import { handleRealtimeSubscribeStatus } from "@/shared/realtime/realtimeHealth";
 import {
-  INPUT_SECONDS,
   VOTE_SECONDS,
   RESULT_AUTO_DISMISS_MS,
   calcSecondsLeft,
-  validateQuestion,
-  inputComplete,
   voteComplete,
 } from "../lib/exposedRules";
 import { pickRandomQuestion } from "../data/exposedQuestions";
 
 /**
- * useExposedGame
+ * useExposedGame (v2 — 지목 방식)
  *
- * 익명 폭로전 진행 훅. (드립 패턴 + 단일 room 소스)
- *  - room 한 곳만 Realtime 구독한다. (votes는 잠겨 있어 클라가 읽지 않는다)
- *  - 질문 제출(익명) / 투표(fold·pass)
- *  - 페이즈 전환: 전원 완료(방장) 또는 타임아웃(누구든) → guard로 race 흡수
- *    · 입력 종료 → 풀에서 질문 1개 뽑아 phase_vote
- *    · 투표 종료 → tally RPC(서버 집계) → phase_result
- *  - 내 결과(안전/-1)는 "내가 던진 표(myVote, 로컬) + outcome"으로만 계산 → 익명 보장
+ *  - room 한 곳만 Realtime 구독 (votes는 잠겨 있어 클라가 읽지 않는다)
+ *  - castVote: 다른 참가자 1명 지목 (자기 지목 불가, 1인 1표)
+ *  - 페이즈 전환: 전원 투표(방장) 또는 타임아웃(누구든) → guard로 race 흡수 → tally(서버 집계)
+ *  - 다음 질문(방장): 랜덤 질문 새로 뽑아 phase_vote
  *  - finished 30s 자동 leave
+ *
+ * 내 표(누구를 찍었는지)는 로컬에만 둔다. 남의 표는 받지 않는다.
  */
 export function useExposedGame({
   room,
@@ -31,13 +27,12 @@ export function useExposedGame({
   onLeaveAfterFinish,
 }) {
   const [, setTick] = useState(0);
-  // 내가 이번 라운드에 던진 표(로컬 전용, 라운드에 묶음). 남의 표는 절대 받지 않는다.
-  const [voteRecord, setVoteRecord] = useState({ round: 0, vote: null });
+  // 내가 이번 라운드에 지목한 대상(로컬 전용, 라운드에 묶음)
+  const [voteRecord, setVoteRecord] = useState({ round: 0, target: null });
 
   const roomId = room?.id;
   const status = room?.status;
   const round = room?.current_round || 0;
-  const isInput = status === "phase_input";
   const isVote = status === "phase_vote";
   const isResult = status === "phase_result";
   const isFinished = status === "finished";
@@ -45,21 +40,15 @@ export function useExposedGame({
   const phaseStartedAt = room?.phase_started_at;
 
   const players = useMemo(() => room?.players || [], [room]);
-  const submittedSessions = useMemo(
-    () => room?.submitted_sessions || [],
-    [room],
-  );
   const votedSessions = useMemo(() => room?.voted_sessions || [], [room]);
 
-  const iSubmitted = submittedSessions.includes(sessionId);
   const iVoted = votedSessions.includes(sessionId);
+  // 라운드가 바뀌면 자동 null (effect 없이 파생)
+  const myVoteTarget = voteRecord.round === round ? voteRecord.target : null;
 
-  // 라운드가 바뀌면 자동으로 null (effect 없이 파생)
-  const myVote = voteRecord.round === round ? voteRecord.vote : null;
-
-  const totalSeconds = isInput ? INPUT_SECONDS : isVote ? VOTE_SECONDS : 0;
+  const totalSeconds = isVote ? VOTE_SECONDS : 0;
   const secondsLeft =
-    (isInput || isVote) && phaseStartedAt
+    isVote && phaseStartedAt
       ? calcSecondsLeft(phaseStartedAt, totalSeconds)
       : totalSeconds;
 
@@ -116,78 +105,58 @@ export function useExposedGame({
     };
   }, [roomId, sessionId, onRoomUpdate]);
 
-  // 타이머 tick (입력/투표 페이즈)
+  // 타이머 tick (투표 페이즈)
   useEffect(() => {
-    if (!(isInput || isVote) || !phaseStartedAt) return;
+    if (!isVote || !phaseStartedAt) return;
     const id = setInterval(() => setTick((t) => t + 1), 250);
     return () => clearInterval(id);
-  }, [isInput, isVote, phaseStartedAt]);
+  }, [isVote, phaseStartedAt]);
 
   // ─────────────────────────────────────────
-  // 질문 제출 (익명)
-  // ─────────────────────────────────────────
-  const submittingRef = useRef(false);
-  const submitQuestion = useCallback(
-    async (text) => {
-      const r = roomRef.current;
-      if (!r || r.status !== "phase_input") return { ok: false };
-      const { ok, value, error } = validateQuestion(text);
-      if (!ok) return { ok: false, error };
-      if (submittingRef.current) return { ok: false };
-      if ((r.submitted_sessions || []).includes(sessionId))
-        return { ok: true, already: true };
-
-      submittingRef.current = true;
-      try {
-        await exposedRepository.submitQuestionRpc({
-          roomId: r.id,
-          sessionId,
-          text: value,
-        });
-        return { ok: true };
-      } catch (err) {
-        console.error("[Exposed] 질문 제출 실패:", err);
-        return { ok: false, error: "제출에 실패했어요" };
-      } finally {
-        setTimeout(() => {
-          submittingRef.current = false;
-        }, 200);
-      }
-    },
-    [sessionId],
-  );
-
-  // ─────────────────────────────────────────
-  // 투표 (fold/pass)
+  // 투표 (다른 참가자 1명 지목)
+  //   - 이미 투표/잘못된 대상/페이즈 불일치는 조용히 무시(얼럿 없음).
+  //   - 진짜 네트워크/DB 오류만 실패로 반환한다.
   // ─────────────────────────────────────────
   const votingRef = useRef(false);
   const castVote = useCallback(
-    async (vote) => {
+    async (targetSessionId, targetSeatLabel) => {
       const r = roomRef.current;
       if (!r || r.status !== "phase_vote") return { ok: false };
-      if (vote !== "fold" && vote !== "pass") return { ok: false };
+      if (!targetSessionId || targetSessionId === sessionId)
+        return { ok: false, error: "다른 참가자를 골라주세요" };
+      // 대상이 방 참가자인지 확인 (오매칭으로 인한 실패 방지)
+      const target = (r.players || []).find(
+        (p) => p.session_id === targetSessionId,
+      );
+      if (!target) return { ok: false, error: "참가자를 찾을 수 없어요" };
+
       if (votingRef.current) return { ok: false };
       if ((r.voted_sessions || []).includes(sessionId)) {
         setVoteRecord((prev) =>
-          prev.round === r.current_round ? prev : { round: r.current_round, vote },
+          prev.round === r.current_round
+            ? prev
+            : { round: r.current_round, target: targetSessionId },
         );
         return { ok: true, already: true };
       }
 
       votingRef.current = true;
-      // 낙관적: 내 표는 로컬에 즉시 반영 (결과 화면 계산용)
-      setVoteRecord({ round: r.current_round, vote });
+      // 낙관적: 내 지목은 로컬에 즉시 반영
+      setVoteRecord({ round: r.current_round, target: targetSessionId });
       try {
         await exposedRepository.castVoteRpc({
           roomId: r.id,
           sessionId,
           round: r.current_round,
-          vote,
+          targetSessionId,
+          targetSeatLabel: targetSeatLabel || target.seat_label,
         });
         return { ok: true };
       } catch (err) {
         console.error("[Exposed] 투표 실패:", err);
-        return { ok: false, error: "투표에 실패했어요" };
+        // 실패 시 낙관적 반영 롤백
+        setVoteRecord({ round: r.current_round, target: null });
+        return { ok: false, error: "투표 전송에 실패했어요. 다시 시도해주세요." };
       } finally {
         setTimeout(() => {
           votingRef.current = false;
@@ -201,48 +170,6 @@ export function useExposedGame({
   // 페이즈 전환 (guard로 race 흡수)
   // ─────────────────────────────────────────
   const transitionRef = useRef(false);
-
-  // 풀에서 질문 1개 뽑아 phase_vote 로 (입력 종료 또는 다음 질문)
-  const advanceToVote = useCallback(
-    async (fromStatus) => {
-      const r = roomRef.current;
-      if (!r || r.status !== fromStatus || transitionRef.current) return;
-      transitionRef.current = true;
-      try {
-        const used = Array.isArray(r.used_questions) ? r.used_questions : [];
-        const pool = Array.isArray(r.question_pool) ? r.question_pool : [];
-        const fresh = pool
-          .map((q) => q?.text)
-          .filter((t) => typeof t === "string" && t && !used.includes(t));
-        const question =
-          fresh.length > 0
-            ? fresh[Math.floor(Math.random() * fresh.length)]
-            : pickRandomQuestion(r.spice_level, used);
-
-        await exposedRepository.updateRoom({
-          roomId: r.id,
-          updates: {
-            status: "phase_vote",
-            current_round: (r.current_round || 0) + 1,
-            current_question: question,
-            used_questions: [...used, question],
-            voted_sessions: [],
-            last_round_result: null,
-            phase_started_at: new Date().toISOString(),
-          },
-          guard: { status: fromStatus },
-          returning: false,
-        });
-      } catch (err) {
-        console.error("[Exposed] 투표 전환 실패:", err);
-      } finally {
-        setTimeout(() => {
-          transitionRef.current = false;
-        }, 600);
-      }
-    },
-    [],
-  );
 
   // 투표 종료 → 서버 집계
   const goToResult = useCallback(async () => {
@@ -266,12 +193,39 @@ export function useExposedGame({
   // 다음 질문 (방장) — phase_result → phase_vote
   const nextQuestion = useCallback(async () => {
     const r = roomRef.current;
-    if (!r || r.status !== "phase_result") return { ok: false };
+    if (!r || r.status !== "phase_result" || transitionRef.current)
+      return { ok: false };
     if (r.host_session_id !== sessionId)
       return { ok: false, error: "방장만 진행할 수 있어요" };
-    await advanceToVote("phase_result");
-    return { ok: true };
-  }, [sessionId, advanceToVote]);
+
+    transitionRef.current = true;
+    try {
+      const used = Array.isArray(r.used_questions) ? r.used_questions : [];
+      const question = pickRandomQuestion(used);
+      await exposedRepository.updateRoom({
+        roomId: r.id,
+        updates: {
+          status: "phase_vote",
+          current_round: (r.current_round || 0) + 1,
+          current_question: question,
+          used_questions: [...used, question],
+          voted_sessions: [],
+          last_round_result: null,
+          phase_started_at: new Date().toISOString(),
+        },
+        guard: { status: "phase_result" },
+        returning: false,
+      });
+      return { ok: true };
+    } catch (err) {
+      console.error("[Exposed] 다음 질문 전환 실패:", err);
+      return { ok: false, error: "진행에 실패했어요" };
+    } finally {
+      setTimeout(() => {
+        transitionRef.current = false;
+      }, 600);
+    }
+  }, [sessionId]);
 
   // 게임 종료 (방장) — phase_result → finished
   const endGame = useCallback(async () => {
@@ -293,7 +247,7 @@ export function useExposedGame({
     }
   }, [sessionId]);
 
-  // 한 판 더 (방장) — 라이프/풀/투표 초기화 → waiting
+  // 한 판 더 (방장) — 풀/투표 초기화 → waiting
   const restartGame = useCallback(async () => {
     const r = roomRef.current;
     if (!r) return { ok: false };
@@ -307,19 +261,6 @@ export function useExposedGame({
       return { ok: false, error: "재시작에 실패했어요" };
     }
   }, [sessionId]);
-
-  // ── 입력 페이즈 종료: 전원 제출(방장) / 타임아웃(누구든)
-  useEffect(() => {
-    if (!isHost || !isInput) return;
-    if (!inputComplete({ players, submittedSessions })) return;
-    advanceToVote("phase_input");
-  }, [isHost, isInput, players, submittedSessions, advanceToVote]);
-
-  useEffect(() => {
-    if (!isInput || !phaseStartedAt) return;
-    if (secondsLeft > 0) return;
-    advanceToVote("phase_input");
-  }, [isInput, phaseStartedAt, secondsLeft, advanceToVote]);
 
   // ── 투표 페이즈 종료: 전원 투표(방장) / 타임아웃(누구든)
   useEffect(() => {
@@ -357,12 +298,9 @@ export function useExposedGame({
   return {
     secondsLeft,
     me,
-    myVote,
-    iSubmitted,
+    myVoteTarget,
     iVoted,
-    submittedCount: submittedSessions.length,
     votedCount: votedSessions.length,
-    submitQuestion,
     castVote,
     nextQuestion,
     endGame,

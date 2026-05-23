@@ -1,84 +1,80 @@
 /**
- * 콜 마이 네임 정체 키워드 풀
+ * 콜 마이 네임 정체 키워드 풀 (타임어택 + 시간별 힌트)
  *
- * - 카테고리: 인물 / 동물 / 사물 / 음식 / 장소 (각 10개 = 50개)
- * - 게임 시작 시 방장이 `pickIdentities(count)`로 참가자 수만큼 **서로 다른** 정체를 뽑아
- *   각 player의 identity_keyword / identity_category 에 배정한다 (라이어 단어 추첨과 동일 방식).
- * - 키워드는 그 자체가 정답이다. 정답 매칭은 서버 RPC(call_my_name_attempt)가
- *   "공백/특수문자 제거 + 소문자" 정규화 후 정확 일치로 판정한다.
+ * 각 항목: { answer(정답), category(카테고리), hint(초성) }
+ *   예: { answer: "유재석", category: "인물", hint: "ㅇㅈㅅ" }
  *
- * 혼술바 분위기(누구나 아는 쉬운 단어)에 맞춰 술자리에서 바로 추리 가능한 것들로 구성.
+ * - 게임 시작 시 방장이 `pickIdentities(count)`로 참가자 수만큼 서로 다른 정체를 뽑아
+ *   각 player의 identity_keyword / identity_category / identity_hint 에 배정한다.
+ * - `hint`(초성)는 본인 화면에서 10분 경과 시 공개되는 최종 힌트다.
+ *   값은 `toChoseong(answer)`(callMyNameRules)로 자동 생성되며, 여기엔 검수용으로 명시한다.
+ *   (callMyName.test.js 가 hint === toChoseong(answer) 를 전수 검증)
+ * - 정답 매칭은 서버 RPC(call_my_name_attempt)가 "공백/특수문자 제거 + 소문자" 정규화 후 정확 일치로 판정.
  */
 
-export const KEYWORDS_BY_CATEGORY = {
-  인물: [
-    "원빈",
-    "유재석",
-    "백설공주",
-    "일론머스크",
-    "김연아",
-    "손흥민",
-    "세종대왕",
-    "아이언맨",
-    "산타클로스",
-    "이순신",
-  ],
-  동물: [
-    "모기",
-    "펭귄",
-    "코끼리",
-    "고양이",
-    "사자",
-    "기린",
-    "돌고래",
-    "햄스터",
-    "공작새",
-    "나무늘보",
-  ],
-  사물: [
-    "아이폰",
-    "텔레비전",
-    "자전거",
-    "칫솔",
-    "우산",
-    "선풍기",
-    "냉장고",
-    "안경",
-    "베개",
-    "지갑",
-  ],
-  음식: [
-    "김치",
-    "라면",
-    "치킨",
-    "떡볶이",
-    "김밥",
-    "삼겹살",
-    "탕수육",
-    "아이스크림",
-    "피자",
-    "초밥",
-  ],
-  장소: [
-    "학교",
-    "한강",
-    "디즈니랜드",
-    "지하철",
-    "편의점",
-    "찜질방",
-    "노래방",
-    "공항",
-    "수영장",
-    "도서관",
-  ],
-};
+export const IDENTITY_POOL = [
+  // ── 인물 ──
+  { answer: "유재석", category: "인물", hint: "ㅇㅈㅅ" },
+  { answer: "원빈", category: "인물", hint: "ㅇㅂ" },
+  { answer: "백설공주", category: "인물", hint: "ㅂㅅㄱㅈ" },
+  { answer: "일론머스크", category: "인물", hint: "ㅇㄹㅁㅅㅋ" },
+  { answer: "김연아", category: "인물", hint: "ㄱㅇㅇ" },
+  { answer: "손흥민", category: "인물", hint: "ㅅㅎㅁ" },
+  { answer: "세종대왕", category: "인물", hint: "ㅅㅈㄷㅇ" },
+  { answer: "아이언맨", category: "인물", hint: "ㅇㅇㅇㅁ" },
+  { answer: "산타클로스", category: "인물", hint: "ㅅㅌㅋㄹㅅ" },
+  { answer: "이순신", category: "인물", hint: "ㅇㅅㅅ" },
 
-export const CATEGORIES = Object.keys(KEYWORDS_BY_CATEGORY);
+  // ── 동물 ──
+  { answer: "모기", category: "동물", hint: "ㅁㄱ" },
+  { answer: "펭귄", category: "동물", hint: "ㅍㄱ" },
+  { answer: "코끼리", category: "동물", hint: "ㅋㄲㄹ" },
+  { answer: "고양이", category: "동물", hint: "ㄱㅇㅇ" },
+  { answer: "사자", category: "동물", hint: "ㅅㅈ" },
+  { answer: "기린", category: "동물", hint: "ㄱㄹ" },
+  { answer: "돌고래", category: "동물", hint: "ㄷㄱㄹ" },
+  { answer: "햄스터", category: "동물", hint: "ㅎㅅㅌ" },
+  { answer: "공작새", category: "동물", hint: "ㄱㅈㅅ" },
+  { answer: "나무늘보", category: "동물", hint: "ㄴㅁㄴㅂ" },
 
-// 카테고리 정보를 붙인 전체 평면 목록: [{ keyword, category }]
-export const ALL_IDENTITIES = CATEGORIES.flatMap((category) =>
-  KEYWORDS_BY_CATEGORY[category].map((keyword) => ({ keyword, category })),
-);
+  // ── 사물 ──
+  { answer: "아이폰", category: "사물", hint: "ㅇㅇㅍ" },
+  { answer: "텔레비전", category: "사물", hint: "ㅌㄹㅂㅈ" },
+  { answer: "자전거", category: "사물", hint: "ㅈㅈㄱ" },
+  { answer: "칫솔", category: "사물", hint: "ㅊㅅ" },
+  { answer: "우산", category: "사물", hint: "ㅇㅅ" },
+  { answer: "선풍기", category: "사물", hint: "ㅅㅍㄱ" },
+  { answer: "냉장고", category: "사물", hint: "ㄴㅈㄱ" },
+  { answer: "안경", category: "사물", hint: "ㅇㄱ" },
+  { answer: "베개", category: "사물", hint: "ㅂㄱ" },
+  { answer: "지갑", category: "사물", hint: "ㅈㄱ" },
+
+  // ── 음식 ──
+  { answer: "김치", category: "음식", hint: "ㄱㅊ" },
+  { answer: "라면", category: "음식", hint: "ㄹㅁ" },
+  { answer: "치킨", category: "음식", hint: "ㅊㅋ" },
+  { answer: "떡볶이", category: "음식", hint: "ㄸㅂㅇ" },
+  { answer: "김밥", category: "음식", hint: "ㄱㅂ" },
+  { answer: "삼겹살", category: "음식", hint: "ㅅㄱㅅ" },
+  { answer: "탕수육", category: "음식", hint: "ㅌㅅㅇ" },
+  { answer: "아이스크림", category: "음식", hint: "ㅇㅇㅅㅋㄹ" },
+  { answer: "피자", category: "음식", hint: "ㅍㅈ" },
+  { answer: "초밥", category: "음식", hint: "ㅊㅂ" },
+
+  // ── 장소 ──
+  { answer: "학교", category: "장소", hint: "ㅎㄱ" },
+  { answer: "한강", category: "장소", hint: "ㅎㄱ" },
+  { answer: "디즈니랜드", category: "장소", hint: "ㄷㅈㄴㄹㄷ" },
+  { answer: "지하철", category: "장소", hint: "ㅈㅎㅊ" },
+  { answer: "편의점", category: "장소", hint: "ㅍㅇㅈ" },
+  { answer: "찜질방", category: "장소", hint: "ㅉㅈㅂ" },
+  { answer: "노래방", category: "장소", hint: "ㄴㄹㅂ" },
+  { answer: "공항", category: "장소", hint: "ㄱㅎ" },
+  { answer: "수영장", category: "장소", hint: "ㅅㅇㅈ" },
+  { answer: "도서관", category: "장소", hint: "ㄷㅅㄱ" },
+];
+
+export const CATEGORIES = [...new Set(IDENTITY_POOL.map((x) => x.category))];
 
 /**
  * Fisher-Yates 셔플 (원본 불변).
@@ -101,9 +97,9 @@ function shuffle(arr) {
  *  - count 가 풀 크기를 넘으면(이론상 없음) 풀 전체를 반환.
  *
  * @param {number} count 참가자 수
- * @returns {{ keyword: string, category: string }[]}
+ * @returns {{ answer: string, category: string, hint: string }[]}
  */
 export function pickIdentities(count) {
   const n = Math.max(0, Math.floor(count) || 0);
-  return shuffle(ALL_IDENTITIES).slice(0, n);
+  return shuffle(IDENTITY_POOL).slice(0, n);
 }
