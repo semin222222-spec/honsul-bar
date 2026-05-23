@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { motion as Motion } from "framer-motion";
-import { LogOut } from "lucide-react";
-import { C, FONTS } from "./exposedTheme";
-import { START_LIVES } from "../lib/exposedRules";
-import { SPICE_META } from "../data/exposedQuestions";
+import { LogOut, Check } from "lucide-react";
+import { C, FONTS, playerColor } from "./exposedTheme";
 
 function fmt(secondsLeft) {
   const s = Math.max(0, Math.ceil(secondsLeft));
@@ -11,62 +9,15 @@ function fmt(secondsLeft) {
   return `${m}:${String(s % 60).padStart(2, "0")}`;
 }
 
-/** 내 라이프(손가락) 바 */
-function LifeBar({ lives }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        gap: 6,
-        background: C.bgCard,
-        border: `1px solid ${C.border}`,
-        borderRadius: 14,
-        padding: 10,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 10,
-          color: C.sub,
-          letterSpacing: "0.2em",
-          textTransform: "uppercase",
-          marginRight: 4,
-        }}
-      >
-        라이프
-      </span>
-      {Array.from({ length: START_LIVES }).map((_, i) => {
-        const alive = i < lives;
-        return (
-          <span
-            key={i}
-            style={{
-              fontSize: 20,
-              opacity: alive ? 1 : 0.2,
-              filter: alive
-                ? `drop-shadow(0 0 6px ${C.pinkGlow})`
-                : "grayscale(1)",
-            }}
-          >
-            ✋
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
 /**
- * ExposedVote — 익명 투표 (시안 화면 3)
- *  큰 질문 카드 → 접어(진실) / 패스(아니다). 내 표는 로컬에만, 남에게 안 보인다.
+ * ExposedVote — 질문 보고 다른 참가자 1명 지목 (시안 화면 3 대체)
+ *  내 지목은 로컬에만, 남에게 안 보인다. 자기 자신은 지목 불가.
  */
 export default function ExposedVote({
   room,
+  sessionId,
   secondsLeft,
-  me,
-  myVote,
+  myVoteTarget,
   iVoted,
   votedCount,
   onVote,
@@ -74,21 +25,19 @@ export default function ExposedVote({
 }) {
   const [pending, setPending] = useState(false);
 
-  const spice = room?.spice_level || "medium";
-  const meta = SPICE_META[spice];
-  const spiceColor = spice === "mild" ? C.mild : C.medium;
-  const urgent = secondsLeft <= 5;
+  const players = room?.players || [];
+  const round = room?.current_round || 1;
   const question = room?.current_question || "";
-  const lives = Number(me?.lives_remaining ?? START_LIVES);
-  const voters = (room?.players || []).filter(
-    (p) => p.status !== "penalty",
-  ).length;
+  const urgent = secondsLeft <= 5;
   const locked = iVoted || pending;
+  const others = players
+    .map((p, i) => ({ ...p, _i: i }))
+    .filter((p) => p.session_id !== sessionId);
 
-  const handleVote = async (vote) => {
+  const handleVote = async (p) => {
     if (locked) return;
     setPending(true);
-    const res = await onVote(vote);
+    const res = await onVote(p.session_id, p.seat_label);
     setPending(false);
     if (!res?.ok && res?.error) alert(res.error);
   };
@@ -129,20 +78,17 @@ export default function ExposedVote({
               fontWeight: 900,
             }}
           >
-            PHASE 3
+            ROUND {round}
           </span>
           <span
             style={{
-              background: `${spiceColor}26`,
-              border: `1px solid ${spiceColor}`,
-              color: spiceColor,
-              padding: "2px 8px",
-              borderRadius: 6,
               fontSize: 10,
-              fontWeight: 700,
+              color: C.sub,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
             }}
           >
-            {meta.emoji} {meta.name}
+            지목 · 익명
           </span>
         </div>
         <Motion.div
@@ -160,25 +106,15 @@ export default function ExposedVote({
         </Motion.div>
       </div>
 
-      {/* 질문 히어로 */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-          margin: "16px 0",
-        }}
-      >
+      {/* 질문 카드 */}
+      <div style={{ textAlign: "center", margin: "16px 0 8px", flexShrink: 0 }}>
         <div
           style={{
             fontSize: 10,
             color: C.pinkSoft,
             letterSpacing: "0.3em",
             textTransform: "uppercase",
-            marginBottom: 12,
+            marginBottom: 10,
           }}
         >
           🃏 오늘의 질문
@@ -188,46 +124,21 @@ export default function ExposedVote({
             background: "linear-gradient(135deg, #1f0a1f 0%, #2a0a2e 100%)",
             border: "2px solid rgba(255,42,122,0.4)",
             borderRadius: 20,
-            padding: "28px 20px",
-            width: "100%",
+            padding: "24px 18px",
             boxShadow:
               "0 0 40px rgba(255,42,122,0.3), inset 0 0 30px rgba(255,42,122,0.08)",
           }}
         >
           <div
             style={{
-              fontSize: 32,
-              color: C.pinkSoft,
-              lineHeight: 0.3,
-              fontFamily: "serif",
-              marginBottom: 14,
-            }}
-          >
-            &ldquo;
-          </div>
-          <div
-            style={{
               fontSize: 20,
               fontWeight: 800,
               color: "#fff",
-              lineHeight: 1.4,
+              lineHeight: 1.45,
               wordBreak: "keep-all",
             }}
           >
             {question}
-          </div>
-          <div
-            style={{
-              marginTop: 14,
-              fontSize: 11,
-              color: C.muted,
-              letterSpacing: "0.06em",
-            }}
-          >
-            — 익명의 누군가
-          </div>
-          <div style={{ marginTop: 6, fontSize: 9, color: spiceColor }}>
-            {meta.emoji} {meta.name}
           </div>
         </div>
       </div>
@@ -243,49 +154,104 @@ export default function ExposedVote({
           alignItems: "center",
           fontSize: 10,
           color: C.sub,
-          marginBottom: 8,
+          margin: "8px 0",
           flexShrink: 0,
         }}
       >
-        <span>🤫 투표 진행 · 익명</span>
+        <span>🤫 한 명을 지목하세요 (자기 자신 제외)</span>
         <span>
           <span
             style={{ fontFamily: FONTS.mono, color: C.pinkSoft, fontWeight: 700 }}
           >
             {votedCount}
           </span>{" "}
-          / {voters}
+          / {players.length}
         </span>
       </div>
 
-      {/* 투표 버튼 */}
+      {/* 지목 그리드 */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-          marginBottom: 10,
-          flexShrink: 0,
+          gap: 8,
+          paddingBottom: 8,
         }}
       >
-        <VoteButton
-          emoji="✋"
-          label="접어"
-          sub="진실"
-          color={C.pink}
-          chosen={myVote === "fold"}
-          locked={locked}
-          onClick={() => handleVote("fold")}
-        />
-        <VoteButton
-          emoji="🙅"
-          label="패스"
-          sub="아니다"
-          color={C.purple}
-          chosen={myVote === "pass"}
-          locked={locked}
-          onClick={() => handleVote("pass")}
-        />
+        {others.map((p) => {
+          const chosen = myVoteTarget === p.session_id;
+          const col = playerColor(p._i);
+          return (
+            <Motion.button
+              key={p.session_id}
+              whileTap={{ scale: locked ? 1 : 0.97 }}
+              onClick={() => handleVote(p)}
+              disabled={locked}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "12px 12px",
+                borderRadius: 14,
+                border: `2px solid ${chosen ? C.pink : C.border}`,
+                background: chosen
+                  ? "linear-gradient(135deg, rgba(255,42,122,0.18), rgba(255,42,122,0.05))"
+                  : C.bgCard,
+                color: C.ink,
+                cursor: locked ? "default" : "pointer",
+                opacity: locked && !chosen ? 0.45 : 1,
+                boxShadow: chosen
+                  ? `0 0 0 4px rgba(255,42,122,0.15), 0 0 24px ${C.pinkGlow}`
+                  : "none",
+                fontFamily: "inherit",
+                WebkitTapHighlightColor: "transparent",
+                position: "relative",
+              }}
+            >
+              <span
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: col.bg,
+                  color: col.fg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 800,
+                  fontSize: 12,
+                  fontFamily: FONTS.mono,
+                  flexShrink: 0,
+                  border: "2px solid rgba(255,255,255,0.15)",
+                }}
+              >
+                {p.seat_label}
+              </span>
+              <span style={{ fontSize: 14, fontWeight: 700, textAlign: "left" }}>
+                {p.seat_label} 자리
+              </span>
+              {chosen && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -8,
+                    right: -8,
+                    width: 22,
+                    height: 22,
+                    background: C.pink,
+                    color: "#fff",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Check size={13} strokeWidth={3} />
+                </span>
+              )}
+            </Motion.button>
+          );
+        })}
       </div>
 
       {iVoted && (
@@ -294,17 +260,14 @@ export default function ExposedVote({
             textAlign: "center",
             fontSize: 11,
             color: C.sub,
-            marginBottom: 8,
+            margin: "4px 0 8px",
           }}
         >
-          ✓ 투표 완료 · 결과를 기다리는 중...
+          ✓ 지목 완료 · 결과를 기다리는 중...
         </div>
       )}
 
-      {/* 내 라이프 */}
-      <div style={{ flexShrink: 0 }}>
-        <LifeBar lives={lives} />
-      </div>
+      <div style={{ flex: 1, minHeight: 8 }} />
 
       <div
         style={{
@@ -339,36 +302,5 @@ export default function ExposedVote({
         </button>
       </div>
     </div>
-  );
-}
-
-/** 접어 / 패스 버튼 (선택 시 강조). 내 표만 알 뿐, 남의 선택은 표시하지 않는다. */
-function VoteButton({ emoji, label, sub, color, chosen, locked, onClick }) {
-  return (
-    <Motion.button
-      whileTap={{ scale: locked ? 1 : 0.97 }}
-      onClick={onClick}
-      disabled={locked}
-      style={{
-        padding: "16px 12px",
-        borderRadius: 16,
-        border: `2px solid ${chosen ? color : C.borderBright}`,
-        background: chosen
-          ? `linear-gradient(135deg, ${color}26, ${color}0d)`
-          : C.bgCard,
-        color: C.ink,
-        cursor: locked ? "default" : "pointer",
-        textAlign: "center",
-        opacity: locked && !chosen ? 0.5 : 1,
-        fontFamily: "inherit",
-        WebkitTapHighlightColor: "transparent",
-      }}
-    >
-      <span style={{ fontSize: 30, display: "block", marginBottom: 4 }}>
-        {emoji}
-      </span>
-      <span style={{ fontSize: 14, fontWeight: 800, color }}>{label}</span>
-      <div style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>{sub}</div>
-    </Motion.button>
   );
 }
