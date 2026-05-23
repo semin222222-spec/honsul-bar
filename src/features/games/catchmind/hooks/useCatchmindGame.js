@@ -208,9 +208,23 @@ export function useCatchmindGame({ room, sessionId, seatLabel, onRoomUpdate }) {
 
       try {
         // 정답자 리스트 추출 (current_round 기준)
-        const correctMsgs = messages.filter(
-          (m) => m.type === "correct" && m.round_number === room.current_round,
-        );
+        // ⚠️ 버그 수정: 첫 정답 직후 sendGuess가 이 함수를 즉시 호출하면,
+        //   방금 insert한 정답 메시지가 아직 로컬 messages 상태에 없어 점수가
+        //   누락됐다. 집계는 권위 있는 DB를 직접 읽어 확정한다. (echo 대기 X)
+        let correctMsgs;
+        try {
+          const allMsgs = await catchmindRepository.listMessages({
+            roomId: room.id,
+          });
+          correctMsgs = allMsgs.filter(
+            (m) => m.type === "correct" && m.round_number === room.current_round,
+          );
+        } catch {
+          // DB 조회 실패 시에만 로컬 상태로 폴백
+          correctMsgs = messages.filter(
+            (m) => m.type === "correct" && m.round_number === room.current_round,
+          );
+        }
         // 점수 변동 표 구성
         const drawerId = room.current_drawer_session_id;
         const word = room.current_word;

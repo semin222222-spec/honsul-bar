@@ -11,7 +11,7 @@ const ENV_ROUND_SECONDS = Number(
 export const ROUND_SECONDS =
   Number.isFinite(ENV_ROUND_SECONDS) && ENV_ROUND_SECONDS > 0
     ? ENV_ROUND_SECONDS
-    : 50;
+    : 60;
 
 export const COUNTDOWN_SECONDS = 3; // "3 → 2 → 1 → 시작!"
 export const TRANSITION_SECONDS = 4; // 라운드 종료 후 결과 표시
@@ -21,47 +21,58 @@ export const MAX_PLAYERS = 8;
 export const PASS_PENALTY = -30;
 export const DRAWER_BONUS_PER_CORRECT = 20;
 
-// 힌트 공개 시점 (남은 초 기준) — 50초 라운드 기준 비례 분배
-export const HINT_REVEAL_THRESHOLDS = [
-  { secondsLeft: 25, slot: "first" },
-  { secondsLeft: 15, slot: "last" },
-  { secondsLeft: 6, slot: "middle" },
-];
+// ─── 시간별 자동 힌트 공개 ───────────────────────────────
+// 라운드 "경과 비율" 기준이라 ROUND_SECONDS가 바뀌어도 그대로 동작한다.
+//   60초 라운드 기준:  ~15초(25%) 글자 수 공개,  ~30초(50%) 첫 글자 공개.
+//   그 전(0~15초)에는 글자 수조차 숨긴다.
+export const HINT_LENGTH_RATIO = 0.25; // 경과 25% → 글자 수
+export const HINT_FIRST_RATIO = 0.5; //  경과 50% → 첫 글자
+
+const HINT_MASK = "❓"; // 글자 수까지 숨기는 단계에서 쓰는 고정 마스크
 
 /**
- * 50% 룰을 적용하여 현재 공개된 글자 인덱스 배열을 반환.
- *
- * @param {string} word
- * @param {number} secondsLeft 남은 초
- * @returns {number[]} 공개된 글자 인덱스 (정렬 안 됨)
+ * 현재 힌트 단계.
+ * @returns {"hidden"|"length"|"first"}
+ *   hidden : 글자 수도 안 보임
+ *   length : 글자 수만 (밑줄 개수)
+ *   first  : 첫 글자 + 나머지 밑줄
  */
-export function getHintReveals(word, secondsLeft) {
-  if (!word) return [];
-  const maxReveals = Math.floor(word.length / 2);
-  if (maxReveals <= 0) return [];
-
-  const revealed = [];
-  if (secondsLeft <= 25 && maxReveals >= 1) revealed.push(0);
-  if (secondsLeft <= 15 && maxReveals >= 2)
-    revealed.push(word.length - 1);
-  if (secondsLeft <= 6 && maxReveals >= 3)
-    revealed.push(Math.floor(word.length / 2));
-
-  // 중복 제거 (length가 1인 단어 같은 경계)
-  return Array.from(new Set(revealed));
+export function getHintStage(secondsLeft) {
+  const elapsed = ROUND_SECONDS - secondsLeft;
+  if (elapsed >= ROUND_SECONDS * HINT_FIRST_RATIO) return "first";
+  if (elapsed >= ROUND_SECONDS * HINT_LENGTH_RATIO) return "length";
+  return "hidden";
 }
 
 /**
- * 힌트 표시용 문자열. 공개된 글자는 실제 글자, 나머지는 "_".
- * 예: "헤어드라이기" / 40초 남음 → "헤 _ _ _ _ _"
+ * 힌트 표시용 문자열.
+ *   hidden → "❓ ❓ ❓" (글자 수 노출 안 함, 고정 3칸)
+ *   length → "_ _ _"   (글자 수만 노출)
+ *   first  → "데 _ _"  (첫 글자 + 나머지 밑줄)
  */
 export function formatHintString(word, secondsLeft) {
   if (!word) return "";
-  const reveals = new Set(getHintReveals(word, secondsLeft));
+  const stage = getHintStage(secondsLeft);
+  if (stage === "hidden") return `${HINT_MASK} ${HINT_MASK} ${HINT_MASK}`;
+  const revealFirst = stage === "first";
   return word
     .split("")
-    .map((ch, i) => (reveals.has(i) ? ch : "_"))
+    .map((ch, i) => (revealFirst && i === 0 ? ch : "_"))
     .join(" ");
+}
+
+/**
+ * 힌트 단계에 대한 안내 라벨 (UI 보조 표시용).
+ */
+export function getHintCaption(secondsLeft) {
+  switch (getHintStage(secondsLeft)) {
+    case "first":
+      return "첫 글자 공개!";
+    case "length":
+      return "글자 수 공개";
+    default:
+      return "곧 힌트가 공개돼요";
+  }
 }
 
 function normalize(s) {

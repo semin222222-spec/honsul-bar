@@ -121,10 +121,10 @@ export default function CatchmindWaitingRoom({
         </div>
         · 라운드당 <strong>{ROUND_SECONDS}초</strong>, 참여자 수만큼 라운드
         진행
-        <br />· 정답 빨리 맞힐수록 점수 ↑ (50~200점)
-        <br />· 출제자는 정답자 1명당 +20점 보너스
-        <br />· 출제자 패스: 게임당 1회 (-30점)
-        <br />· 글자 수 따라 힌트 자동 공개 (40/25/10초)
+        <br />· 정답을 맞히면 <strong>+1점</strong> · 가장 많이 맞힌 사람 승리
+        <br />· 첫 정답이 나오면 그 라운드 즉시 종료
+        <br />· 시간이 흐르면 힌트 자동 공개 (글자 수 → 첫 글자)
+        <br />· 출제자 패스: 게임당 1회
       </div>
 
       <div style={{ flex: 1 }} />

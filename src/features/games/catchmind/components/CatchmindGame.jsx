@@ -11,6 +11,7 @@ import CatchmindCanvas from "./CatchmindCanvas";
 import {
   ROUND_SECONDS,
   formatHintString,
+  getHintCaption,
 } from "../lib/catchmindRules";
 
 const PALETTE = [
@@ -90,8 +91,9 @@ export default function CatchmindGame({
 
   const iAmCorrect = correctSet.has(sessionId);
 
-  // 정답자용 힌트
+  // 정답자용 힌트 (시간 경과에 따라 단계 공개)
   const hintString = formatHintString(word, secondsLeft);
+  const hintCaption = getHintCaption(secondsLeft);
 
   // 정답자용 채팅 영역 자동 스크롤
   const chatScrollRef = useRef(null);
@@ -100,6 +102,32 @@ export default function CatchmindGame({
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
   }, [messages.length]);
+
+  // 정답 토스트: 누군가 정답을 맞히면 즉시 "OO 손님 정답! +1점" 알림.
+  const [correctToast, setCorrectToast] = useState(null);
+  const seenCorrectRef = useRef(new Set());
+  useEffect(() => {
+    for (const m of messages) {
+      if (
+        m.type === "correct" &&
+        m.round_number === room?.current_round &&
+        m.id != null &&
+        !seenCorrectRef.current.has(m.id)
+      ) {
+        seenCorrectRef.current.add(m.id);
+        setCorrectToast({
+          id: m.id,
+          seat: m.seat_label,
+          gained: m.score_gained || 1,
+        });
+      }
+    }
+  }, [messages, room?.current_round]);
+  useEffect(() => {
+    if (!correctToast) return;
+    const t = setTimeout(() => setCorrectToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [correctToast]);
 
   // 출제자 액션: 캔버스 stroke 완료
   const handleStrokeComplete = useCallback(
@@ -138,12 +166,53 @@ export default function CatchmindGame({
         fontFamily: "'Plus Jakarta Sans', system-ui",
       }}
     >
+      {/* 정답 토스트 */}
+      {correctToast && (
+        <Motion.div
+          initial={{ opacity: 0, y: -16, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -16 }}
+          style={{
+            position: "fixed",
+            top: "max(16px, env(safe-area-inset-top))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 600,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "10px 18px",
+            borderRadius: 999,
+            background: "rgba(10,26,13,0.92)",
+            border: "1px solid rgba(74,222,128,0.55)",
+            color: "#A8F0BB",
+            fontSize: 14,
+            fontWeight: 800,
+            whiteSpace: "nowrap",
+            boxShadow:
+              "0 0 18px rgba(74,222,128,0.45), 0 8px 24px rgba(0,0,0,0.5)",
+          }}
+        >
+          🎯 {correctToast.seat} 손님이 정답을 맞혔어요!
+          <span
+            style={{
+              color: "#fff",
+              fontFamily: "'JetBrains Mono', monospace",
+              textShadow: "0 0 10px rgba(74,222,128,0.8)",
+            }}
+          >
+            +{correctToast.gained}점
+          </span>
+        </Motion.div>
+      )}
+
       {/* 상단: 타이머 + 단어/힌트 */}
       <TopBar
         isDrawer={isDrawer}
         secondsLeft={secondsLeft}
         word={word}
         hintString={hintString}
+        hintCaption={hintCaption}
         round={room?.current_round}
         totalRounds={room?.total_rounds}
         drawerSeat={drawer?.seat_label}
@@ -206,6 +275,7 @@ function TopBar({
   secondsLeft,
   word,
   hintString,
+  hintCaption,
   round,
   totalRounds,
   drawerSeat,
@@ -317,14 +387,29 @@ function TopBar({
               style={{
                 fontSize: 22,
                 fontWeight: 800,
-                color: iAmCorrect ? COLORS.green : COLORS.ink,
+                color: iAmCorrect ? COLORS.green : COLORS.gold,
                 fontFamily: "'JetBrains Mono', monospace",
                 letterSpacing: "0.15em",
                 lineHeight: 1.1,
+                textShadow: iAmCorrect
+                  ? "0 0 12px rgba(74,222,128,0.6)"
+                  : "0 0 12px rgba(255,210,63,0.45)",
               }}
             >
               {iAmCorrect ? word : hintString}
             </div>
+            {!iAmCorrect && (
+              <div
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.08em",
+                  color: "rgba(255,210,63,0.55)",
+                  marginTop: 3,
+                }}
+              >
+                💡 {hintCaption}
+              </div>
+            )}
           </>
         )}
       </div>

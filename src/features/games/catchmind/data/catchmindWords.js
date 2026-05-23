@@ -239,6 +239,56 @@ const ACTION = [
   "놀람",
 ];
 
+// 술자리·혼술 — 그릴 수 있는 구체적인 명사 위주 (이미 food에 있는 맥주/위스키 제외)
+const DRINK = [
+  "소주",
+  "데킬라",
+  "와인",
+  "막걸리",
+  "소맥",
+  "폭탄주",
+  "칵테일",
+  "병따개",
+  "안주",
+  "숙취해소제",
+  "건배",
+  "술병",
+  "와인잔",
+  "레몬",
+  "얼음",
+];
+
+// 트렌드·밈·일상 — 술자리에서 그리면 웃음 터지는 것들
+const TREND = [
+  "스마트폰",
+  "에어팟",
+  "노트북",
+  "충전기",
+  "셀카봉",
+  "키오스크",
+  "배달의민족",
+  "택배",
+  "캐리어",
+  "바퀴벌레",
+  "선인장",
+  "해바라기",
+  "다람쥐",
+  "고슴도치",
+  "햄스터",
+  "펭귄",
+  "알파카",
+  "피카츄",
+  "오징어게임",
+  "뽀로로",
+  "라이언",
+  "어피치",
+  "마라탕",
+  "탕후루",
+  "곱창",
+  "마카롱",
+  "붕어빵",
+];
+
 export const CATCHMIND_CATEGORIES = {
   animal: { label: "동물", words: ANIMAL },
   object: { label: "사물", words: OBJECT },
@@ -246,6 +296,8 @@ export const CATCHMIND_CATEGORIES = {
   movie: { label: "영화·인물", words: MOVIE },
   job: { label: "직업", words: JOB },
   action: { label: "행동·감정", words: ACTION },
+  drink: { label: "술자리", words: DRINK },
+  trend: { label: "트렌드·밈", words: TREND },
 };
 
 export const ALL_CATCHMIND_WORDS = [
@@ -255,6 +307,8 @@ export const ALL_CATCHMIND_WORDS = [
   ...MOVIE,
   ...JOB,
   ...ACTION,
+  ...DRINK,
+  ...TREND,
 ];
 
 /**
