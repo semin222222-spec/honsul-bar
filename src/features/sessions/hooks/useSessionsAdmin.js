@@ -131,6 +131,29 @@ export function useSessionsAdmin(storeId) {
     [storeId],
   );
 
+  // 여러 세션 일괄 해제 (빈 좌석 한꺼번에 비우기 / 자동 비우기)
+  // 호출 측에서 "주문 없는 세션 id"만 넘긴다. (services/sessions/seatCleanup)
+  const closeSessions = useCallback(
+    async (sessionIds) => {
+      if (!hasStoreScope(storeId)) return 0;
+      const ids = (sessionIds || []).filter(Boolean);
+      if (ids.length === 0) return 0;
+
+      try {
+        await sessionRepository.closeSessionsByIds({
+          storeId,
+          sessionIds: ids,
+          closedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error("좌석 일괄 비우기 실패:", error);
+        return 0;
+      }
+      return ids.length;
+    },
+    [storeId],
+  );
+
   // 정산 (세션 닫고 주문 기록 유지)
   const settleSession = useCallback(
     async (sessionId) => {
@@ -321,6 +344,7 @@ export function useSessionsAdmin(storeId) {
     loading: hasActiveScope ? loading : false,
     error,
     closeSession,
+    closeSessions,
     settleSession,
     moveSession,
     mergeSession,

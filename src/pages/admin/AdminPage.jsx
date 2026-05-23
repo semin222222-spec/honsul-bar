@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   Bell,
@@ -49,9 +49,25 @@ import {
 } from "@/shared/lib/sounds";
 import { isPendingOrderStatus } from "@/services/orders/orderService";
 import {
+  AUTO_EMPTY_IDLE_MS,
+  selectIdleEmptySeatSessionIds,
+} from "@/services/sessions/seatCleanup";
+import {
   installKeepAliveOnFirstGesture,
   startTabKeepAlive,
 } from "@/shared/keepAlive/tabKeepAlive";
+
+// 빈 좌석 자동 비우기 On/Off (사장님 설정, 기기별 저장)
+const AUTO_EMPTY_KEY = "honsul_auto_empty_enabled";
+const AUTO_EMPTY_SWEEP_MS = 60 * 1000; // 1분마다 점검
+
+function readAutoEmptyEnabled() {
+  try {
+    return localStorage.getItem(AUTO_EMPTY_KEY) !== "false"; // 기본값 켜짐
+  } catch {
+    return true;
+  }
+}
 
 const TYPE_MAP = {
   join_chat: {
@@ -693,6 +709,7 @@ export default function AdminPage() {
     todayRevenue,
     loading: sessionsLoading,
     closeSession,
+    closeSessions,
     settleSession,
     moveSession,
     mergeSession,
@@ -739,6 +756,7 @@ export default function AdminPage() {
   const [flashHeader, setFlashHeader] = useState(false);
   const [flashType, setFlashType] = useState(null);
   const [soundOn, setSoundOn] = useState(isSoundEnabled());
+  const [autoEmptyOn, setAutoEmptyOn] = useState(readAutoEmptyEnabled);
   const pendingSOSCount = signals.filter((s) => s.state === "pending").length;
 
   const toggleSound = () => {
@@ -753,12 +771,64 @@ export default function AdminPage() {
     }
   };
 
+  const toggleAutoEmpty = useCallback(() => {
+    setAutoEmptyOn((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(AUTO_EMPTY_KEY, next ? "true" : "false");
+      } catch {
+        // localStorage 불가 환경 — 메모리 상태만 유지
+      }
+      return next;
+    });
+  }, []);
+
+  // 자동 비우기 스윕: 최신 sessions/orders/설정을 ref로 참조해
+  // 인터벌을 매번 재생성하지 않는다.
+  const autoEmptyRef = useRef({
+    enabled: autoEmptyOn,
+    sessions,
+    orders,
+    ordersLoading,
+    sessionsLoading,
+  });
+  useEffect(() => {
+    autoEmptyRef.current = {
+      enabled: autoEmptyOn,
+      sessions,
+      orders,
+      ordersLoading,
+      sessionsLoading,
+    };
+  });
+
   // 어드민 페이지: 첫 사용자 제스처에서 백그라운드 throttle 회피 자동 활성화
   // (POS에서 다른 앱에 가려져도 fetch/timer가 멈추지 않게)
   useEffect(() => {
     const cleanup = installKeepAliveOnFirstGesture();
     return cleanup;
   }, []);
+
+  // 빈 좌석 자동 비우기 — 1분마다 "주문 없이 입장 후 30분 지난 좌석"을 닫는다.
+  // 데이터 로딩 중에는 건너뛴다 (주문이 덜 불러와진 상태에서 오비우기 방지).
+  useEffect(() => {
+    const sweep = () => {
+      const state = autoEmptyRef.current;
+      if (!state.enabled || state.ordersLoading || state.sessionsLoading) {
+        return;
+      }
+      const ids = selectIdleEmptySeatSessionIds(state.sessions, state.orders, {
+        now: Date.now(),
+        idleMs: AUTO_EMPTY_IDLE_MS,
+      });
+      if (ids.length > 0) {
+        console.log(`[자동 비우기] 빈 좌석 ${ids.length}곳 정리`);
+        closeSessions(ids);
+      }
+    };
+    const interval = setInterval(sweep, AUTO_EMPTY_SWEEP_MS);
+    return () => clearInterval(interval);
+  }, [closeSessions]);
 
   useEffect(() => {
     const prevSOSCount = prevSOSCountRef.current;
@@ -1542,6 +1612,9 @@ export default function AdminPage() {
                   sessions={sessions}
                   orders={orders}
                   onClose={closeSession}
+                  onBulkEmpty={closeSessions}
+                  autoEmptyOn={autoEmptyOn}
+                  onToggleAutoEmpty={toggleAutoEmpty}
                   onSettle={settleSession}
                   onMove={moveSession}
                   onMerge={mergeSession}

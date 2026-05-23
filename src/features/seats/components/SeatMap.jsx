@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -12,10 +12,12 @@ import {
   RotateCcw,
   AlertTriangle,
   Loader2,
+  Clock,
 } from "lucide-react";
 import { useSeatRows } from "@/features/seats/hooks/useSeatRows";
 import { useStoreId } from "@/shared/store/StoreContext";
 import { orderRepository } from "@/repositories/orders/orderRepository";
+import { selectEmptySeatSessionIds } from "@/services/sessions/seatCleanup";
 import ManualOrderModal from "@/features/orders/components/ManualOrderModal";
 import FloorPlan, {
   saveLayoutToDB,
@@ -1026,11 +1028,143 @@ function MergeConfirmModal({
   );
 }
 
+// ───── 빈 좌석 한꺼번에 비우기 확인 모달 ─────
+function BulkEmptyConfirmModal({ emptySessions, onConfirm, onCancel }) {
+  const count = emptySessions.length;
+  const seatLabels = emptySessions.map((s) => s.seat_label).join(", ");
+
+  return (
+    <Motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 300,
+        background: "rgba(0,0,0,0.8)",
+        backdropFilter: "blur(10px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <Motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        style={{
+          width: "100%",
+          maxWidth: 340,
+          background: "rgba(20,18,14,0.97)",
+          border: "1px solid rgba(226,150,75,0.4)",
+          borderRadius: 18,
+          padding: 24,
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 40, marginBottom: 14 }}>🧹</div>
+        <div
+          style={{
+            fontSize: 16,
+            color: "#F5E6C8",
+            fontFamily: "'Noto Serif KR', serif",
+            marginBottom: 8,
+          }}
+        >
+          빈 좌석 비우기
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            color: "rgba(255,255,255,0.5)",
+            lineHeight: 1.6,
+            marginBottom: 14,
+          }}
+        >
+          주문이 없는 좌석{" "}
+          <strong style={{ color: "rgba(255,200,130,0.95)" }}>{count}곳</strong>
+          을 한꺼번에 비웁니다.
+          <br />
+          주문이 들어간 좌석은 그대로 둡니다.
+        </div>
+
+        {seatLabels && (
+          <div
+            style={{
+              padding: "10px 12px",
+              background: "rgba(226,150,75,0.08)",
+              border: "1px solid rgba(226,150,75,0.2)",
+              borderRadius: 9,
+              marginBottom: 18,
+              fontSize: 11,
+              color: "rgba(255,210,160,0.9)",
+              lineHeight: 1.6,
+              maxHeight: 110,
+              overflowY: "auto",
+              wordBreak: "keep-all",
+            }}
+          >
+            {seatLabels}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onCancel}
+            style={{
+              flex: 1,
+              padding: 12,
+              borderRadius: 10,
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "rgba(255,255,255,0.6)",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            취소
+          </button>
+          <Motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={onConfirm}
+            style={{
+              flex: 1.3,
+              padding: 12,
+              borderRadius: 10,
+              background:
+                "linear-gradient(135deg, rgba(226,150,75,0.85), rgba(180,100,40,0.7))",
+              border: "none",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {count}곳 비우기
+          </Motion.button>
+        </div>
+      </Motion.div>
+    </Motion.div>
+  );
+}
+
 // ───── 메인 SeatMap ─────
 export default function SeatMap({
   sessions,
   orders,
   onClose,
+  onBulkEmpty,
+  autoEmptyOn = true,
+  onToggleAutoEmpty,
   onSettle,
   onMove,
   onMerge,
@@ -1045,7 +1179,14 @@ export default function SeatMap({
   const [pendingMove, setPendingMove] = useState(null);
   const [pendingMerge, setPendingMerge] = useState(null);
   const [manualOrderSession, setManualOrderSession] = useState(null);
+  const [confirmBulkEmpty, setConfirmBulkEmpty] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // 주문 없는 빈 좌석들 (수동 "한꺼번에 비우기" 대상)
+  const emptySessions = useMemo(() => {
+    const ids = new Set(selectEmptySeatSessionIds(sessions, orders));
+    return (sessions || []).filter((s) => ids.has(s.id));
+  }, [sessions, orders]);
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingLayouts, setEditingLayouts] = useState({});
@@ -1180,6 +1321,20 @@ export default function SeatMap({
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleConfirmBulkEmpty = async () => {
+    const ids = emptySessions.map((s) => s.id);
+    setConfirmBulkEmpty(false);
+    if (ids.length === 0 || !onBulkEmpty) return;
+
+    const count = await onBulkEmpty(ids);
+    if (count > 0) {
+      setToast(`빈 좌석 ${count}곳을 비웠어요`);
+    } else {
+      setToast("비우기에 실패했어요. 다시 시도해주세요.");
+    }
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const handleStartEdit = () => {
     setMovingSession(null);
     setMergingSession(null);
@@ -1272,6 +1427,103 @@ export default function SeatMap({
           <Legend color="rgba(106,176,106,0.5)" label="이용중" />
           <Legend color="rgba(226,150,75,0.6)" label="비활성" />
           <Legend color="rgba(226,75,74,0.7)" label="정산대기" />
+        </div>
+      )}
+
+      {/* 빈 좌석 정리: 한꺼번에 비우기 + 30분 자동 비우기 토글 */}
+      {!isEditMode && !movingSession && !mergingSession && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+          <button
+            onClick={() => setConfirmBulkEmpty(true)}
+            disabled={emptySessions.length === 0}
+            style={{
+              flex: 1,
+              padding: "10px 8px",
+              borderRadius: 10,
+              background:
+                emptySessions.length === 0
+                  ? "rgba(255,255,255,0.02)"
+                  : "rgba(226,150,75,0.1)",
+              border:
+                "1px solid " +
+                (emptySessions.length === 0
+                  ? "rgba(255,255,255,0.06)"
+                  : "rgba(226,150,75,0.35)"),
+              color:
+                emptySessions.length === 0
+                  ? "rgba(255,255,255,0.25)"
+                  : "rgba(255,200,130,0.95)",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: emptySessions.length === 0 ? "default" : "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
+            }}
+          >
+            <Trash2 size={12} />
+            빈 좌석 비우기
+            {emptySessions.length > 0 && (
+              <span
+                style={{
+                  padding: "1px 6px",
+                  borderRadius: 6,
+                  background: "rgba(226,150,75,0.25)",
+                  color: "#F5E6C8",
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              >
+                {emptySessions.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => onToggleAutoEmpty?.()}
+            title="주문 없이 입장 후 30분 지난 좌석을 자동으로 비웁니다"
+            style={{
+              flex: 1,
+              padding: "10px 8px",
+              borderRadius: 10,
+              background: autoEmptyOn
+                ? "rgba(106,176,106,0.12)"
+                : "rgba(255,255,255,0.03)",
+              border:
+                "1px solid " +
+                (autoEmptyOn
+                  ? "rgba(106,176,106,0.35)"
+                  : "rgba(255,255,255,0.08)"),
+              color: autoEmptyOn ? "#6AB06A" : "rgba(255,255,255,0.4)",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
+            }}
+          >
+            <Clock size={12} />
+            30분 자동비우기
+            <span
+              style={{
+                padding: "1px 6px",
+                borderRadius: 6,
+                background: autoEmptyOn
+                  ? "rgba(106,176,106,0.25)"
+                  : "rgba(255,255,255,0.06)",
+                color: autoEmptyOn ? "#fff" : "rgba(255,255,255,0.5)",
+                fontSize: 10,
+                fontWeight: 700,
+              }}
+            >
+              {autoEmptyOn ? "켜짐" : "꺼짐"}
+            </span>
+          </button>
         </div>
       )}
 
@@ -1645,6 +1897,16 @@ export default function SeatMap({
             storeId={storeId}
             onClose={() => setManualOrderSession(null)}
             onSuccess={handleManualOrderSuccess}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {confirmBulkEmpty && (
+          <BulkEmptyConfirmModal
+            emptySessions={emptySessions}
+            onConfirm={handleConfirmBulkEmpty}
+            onCancel={() => setConfirmBulkEmpty(false)}
           />
         )}
       </AnimatePresence>
