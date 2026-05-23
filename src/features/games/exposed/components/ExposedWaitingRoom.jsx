@@ -2,12 +2,11 @@ import { useState } from "react";
 import { motion as Motion } from "framer-motion";
 import { Play, LogOut, Crown } from "lucide-react";
 import { C, FONTS, playerColor } from "./exposedTheme";
-import { MAX_PLAYERS, MIN_PLAYERS, START_LIVES } from "../lib/exposedRules";
-import { SPICE_META } from "../data/exposedQuestions";
+import { MAX_PLAYERS, MIN_PLAYERS } from "../lib/exposedRules";
 
 /**
- * ExposedWaitingRoom — 대기실 (시안 화면 1)
- *  방코드 대신 매장 로비 방식. 매운맛 2단계(방장만). 자리 번호 아바타.
+ * ExposedWaitingRoom — 대기실
+ *  방코드 대신 매장 로비 방식. 자리 번호 아바타. (지목 방식 — 매운맛/라이프 없음)
  */
 export default function ExposedWaitingRoom({
   room,
@@ -15,12 +14,10 @@ export default function ExposedWaitingRoom({
   sessionId,
   onLeave,
   onStart,
-  onSetSpice,
 }) {
   const [starting, setStarting] = useState(false);
   const players = room?.players || [];
   const canStart = isHost && players.length >= MIN_PLAYERS;
-  const spice = room?.spice_level || "medium";
 
   const handleStart = async () => {
     if (!canStart || starting) return;
@@ -30,7 +27,6 @@ export default function ExposedWaitingRoom({
   };
 
   const slots = Array.from({ length: MAX_PLAYERS });
-  const spiceColor = spice === "mild" ? C.mild : C.medium;
 
   return (
     <div
@@ -82,10 +78,10 @@ export default function ExposedWaitingRoom({
           </span>
         </div>
         <div style={{ fontSize: 11, color: C.sub }}>
-          🎭 다수결이 진실, 소수가 거짓말
+          🎯 질문을 보고 한 명을 지목하세요
         </div>
         <div style={{ fontSize: 11, color: C.pinkSoft, fontWeight: 700 }}>
-          진실 말하면 안전, 거짓말하면 -1
+          최다 득표자가 한 잔!
         </div>
       </div>
 
@@ -122,78 +118,6 @@ export default function ExposedWaitingRoom({
           }}
         >
           {room.host_seat_label} 자리
-        </div>
-      </div>
-
-      {/* 매운맛 선택 (2단계만, 방장만) */}
-      <div
-        style={{
-          background: C.bgCard,
-          border: "1px solid rgba(255,42,122,0.2)",
-          borderRadius: 14,
-          padding: 12,
-          marginBottom: 10,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: 10,
-            color: C.pinkSoft,
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            marginBottom: 8,
-          }}
-        >
-          <span>🌶️ 매운맛 선택</span>
-          <span style={{ color: C.gold }}>👑 방장만</span>
-        </div>
-        <div
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}
-        >
-          {["mild", "medium"].map((key) => {
-            const meta = SPICE_META[key];
-            const selected = spice === key;
-            const col = key === "mild" ? C.mild : C.medium;
-            return (
-              <Motion.button
-                key={key}
-                whileTap={{ scale: isHost ? 0.97 : 1 }}
-                onClick={() => isHost && onSetSpice?.(key)}
-                disabled={!isHost}
-                style={{
-                  background: selected
-                    ? `linear-gradient(135deg, ${col}26, ${col}0d)`
-                    : C.bgInput,
-                  border: `1.5px solid ${selected ? col : C.border}`,
-                  borderRadius: 10,
-                  padding: "12px 6px",
-                  textAlign: "center",
-                  cursor: isHost ? "pointer" : "default",
-                  fontFamily: "inherit",
-                  WebkitTapHighlightColor: "transparent",
-                }}
-              >
-                <span
-                  style={{ fontSize: 22, display: "block", marginBottom: 4 }}
-                >
-                  {meta.emoji}
-                </span>
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    display: "block",
-                    color: selected ? col : C.ink,
-                  }}
-                >
-                  {meta.name}
-                </span>
-                <span style={{ fontSize: 9, color: C.muted }}>{meta.desc}</span>
-              </Motion.button>
-            );
-          })}
         </div>
       </div>
 
@@ -332,14 +256,14 @@ export default function ExposedWaitingRoom({
           border: "1px solid rgba(255,42,122,0.15)",
         }}
       >
-        ✋ 각자 손가락 {START_LIVES}개 · 거짓말 들키면 -1
+        🤫 누가 누구를 찍었는지는 비밀 · 득표수만 공개
       </div>
 
       <div
         style={{
           textAlign: "center",
           fontSize: 11,
-          color: spiceColor,
+          color: C.pink,
           marginBottom: 6,
         }}
       >
