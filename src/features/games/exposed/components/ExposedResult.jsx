@@ -113,7 +113,7 @@ export default function ExposedResult({
           }}
         >
           <button onClick={onLeave} style={{ ...secondaryBtn, flex: 1 }}>
-            로비로 나가기
+            나가기
           </button>
           {isHost && (
             <button

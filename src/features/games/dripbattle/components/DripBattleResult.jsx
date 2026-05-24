@@ -156,7 +156,7 @@ export default function DripBattleResult({
             minHeight: 52,
           }}
         >
-          로비로 나가기{dismissSec != null ? ` (${dismissSec})` : ""}
+          나가기{dismissSec != null ? ` (${dismissSec})` : ""}
         </button>
       </div>
     );

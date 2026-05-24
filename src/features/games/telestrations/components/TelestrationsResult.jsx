@@ -275,7 +275,7 @@ export default function TelestrationsResult({
             gap: 6,
           }}
         >
-          <LogOut size={13} /> 로비로 ({dismissSeconds}초)
+          <LogOut size={13} /> 나가기 ({dismissSeconds}초)
         </Motion.button>
         {isHost && (
           <Motion.button

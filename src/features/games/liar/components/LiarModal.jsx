@@ -25,11 +25,13 @@ export default function LiarModal({
 }) {
   const room = useLiarRoom({ sessionId, seatLabel, storeId });
 
-  // 결과 화면 자동 만료 → leaveRoom
+  // 결과 자동 만료 → 게임 모달 전체 닫기 (캐치마인드와 동일). DB 정리는 백그라운드.
   const handleAutoDismiss = useCallback(() => {
-    room.setRoomDirect(null);
-    room.leaveRoom();
-  }, [room]);
+    onClose();
+    room.leaveRoom().catch((err) => {
+      console.error("[Liar] 자동 종료 leaveRoom 에러:", err);
+    });
+  }, [room, onClose]);
 
   const game = useLiarGame({
     room: room.myRoom,
@@ -78,11 +80,13 @@ export default function LiarModal({
     [room],
   );
 
-  // 즉시 로비로 (race 방지)
-  const handleLeaveToLobby = useCallback(async () => {
-    room.setRoomDirect(null);
-    await room.leaveRoom();
-  }, [room]);
+  // 나가기 = 게임 모달 전체 닫기 (캐치마인드와 동일). DB 정리는 백그라운드.
+  const handleLeaveToLobby = useCallback(() => {
+    onClose();
+    room.leaveRoom().catch((err) => {
+      console.error("[Liar] 백그라운드 leaveRoom 에러:", err);
+    });
+  }, [room, onClose]);
 
   const handleStart = useCallback(
     async (selectedCategory) => {

@@ -24,10 +24,13 @@ export default function ExposedModal({
 }) {
   const room = useExposedRoom({ sessionId, seatLabel, storeId });
 
+  // 결과 자동 만료 → 게임 모달 전체 닫기 (캐치마인드와 동일). DB 정리는 백그라운드.
   const handleAutoDismiss = useCallback(() => {
-    room.setRoomDirect(null);
-    room.leaveRoom();
-  }, [room]);
+    onClose();
+    room.leaveRoom().catch((err) => {
+      console.error("[Exposed] 자동 종료 leaveRoom 에러:", err);
+    });
+  }, [room, onClose]);
 
   const game = useExposedGame({
     room: room.myRoom,
@@ -72,10 +75,13 @@ export default function ExposedModal({
     [room],
   );
 
-  const handleLeaveToLobby = useCallback(async () => {
-    room.setRoomDirect(null);
-    await room.leaveRoom();
-  }, [room]);
+  // 나가기 = 게임 모달 전체 닫기 (캐치마인드와 동일). DB 정리는 백그라운드.
+  const handleLeaveToLobby = useCallback(() => {
+    onClose();
+    room.leaveRoom().catch((err) => {
+      console.error("[Exposed] 백그라운드 leaveRoom 에러:", err);
+    });
+  }, [room, onClose]);
 
   const handleStart = useCallback(async () => {
     const res = await room.startGame();

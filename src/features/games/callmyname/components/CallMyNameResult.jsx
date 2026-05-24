@@ -375,7 +375,7 @@ export default function CallMyNameResult({
             marginTop: 16,
           }}
         >
-          로비로 나가기{dismissSec != null ? ` (${dismissSec})` : ""}
+          나가기{dismissSec != null ? ` (${dismissSec})` : ""}
         </button>
       </div>
     );

@@ -181,7 +181,7 @@ export default function LiarResult({ room, onLeave, dismissLeftMs }) {
           zIndex: 1,
         }}
       >
-        {seconds}초 후 자동으로 로비로 이동
+        {seconds}초 후 자동으로 종료
       </div>
 
       {/* 나가기 */}

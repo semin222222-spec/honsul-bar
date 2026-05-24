@@ -43,9 +43,13 @@ export default function TelestrationsModal({
     roomRef.current?.setRoomDirect(next);
   }, []);
 
-  const onLeaveAfterFinish = useCallback(async () => {
-    await roomRef.current?.leaveRoom();
-  }, []);
+  // 결과 자동 만료 → 게임 모달 전체 닫기 (캐치마인드와 동일). DB 정리는 백그라운드.
+  const onLeaveAfterFinish = useCallback(() => {
+    onClose();
+    roomRef.current?.leaveRoom().catch((err) => {
+      console.error("[Telestrations] 자동 종료 leaveRoom 에러:", err);
+    });
+  }, [onClose]);
 
   const game = useTelestrationsGame({
     room: room.myRoom,
@@ -77,8 +81,12 @@ export default function TelestrationsModal({
     if (!result.ok) flashToast(result.error || "시작 실패");
   };
 
-  const handleLeaveRoom = async () => {
-    await room.leaveRoom();
+  // 나가기 = 게임 모달 전체 닫기 (캐치마인드와 동일). DB 정리는 백그라운드.
+  const handleLeaveRoom = () => {
+    onClose();
+    room.leaveRoom().catch((err) => {
+      console.error("[Telestrations] 백그라운드 leaveRoom 에러:", err);
+    });
   };
 
   const handleSubmitEntry = async (content) => {
