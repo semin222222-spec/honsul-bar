@@ -323,9 +323,20 @@ export function useTelestrationsRoom({ sessionId, seatLabel, storeId }) {
     };
     tick();
     const id = setInterval(tick, HEARTBEAT_MS);
+
+    // 모바일에서 앱 전환/화면 잠금 동안 setInterval 이 멈췄다가 다시 돌아오면
+    // 즉시 하트비트를 보내 last_seen_at 을 갱신한다. 그래야 잠깐 폰을 본
+    // 손님이 좀비로 오인돼 방에서 쫓겨나(→ 4명 미만 → 강제 종료) 게임이
+    // 갑자기 끝나는 일을 막을 수 있다.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
     return () => {
       cancelled = true;
       clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [roomIdForHeartbeat, sessionId]);
 
@@ -371,7 +382,14 @@ export function useTelestrationsRoom({ sessionId, seatLabel, storeId }) {
   useEffect(() => {
     if (!roomIdForHeartbeat || !sessionId) return;
 
-    const fire = () => {
+    // ⚠️ 진짜로 페이지가 종료될 때만 leave 한다.
+    // 모바일에서 앱 전환/탭 전환은 pagehide(persisted=true, bfcache)로 들어오는데
+    // 이때는 곧 다시 살아나므로 leave 하면 안 된다. leave 하면 잠깐 폰을 본
+    // 손님이 방에서 빠져 4명 미만 → 게임이 강제 종료되는 버그가 난다.
+    // 백그라운드로만 들어간 경우(다시 돌아옴)는 하트비트 멈춤 + 90초 좀비 룰이
+    // 안전망 역할을 한다.
+    const fire = (e) => {
+      if (e && e.type === "pagehide" && e.persisted) return; // bfcache → 곧 복귀
       telestrationsRepository.sendLeaveBeacon({
         roomId: roomIdForHeartbeat,
         sessionId,
