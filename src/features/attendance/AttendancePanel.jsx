@@ -22,6 +22,10 @@ export default function AttendancePanel({ storeId, onExit }) {
 
   const goAdmin = () => setScreen(adminUnlocked ? "list" : "auth");
 
+  // 이름 수정 등이 즉시 반영되도록 목록에서 최신 staff 객체를 다시 찾는다.
+  const liveStaff =
+    attendance.staff.find((s) => s.id === selectedStaff?.id) || selectedStaff;
+
   if (!storeId) {
     return (
       <div style={{ padding: 40, textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
@@ -85,12 +89,13 @@ export default function AttendancePanel({ storeId, onExit }) {
           />
         )}
 
-        {screen === "detail" && selectedStaff && (
+        {screen === "detail" && liveStaff && (
           <AttendanceStaffDetail
             storeId={storeId}
-            staff={selectedStaff}
+            staff={liveStaff}
             openByStaff={attendance.openByStaff}
             busy={attendance.busy}
+            onRenameStaff={attendance.renameStaff}
             onRemoveStaff={attendance.removeStaff}
             onBack={() => setScreen("list")}
             onEdit={(target) => {
@@ -100,9 +105,9 @@ export default function AttendancePanel({ storeId, onExit }) {
           />
         )}
 
-        {screen === "edit" && selectedStaff && editTarget && (
+        {screen === "edit" && liveStaff && editTarget && (
           <AttendanceEdit
-            staff={selectedStaff}
+            staff={liveStaff}
             workDate={editTarget.workDate}
             record={editTarget.record}
             busy={attendance.busy}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion as Motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Trash2, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2, Loader2, Pencil } from "lucide-react";
 import { T } from "./attendanceTheme";
 import ScreenHeader from "./ScreenHeader";
 import MonthlySummary from "./MonthlySummary";
@@ -15,6 +15,7 @@ export default function AttendanceStaffDetail({
   staff,
   openByStaff,
   busy,
+  onRenameStaff,
   onRemoveStaff,
   onBack,
   onEdit,
@@ -23,6 +24,19 @@ export default function AttendanceStaffDetail({
   const [{ year, month }, setYM] = useState({ year: cur.year, month: cur.month });
   const [tab, setTab] = useState("daily");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+
+  const startRename = () => {
+    setNameInput(staff.name);
+    setConfirmDelete(false);
+    setRenaming(true);
+  };
+  const submitRename = async () => {
+    if (!nameInput.trim()) return;
+    const ok = await onRenameStaff(staff.id, nameInput);
+    if (ok) setRenaming(false);
+  };
 
   // 진행 중 경과 표시용 현재 시각 (30초 틱)
   const [now, setNow] = useState(() => Date.now());
@@ -93,7 +107,29 @@ export default function AttendanceStaffDetail({
           </div>
         </div>
         <button
-          onClick={() => setConfirmDelete(true)}
+          onClick={startRename}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 9,
+            background: "rgba(212,165,55,0.1)",
+            border: "1px solid rgba(212,165,55,0.3)",
+            color: T.gold,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+          aria-label="이름 수정"
+        >
+          <Pencil size={14} />
+        </button>
+        <button
+          onClick={() => {
+            setConfirmDelete(true);
+            setRenaming(false);
+          }}
           style={{
             width: 32,
             height: 32,
@@ -112,6 +148,68 @@ export default function AttendanceStaffDetail({
           <Trash2 size={15} />
         </button>
       </div>
+
+      {/* 이름 수정 인라인 */}
+      {renaming && (
+        <Motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            padding: 12,
+            marginBottom: 12,
+            background: "rgba(212,165,55,0.06)",
+            border: "1px solid rgba(212,165,55,0.3)",
+            borderRadius: 12,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              color: T.goldSoft,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+              marginBottom: 8,
+            }}
+          >
+            ✏️ 이름 수정
+          </div>
+          <input
+            autoFocus
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submitRename()}
+            placeholder="이름"
+            style={{
+              width: "100%",
+              background: T.input,
+              border: `1px solid ${T.borderBright}`,
+              color: T.textPrimary,
+              padding: 10,
+              borderRadius: 10,
+              fontSize: 14,
+              outline: "none",
+              fontFamily: "inherit",
+            }}
+          />
+          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+            <button onClick={() => setRenaming(false)} style={confirmBtn(false)}>
+              취소
+            </button>
+            <button
+              onClick={submitRename}
+              disabled={busy || !nameInput.trim()}
+              style={{
+                ...confirmBtn(true),
+                background: `linear-gradient(135deg, ${T.goldSoft}, ${T.goldDeep})`,
+                color: "#1a1206",
+                opacity: busy || !nameInput.trim() ? 0.6 : 1,
+              }}
+            >
+              ✓ 저장
+            </button>
+          </div>
+        </Motion.div>
+      )}
 
       {/* 삭제(비활성) 확인 */}
       {confirmDelete && (

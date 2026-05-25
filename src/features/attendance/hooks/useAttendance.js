@@ -124,6 +124,28 @@ export function useAttendance(storeId) {
     [storeId, fetchAll],
   );
 
+  const renameStaff = useCallback(
+    async (staffId, name) => {
+      if (!hasStoreScope(storeId) || !name?.trim()) return false;
+      setBusy(true);
+      try {
+        await attendanceRepository.updateStaff({
+          storeId,
+          staffId,
+          name: name.trim(),
+        });
+        await fetchAll();
+        return true;
+      } catch (error) {
+        console.error("[Attendance] renameStaff error:", error);
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [storeId, fetchAll],
+  );
+
   const removeStaff = useCallback(
     async (staffId) => {
       if (!hasStoreScope(storeId)) return false;
@@ -224,6 +246,7 @@ export function useAttendance(storeId) {
     loading,
     busy,
     addStaff,
+    renameStaff,
     removeStaff,
     punchIn,
     punchOut,

@@ -33,6 +33,17 @@ export async function addStaff({ storeId, name, hiredAt }) {
   return data;
 }
 
+// 이름 등 수정
+export async function updateStaff({ storeId, staffId, name }) {
+  const { error } = await supabase
+    .from("attendance_staff")
+    .update({ name })
+    .eq("id", staffId)
+    .eq("store_id", storeId);
+
+  throwIfError(error);
+}
+
 // soft delete — 데이터 보존, is_active만 false
 export async function deactivateStaff({ storeId, staffId }) {
   const { error } = await supabase
@@ -149,6 +160,7 @@ export function subscribeAttendance({ storeId, onChange, onStatus }) {
 export const attendanceRepository = {
   listStaff,
   addStaff,
+  updateStaff,
   deactivateStaff,
   listRecordsBetween,
   listOpenRecords,
