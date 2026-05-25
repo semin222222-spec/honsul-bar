@@ -40,6 +40,7 @@ import SalesStatsPanel from "@/features/sales/components/SalesStatsPanel";
 import MonthlyHistoryPanel from "@/features/sales/components/MonthlyHistoryPanel";
 import InventoryAdminPanel from "@/features/inventory/components/InventoryAdminPanel";
 import LoungeAdminPanel from "@/features/messages/components/LoungeAdminPanel";
+import AttendancePanel from "@/features/attendance/AttendancePanel";
 import {
   enableSound,
   disableSound,
@@ -1663,6 +1664,63 @@ export default function AdminPage() {
                   <div
                     style={{ display: "flex", flexDirection: "column", gap: 8 }}
                   >
+                    {/* 근태관리 — 관리 메뉴 최상단 */}
+                    <Motion.button
+                      onClick={() => setManagePanel("attendance")}
+                      whileTap={{ scale: 0.98 }}
+                      style={{
+                        padding: 16,
+                        background:
+                          "linear-gradient(135deg, rgba(212,165,55,0.12), rgba(226,150,75,0.04))",
+                        border: "1px solid rgba(212,165,55,0.3)",
+                        borderRadius: 12,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        textAlign: "left",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 11,
+                          background: "rgba(212,165,55,0.15)",
+                          border: "1px solid rgba(212,165,55,0.3)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          color: "#D4A537",
+                        }}
+                      >
+                        <Clock size={20} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            color: "#F5E6C8",
+                            fontWeight: 500,
+                            marginBottom: 3,
+                          }}
+                        >
+                          근태관리
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "rgba(212,165,55,0.85)",
+                          }}
+                        >
+                          알바 출퇴근 · 시간 집계 (새벽 퇴근 자동 처리)
+                        </div>
+                      </div>
+                      <ChevronRight size={16} color="rgba(255,255,255,0.3)" />
+                    </Motion.button>
+
                     <Motion.button
                       onClick={() => setManagePanel("stats")}
                       whileTap={{ scale: 0.98 }}
@@ -1978,6 +2036,13 @@ export default function AdminPage() {
                     예정이에요
                   </div>
                 </div>
+              )}
+
+              {managePanel === "attendance" && (
+                <AttendancePanel
+                  storeId={storeId}
+                  onExit={() => setManagePanel(null)}
+                />
               )}
 
               {managePanel === "stats" && (
